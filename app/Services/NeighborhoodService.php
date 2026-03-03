@@ -410,28 +410,32 @@ class NeighborhoodService
             $response = Http::withoutVerifying()
                 ->timeout(15)
                 ->withHeaders($headers)
-                ->get('https://pt.wikipedia.org/api/rest_v1/page/mobile-sections/' . urlencode($term));
+                ->get('https://pt.wikipedia.org/w/api.php', [
+                    'action' => 'query',
+                    'prop' => 'extracts',
+                    'exlimit' => 1,
+                    'titles' => str_replace('_', ' ', $term),
+                    'explaintext' => 1,
+                    'format' => 'json'
+                ]);
 
             if (!$response->successful()) return null;
 
             $data = $response->json();
-            $sections = array_merge(
-                [$data['lead'] ?? []],
-                array_slice($data['remaining']['sections'] ?? [], 0, 5)
-            );
+            $pages = $data['query']['pages'] ?? [];
+            if (empty($pages)) return null;
 
-            $text = '';
-            foreach ($sections as $section) {
-                // Remove tags HTML, referências e limpeza básica
-                $raw = strip_tags($section['text'] ?? '');
-                $raw = preg_replace('/\[\d+\]/', '', $raw);       // remove [1], [2]
-                $raw = preg_replace('/\s+/', ' ', trim($raw));    // normaliza espaços
-                $text .= $raw . ' ';
+            $page = reset($pages);
+            
+            if (isset($page['missing'])) return null;
 
-                if (strlen($text) > 4000) break;
-            }
+            $raw = $page['extract'] ?? '';
+            
+            // Limpeza básica
+            $raw = preg_replace('/\[\d+\]/', '', $raw);       // remove [1], [2]
+            $raw = preg_replace('/\s+/', ' ', trim($raw));    // normaliza espaços
 
-            $result = trim(substr($text, 0, 4000));
+            $result = trim(mb_substr($raw, 0, 15000));
             Log::info('Wikipedia full content fetched: ' . strlen($result) . ' chars for ' . $term);
 
             return $result ?: null;

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     protected $apiKey;
-    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
     public function __construct()
     {
@@ -59,7 +59,7 @@ Você é um redator especialista em conteúdo imobiliário e jornalismo local.
 
 {$locationContext}
 
-Escreva um texto **original**, **rico** e **envolvente** com **3 a 4 parágrafos completos** sobre este local para potenciais moradores ou investidores.
+Escreva um texto **original**, **rico** e **envolvente** com **4 a 8 parágrafos completos** sobre este local para potenciais moradores ou investidores.
 
 {$supplementInstruction}
 
@@ -92,7 +92,7 @@ PROMPT;
                     ],
                     'generationConfig' => [
                         'temperature'     => 0.75,
-                        'maxOutputTokens' => 1024,
+                        'maxOutputTokens' => 2048,
                     ]
                 ]);
 
