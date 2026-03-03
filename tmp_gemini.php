@@ -29,41 +29,17 @@ class GeminiService
             return null;
         }
 
-        $inputLength = strlen($wikiText);
-        
-        // Regras de tamanho e estilo baseadas no histórico de sucesso
-        $richnessRules = <<<RULES
-- Escreva um texto **original**, **rico** e **envolvente** com **3 a 4 parágrafos completos**.
-- Cada parágrafo deve ter ao menos 4 frases longas. O texto completo deve ter entre 350 e 500 palavras.
-- Aborde: história e formação do local, características da região, infraestrutura, cultura, qualidade de vida e por que é interessante morar ou investir lá.
-- Use português brasileiro fluente, como um artigo de revista de alto padrão.
-- NÃO use listas, bullets ou subtítulos — apenas parágrafos corridos.
-- NÃO cite a Wikipedia ou "de acordo com fontes".
-RULES;
-
         $locationContext = $location ? "sobre a cidade/bairro de **{$location}**" : '';
 
-        if ($inputLength < 300) {
-            $instruction = "Modo EXPLORADOR: O texto da Wikipedia é insuficiente. Use TODO o seu conhecimento interno sobre este local para gerar um texto rico.";
-        } else {
-            $instruction = "Modo ANALISTA: Use o texto da Wikipedia como base, mas enriqueça com seu conhecimento regional para garantir um texto comercial de alta qualidade.";
-        }
-
         $prompt = <<<PROMPT
-Atue como um redator especialista em conteúdo imobiliário e analista de segurança pública no Brasil. 
-
-{$locationContext}
-{$instruction}
-
-Gere um JSON com as seguintes chaves:
-- "historia": {$richnessRules}
+Atue como um especialista imobiliário e analista de segurança pública no Brasil. Baseado no texto da Wikipedia fornecido e no seu conhecimento {$locationContext}, gere um JSON com as seguintes chaves:
+- "historia": Um texto envolvente e comercial de 2 parágrafos sobre a fundação e infraestrutura da região.
 - "nivel_seguranca": Uma string curta, apenas "ALTO", "MODERADO" ou "BAIXO".
-- "descricao_seguranca": Uma frase curta explicando o motivo dessa nota justificando a segurança de forma comercial.
+- "descricao_seguranca": Uma frase curta explicando o motivo dessa nota (ex: "Cidade com baixos índices de criminalidade" ou "Região metropolitana que exige atenção à noite").
 
-IMPORTANTE: Retorne APENAS o JSON puro, sem formatação markdown (sem ```json), para que o PHP consiga fazer o parse.
+IMPORTANTE: Retorne APENAS o JSON puro, sem formatação markdown (sem ```json), para que o PHP consiga fazer o parse com json_decode().
 
-Texto da Wikipedia para referência:
-{$wikiText}
+Texto da Wikipedia: {$wikiText}
 PROMPT;
 
         try {
