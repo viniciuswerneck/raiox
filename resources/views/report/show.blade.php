@@ -41,9 +41,10 @@
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover;
-            opacity: 0.25;
-            filter: grayscale(100%) brightness(0.5);
+            opacity: 0.6;
+            filter: brightness(0.65) contrast(1.1);
             z-index: 0;
+            transition: opacity 1s ease;
         }
         
         .hero-content { position: relative; z-index: 1; }
@@ -461,7 +462,17 @@
                             @endif
                         </div>
                         <div class="col-lg-4 d-none d-lg-block text-center">
-                            <i class="fa-solid fa-landmark fa-8x text-light opacity-25"></i>
+                            @if($wiki['image'] ?? null)
+                                <div class="position-relative d-inline-block">
+                                    <img src="{{ $wiki['image'] }}" class="img-fluid rounded-5 shadow-lg border border-white border-4" 
+                                         style="max-height: 280px; width: auto; object-fit: cover;" alt="{{ $report->cidade }}">
+                                    <div class="position-absolute bottom-0 end-0 bg-white p-2 rounded-circle shadow-sm m-3">
+                                        <i class="fa-brands fa-wikipedia-w text-primary"></i>
+                                    </div>
+                                </div>
+                            @else
+                                <i class="fa-solid fa-landmark fa-8x text-light opacity-25"></i>
+                            @endif
                         </div>
                     </div>
                 </div>
