@@ -29,15 +29,32 @@ class GeminiService
         }
 
         $locationContext = $location ? "Local analisado: **{$location}**." : '';
+        $inputLength = strlen($wikiText);
 
-        // Detecta se o conteúdo é curto (cidades pequenas têm Wikipedia limitada)
-        $isShortContent = strlen($wikiText) < 500;
+        // Modo "livre": Wikipedia sem conteúdo suficiente — Gemini usa conhecimento próprio
+        if ($inputLength < 300) {
+            $prompt = <<<PROMPT
+Você é um redator especialista em conteúdo imobiliário e jornalismo local.
 
-        $supplementInstruction = $isShortContent
-            ? "ATENÇÃO: O texto de referência é breve. Isso significa que é uma cidade menor ou bairro com menor cobertura enciclopédica. **Use ativamente seu próprio conhecimento sobre este local** para enriquecer o texto — mencione características regionais, cultura local, proximidade de centros importantes, vocação econômica, paisagens típicas, etc. O texto de referência é apenas um ponto de partida."
-            : "Use o texto de referência como base factual, mas reescreva completamente com suas próprias palavras.";
+{$locationContext}
 
-        $prompt = <<<PROMPT
+Escreva um texto **original**, **rico** e **envolvente** com **4 parágrafos completos** sobre este local para potenciais moradores e investidores. Use todo o seu conhecimento sobre este município, bairro ou região — inclua história, características geográficas, cultura local, vocação econômica, infraestrutura, qualidade de vida, proximidade de centros urbanos relevantes e por que é interessante morar ou investir lá.
+
+**Regras obrigatórias:**
+- Escreva em português brasileiro, fluente e natural, como um artigo de revista de alto padrão.
+- NÃO use listas, bullets ou subtítulos — apenas parágrafos corridos.
+- NÃO comece com "Localizado" ou "Situada" — varie o início.
+- Cada parágrafo deve ter ao menos 4 frases longas. O texto completo deve ter entre 350 e 500 palavras.
+- Seja rico em detalhes concretos: nomes de bairros, distâncias, referências regionais, marcos históricos.
+PROMPT;
+            Log::info("Gemini: modo LIVRE para [{$location}] (Wikipedia muito curta: {$inputLength} chars).");
+        } else {
+            // Modo "referência": Wikipedia tem conteúdo suficiente
+            $supplementInstruction = $inputLength < 800
+                ? "ATENÇÃO: O texto de referência é relativamente breve. Além dos fatos fornecidos, **use seu próprio conhecimento sobre este local** para enriquecer o texto com detalhes regionais, culturais e históricos adicionais."
+                : "Use o texto de referência como base factual, mas reescreva completamente com suas próprias palavras.";
+
+            $prompt = <<<PROMPT
 Você é um redator especialista em conteúdo imobiliário e jornalismo local.
 
 {$locationContext}
@@ -58,8 +75,8 @@ Escreva um texto **original**, **rico** e **envolvente** com **3 a 4 parágrafos
 **Texto de referência:**
 {$wikiText}
 PROMPT;
-
-        Log::info("Gemini: gerando resumo para [{$location}] com " . strlen($wikiText) . " chars de input.");
+            Log::info("Gemini: modo REFERÊNCIA para [{$location}] com {$inputLength} chars de input.");
+        }
 
         try {
             $response = Http::withoutVerifying()
