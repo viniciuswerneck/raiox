@@ -236,7 +236,7 @@
         <!-- Top Metrics Row -->
         <div class="row g-4 mb-5">
             <!-- Walkability -->
-            <div class="col-md-4">
+            <div class="col-lg-3 col-md-6">
                 <div class="card card-premium metric-card {{ $walkBg }}">
                     <div class="d-flex justify-content-between">
                         <div class="metric-icon bg-white text-primary rounded-3 shadow-sm border border-light">
@@ -252,7 +252,7 @@
             </div>
 
             <!-- Climate & Air -->
-            <div class="col-md-4">
+            <div class="col-lg-3 col-md-6">
                 <div class="card card-premium metric-card">
                     <div class="d-flex justify-content-between">
                         <div class="metric-icon bg-amber-50 text-warning" style="background-color: #fff9db;">
@@ -277,7 +277,7 @@
             </div>
 
             <!-- Socioeconomic -->
-            <div class="col-md-4">
+            <div class="col-lg-3 col-md-6">
                 <div class="card card-premium metric-card bg-dark text-white">
                     <div class="d-flex justify-content-between">
                         <div class="metric-icon bg-secondary border border-secondary bg-opacity-25">
@@ -296,6 +296,29 @@
                         <div class="progress bg-secondary bg-opacity-50" style="height: 6px;">
                             <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $report->sanitation_rate }}%"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Safety Level -->
+            <div class="col-lg-3 col-md-6">
+                @php
+                    $safetyColor = 'text-success'; $safetyBg = 'bg-success-subtle'; $safetyIcon = 'fa-shield-halved';
+                    if($report->safety_level == 'MODERADO') { $safetyColor = 'text-warning'; $safetyBg = 'bg-warning-subtle'; }
+                    if($report->safety_level == 'BAIXO') { $safetyColor = 'text-danger'; $safetyBg = 'bg-danger-subtle'; $safetyIcon = 'fa-triangle-exclamation'; }
+                @endphp
+                <div class="card card-premium metric-card {{ $safetyBg }}">
+                    <div class="d-flex justify-content-between">
+                        <div class="metric-icon bg-white {{ $safetyColor }} rounded-3 shadow-sm border border-light">
+                            <i class="fa-solid {{ $safetyIcon }}"></i>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {{ $safetyColor }} fw-black px-2 mt-1 border border-white" style="font-size: 1rem; background: white;">{{ $report->safety_level ?? 'N/A' }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="section-header mb-1">Nível de Segurança</div>
+                        <p class="small fw-medium mb-0 {{ $safetyColor }}" style="line-height: 1.2;">{{ $report->safety_description ?? 'S/ Infor.' }}</p>
                     </div>
                 </div>
             </div>

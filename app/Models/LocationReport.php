@@ -26,6 +26,8 @@ class LocationReport extends Model
         'average_income',
         'sanitation_rate',
         'history_extract',
+        'safety_level',
+        'safety_description',
     ];
 
     protected $casts = [
