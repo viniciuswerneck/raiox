@@ -94,11 +94,84 @@ class NeighborhoodService
         $state = $address['uf'];
         $ibgeCode = $address['ibge'] ?? null;
 
-        // 2. IBGE (Demographics & Regional Structure)
-        $ibgeData = [];
-        if ($ibgeCode) {
-            $ibgeService = new \App\Services\IbgeService();
-            $ibgeData = $ibgeService->getMunicipalityData($ibgeCode);
+        // CITY DATA
+        $cityModel = \App\Models\City::where('ibge_code', $ibgeCode)
+            ->orWhere(function($q) use ($city, $state) {
+                $q->where('name', $city)->where('uf', $state);
+            })->first();
+
+        if (!$cityModel) {
+            $ibgeData = [];
+            if ($ibgeCode) {
+                $ibgeService = new \App\Services\IbgeService();
+                $ibgeData = $ibgeService->getMunicipalityData($ibgeCode);
+            }
+            $socio = $this->fetchSocioEconomic($ibgeCode);
+
+            // Fetch Wikipedia Only for City
+            $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
+            $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? null;
+            $cityHistory = $cityWiki['extract'] ?? null;
+            if ($historyRaw) {
+                $gemini = new \App\Services\GeminiService();
+                $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
+                if ($aiSummary) {
+                    $cityHistory = $aiSummary;
+                }
+            }
+
+            $cityModel = \App\Models\City::create([
+                'ibge_code' => $ibgeCode,
+                'uf' => $state,
+                'name' => $city,
+                'population' => $ibgeData['population'] ?? null,
+                'average_income' => $socio['average_income'] ?? null,
+                'sanitation_rate' => $socio['sanitation_rate'] ?? null,
+                'history_extract' => $cityHistory,
+                'wiki_json' => $cityWiki,
+                'raw_ibge_data' => $ibgeData['municipality_info'] ?? []
+            ]);
+        }
+
+        $ibgeData = [
+            'population' => $cityModel->population,
+            'municipality_info' => $cityModel->raw_ibge_data
+        ];
+
+        // NEIGHBORHOOD DATA
+        $neighborhoodModel = null;
+        $bairro = $address['bairro'] ?? '';
+        $isAmbiguous = $bairro && in_array(strtolower($bairro), self::AMBIGUOUS_NEIGHBORHOOD_TERMS);
+        
+        if (!empty($bairro) && !$isAmbiguous) {
+            $neighborhoodModel = \App\Models\Neighborhood::where('city_id', $cityModel->id)
+                ->where('name', $bairro)->first();
+
+            if (!$neighborhoodModel) {
+                $bairroWiki = $this->fetchWikipediaInfo($bairro, $city, $state, true); 
+                
+                $bairroHistory = null;
+                if ($bairroWiki && $bairroWiki['source'] === 'bairro') {
+                    $bairroHistoryRaw = $bairroWiki['full_text'] ?? $bairroWiki['extract'] ?? null;
+                    $bairroHistory = $bairroWiki['extract'] ?? null;
+                    if ($bairroHistoryRaw) {
+                        $gemini = new \App\Services\GeminiService();
+                        $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
+                        if ($aiSummary) {
+                            $bairroHistory = $aiSummary;
+                        }
+                    }
+                } else {
+                    $bairroWiki = null;
+                }
+
+                $neighborhoodModel = \App\Models\Neighborhood::create([
+                    'city_id' => $cityModel->id,
+                    'name' => $bairro,
+                    'history_extract' => $bairroHistory,
+                    'wiki_json' => $bairroWiki
+                ]);
+            }
         }
 
         // 3. Nominatim (Geocoding)
@@ -110,7 +183,7 @@ class NeighborhoodService
         if (!$geo) {
             $geo = $this->fetchNominatim($city, $city, $state); 
         }
-        
+
         $lat = $geo['lat'] ?? null;
         $lng = $geo['lon'] ?? null;
 
@@ -124,24 +197,13 @@ class NeighborhoodService
         $climate = $this->fetchClimate($lat, $lng);
         $airQuality = $this->fetchAirQuality($lat, $lng);
 
-        // 6. Wikipedia: tenta bairro primeiro, fallback cidade
-        $bairro = $address['bairro'] ?? '';
-        $wiki = $this->fetchWikipediaInfo($bairro, $city, $state);
-        $historyRaw = $wiki['full_text'] ?? $wiki['extract'] ?? null;
-        
-        // 7. Gemini AI Summary (Enhanced History)
-        $history = $wiki['extract'] ?? $historyRaw; // fallback: usa extract se Gemini falhar
-        if ($historyRaw) {
-            $gemini = new \App\Services\GeminiService();
-            $location = $wiki['source'] === 'bairro' ? "{$bairro}, {$city}" : $city;
-            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $location);
-            if ($aiSummary) {
-                $history = $aiSummary;
-            }
-        }
-        
-        // 8. IBGE Socioeconomic (Simulated/Extended)
-        $socio = $this->fetchSocioEconomic($ibgeCode);
+        $wiki = $neighborhoodModel && $neighborhoodModel->wiki_json
+            ? $neighborhoodModel->wiki_json
+            : $cityModel->wiki_json;
+            
+        $history = $neighborhoodModel && $neighborhoodModel->history_extract
+            ? $neighborhoodModel->history_extract
+            : $cityModel->history_extract;
 
         return array_merge($address, $ibgeData, [
             'lat' => $lat,
@@ -151,8 +213,8 @@ class NeighborhoodService
             'wiki_json' => $wiki,
             'air_quality_index' => $airQuality,
             'walkability_score' => $walkScore,
-            'average_income' => $socio['average_income'] ?? null,
-            'sanitation_rate' => $socio['sanitation_rate'] ?? null,
+            'average_income' => $cityModel->average_income,
+            'sanitation_rate' => $cityModel->sanitation_rate,
             'history_extract' => $history ?: ($wiki['extract'] ?? null),
         ]);
     }
@@ -341,7 +403,7 @@ class NeighborhoodService
      *
      * Retorna array com 'extract', 'full_text', 'image', 'desktop_url' e 'source' (bairro|cidade)
      */
-    private function fetchWikipediaInfo(string $bairro, string $city, string $state): ?array
+    private function fetchWikipediaInfo(string $bairro, string $city, string $state, bool $onlyBairro = false): ?array
     {
         $headers = ['User-Agent' => 'RaioXNeighborhood/1.0'];
         $base    = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
@@ -358,8 +420,10 @@ class NeighborhoodService
             }
         }
 
-        $candidates[] = [str_replace(' ', '_', "{$city} ({$state})"), 'cidade'];
-        $candidates[] = [str_replace(' ', '_', $city), 'cidade'];
+        if (!$onlyBairro) {
+            $candidates[] = [str_replace(' ', '_', "{$city} ({$state})"), 'cidade'];
+            $candidates[] = [str_replace(' ', '_', $city), 'cidade'];
+        }
 
         foreach ($candidates as [$term, $source]) {
             try {
