@@ -66,6 +66,8 @@ class NeighborhoodService
             'average_income' => $data['average_income'] ?? null,
             'sanitation_rate' => $data['sanitation_rate'] ?? null,
             'history_extract' => $data['history_extract'] ?? null,
+            'safety_level' => $data['safety_level'] ?? null,
+            'safety_description' => $data['safety_description'] ?? null,
         ];
 
         if ($report) {
@@ -112,11 +114,15 @@ class NeighborhoodService
             $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
             $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? null;
             $cityHistory = $cityWiki['extract'] ?? null;
+            $citySafetyLevel = null;
+            $citySafetyDesc = null;
             if ($historyRaw) {
                 $gemini = new \App\Services\GeminiService();
                 $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
                 if ($aiSummary) {
-                    $cityHistory = $aiSummary;
+                    $cityHistory = $aiSummary['historia'] ?? $cityHistory;
+                    $citySafetyLevel = $aiSummary['nivel_seguranca'] ?? null;
+                    $citySafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
                 }
             }
 
@@ -128,6 +134,8 @@ class NeighborhoodService
                 'average_income' => $socio['average_income'] ?? null,
                 'sanitation_rate' => $socio['sanitation_rate'] ?? null,
                 'history_extract' => $cityHistory,
+                'safety_level' => $citySafetyLevel,
+                'safety_description' => $citySafetyDesc,
                 'wiki_json' => $cityWiki,
                 'raw_ibge_data' => $ibgeData['municipality_info'] ?? []
             ]);
@@ -154,21 +162,30 @@ class NeighborhoodService
                 if ($bairroWiki && $bairroWiki['source'] === 'bairro') {
                     $bairroHistoryRaw = $bairroWiki['full_text'] ?? $bairroWiki['extract'] ?? null;
                     $bairroHistory = $bairroWiki['extract'] ?? null;
+                    $bairroSafetyLevel = null;
+                    $bairroSafetyDesc = null;
                     if ($bairroHistoryRaw) {
                         $gemini = new \App\Services\GeminiService();
                         $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
                         if ($aiSummary) {
-                            $bairroHistory = $aiSummary;
+                            $bairroHistory = $aiSummary['historia'] ?? $bairroHistory;
+                            $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? null;
+                            $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
                         }
                     }
                 } else {
                     $bairroWiki = null;
+                    $bairroHistory = null;
+                    $bairroSafetyLevel = null;
+                    $bairroSafetyDesc = null;
                 }
 
                 $neighborhoodModel = \App\Models\Neighborhood::create([
                     'city_id' => $cityModel->id,
                     'name' => $bairro,
                     'history_extract' => $bairroHistory,
+                    'safety_level' => $bairroSafetyLevel,
+                    'safety_description' => $bairroSafetyDesc,
                     'wiki_json' => $bairroWiki
                 ]);
             }
@@ -200,10 +217,22 @@ class NeighborhoodService
         $wiki = $neighborhoodModel && $neighborhoodModel->wiki_json
             ? $neighborhoodModel->wiki_json
             : $cityModel->wiki_json;
-            
+
+        if (empty($wiki['image']) && $cityModel->wiki_json && !empty($cityModel->wiki_json['image'])) {
+            $wiki['image'] = $cityModel->wiki_json['image'];
+        }
+
         $history = $neighborhoodModel && $neighborhoodModel->history_extract
             ? $neighborhoodModel->history_extract
             : $cityModel->history_extract;
+
+        $safetyLevel = $neighborhoodModel && $neighborhoodModel->safety_level
+            ? $neighborhoodModel->safety_level
+            : $cityModel->safety_level;
+
+        $safetyDesc = $neighborhoodModel && $neighborhoodModel->safety_description
+            ? $neighborhoodModel->safety_description
+            : $cityModel->safety_description;
 
         return array_merge($address, $ibgeData, [
             'lat' => $lat,
@@ -216,6 +245,8 @@ class NeighborhoodService
             'average_income' => $cityModel->average_income,
             'sanitation_rate' => $cityModel->sanitation_rate,
             'history_extract' => $history ?: ($wiki['extract'] ?? null),
+            'safety_level' => $safetyLevel,
+            'safety_description' => $safetyDesc,
         ]);
     }
 
