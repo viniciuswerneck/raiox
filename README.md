@@ -1,59 +1,91 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Raio-X de Vizinhança
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> Relatórios inteligentes de qualquer bairro brasileiro a partir de um CEP.
 
-## About Laravel
+**Stack:** Laravel 11 · PHP 8.x · MySQL · Bootstrap 5 · Leaflet.js · Google Gemini AI
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## O que faz
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Dado um CEP, o sistema:
+1. Localiza o endereço completo (ViaCEP)
+2. Busca dados demográficos do município (IBGE)
+3. Geocodifica as coordenadas (Nominatim/OSM)
+4. Mapeia POIs em raio de 10km (Overpass API)
+5. Coleta clima e qualidade do ar (Open-Meteo)
+6. Busca história do bairro ou cidade (Wikipedia PT)
+7. Gera texto humanizado de 3-4 parágrafos (Google Gemini AI)
+8. Exibe tudo em dashboard interativo com mapa (Leaflet)
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Pré-requisitos
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP 8.2+
+- MySQL 8+
+- Chave de API do [Google AI Studio](https://aistudio.google.com)
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Instalação
 
-### Premium Partners
+```bash
+git clone https://github.com/viniciuswerneck/raiox.git
+cd raiox
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Configure o `.env`:
+```env
+DB_DATABASE=raiox
+DB_USERNAME=root
+DB_PASSWORD=sua_senha
 
-## Contributing
+GEMINI_API_KEY=sua_chave_gemini
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan migrate
+php artisan serve
+```
 
-## Code of Conduct
+Acesse: `http://127.0.0.1:8000`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Documentação Técnica
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Arquivo | Conteúdo |
+|---------|----------|
+| `CODEBASE.md` | Mapa de dependências entre arquivos, schema do banco, regras de cache |
+| `.agent/ARCHITECTURE.md` | Arquitetura completa, fluxo de dados, APIs externas, lógica de negócio, TODOs |
+| `specs.md` | Histórico de sessões de desenvolvimento, decisões de produto |
+| `.agent/workflows/` | Workflows para deploy, debug, preview e outros |
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Cache
+
+Relatórios são cacheados por **90 dias** no banco. Clima/AQI são atualizados a cada hora.
+
+Para forçar regeneração de um CEP:
+```sql
+DELETE FROM location_reports WHERE cep = '01310200';
+```
+
+---
+
+## APIs Externas (todas gratuitas)
+
+| Serviço | Uso |
+|---------|-----|
+| ViaCEP | Resolução do CEP |
+| IBGE Localidades | Dados demográficos |
+| Nominatim (OSM) | Geocodificação |
+| Overpass API | Pontos de interesse |
+| Open-Meteo | Clima e qualidade do ar |
+| Wikipedia PT | Texto histórico |
+| Google Gemini Flash | Geração de texto com IA |

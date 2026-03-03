@@ -124,15 +124,17 @@ class NeighborhoodService
         $climate = $this->fetchClimate($lat, $lng);
         $airQuality = $this->fetchAirQuality($lat, $lng);
 
-        // 6. Wikipedia (General and History Fallback)
-        $wiki = $this->fetchWikipedia($city);
-        $historyRaw = $this->fetchLocalHistory($address['bairro'] ?? '', $city, $state);
+        // 6. Wikipedia: tenta bairro primeiro, fallback cidade
+        $bairro = $address['bairro'] ?? '';
+        $wiki = $this->fetchWikipediaInfo($bairro, $city, $state);
+        $historyRaw = $wiki['full_text'] ?? $wiki['extract'] ?? null;
         
         // 7. Gemini AI Summary (Enhanced History)
-        $history = $historyRaw;
+        $history = $wiki['extract'] ?? $historyRaw; // fallback: usa extract se Gemini falhar
         if ($historyRaw) {
             $gemini = new \App\Services\GeminiService();
-            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw);
+            $location = $wiki['source'] === 'bairro' ? "{$bairro}, {$city}" : $city;
+            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $location);
             if ($aiSummary) {
                 $history = $aiSummary;
             }
@@ -199,58 +201,65 @@ class NeighborhoodService
 
     private function fetchOverpass($lat, $lng)
     {
-        try {
-            $radius = 10000; // Raio de 10km solicitado pelo usuário
-            // Aumentamos o timeout interno do Overpass para 90s e usamos 'qt' (quadtile) para ordenação rápida
-            $query = "[out:json][timeout:90];(
-                nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking\"](around:{$radius},{$lat},{$lng});
-                nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books\"](around:{$radius},{$lat},{$lng});
-                nwr[\"leisure\"~\"park|gym|sports_centre|playground\"](around:{$radius},{$lat},{$lng});
-                nwr[\"highway\"=\"bus_stop\"](around:{$radius},{$lat},{$lng});
-            );out center qt;";
-            
-            $response = Http::withoutVerifying()
-                ->timeout(100)
-                ->asForm()
-                ->post("https://overpass-api.de/api/interpreter", [
-                    'data' => $query
-                ]);
-            
-            if (!$response->successful()) {
-                Log::error("Overpass API Error: " . $response->body());
-                return [];
-            }
+        $radius = 10000;
+        $query = "[out:json][timeout:60];(
+            nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking\"](around:{$radius},{$lat},{$lng});
+            nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books\"](around:{$radius},{$lat},{$lng});
+            nwr[\"leisure\"~\"park|gym|sports_centre|playground\"](around:{$radius},{$lat},{$lng});
+            nwr[\"highway\"=\"bus_stop\"](around:{$radius},{$lat},{$lng});
+        );out center qt;";
 
-            $data = $response->json();
-            $elements = [];
-            
-            if (isset($data['elements'])) {
-                foreach ($data['elements'] as $element) {
+        // Múltiplos endpoints públicos do Overpass para fallback
+        $endpoints = [
+            'https://overpass-api.de/api/interpreter',
+            'https://overpass.kumi.systems/api/interpreter',
+            'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            try {
+                Log::info("Overpass: tentando endpoint {$endpoint}");
+                $response = Http::withoutVerifying()
+                    ->timeout(75)
+                    ->asForm()
+                    ->post($endpoint, ['data' => $query]);
+
+                if (!$response->successful()) {
+                    Log::warning("Overpass [{$endpoint}] retornou erro: " . substr($response->body(), 0, 200));
+                    continue;
+                }
+
+                $data     = $response->json();
+                $elements = [];
+
+                foreach ($data['elements'] ?? [] as $element) {
                     $item = [
                         'type' => $element['type'],
-                        'id' => $element['id'],
+                        'id'   => $element['id'],
                         'tags' => $element['tags'] ?? [],
-                        'lat' => $element['lat'] ?? ($element['center']['lat'] ?? null),
-                        'lon' => $element['lon'] ?? ($element['center']['lon'] ?? null)
+                        'lat'  => $element['lat'] ?? ($element['center']['lat'] ?? null),
+                        'lon'  => $element['lon'] ?? ($element['center']['lon'] ?? null),
                     ];
-                    
                     if ($item['lat'] && $item['lon']) {
                         $elements[] = $item;
                     }
                 }
+
+                if (empty($elements)) {
+                    Log::warning("Overpass [{$endpoint}]: 0 elementos para {$lat},{$lng}. Tentando próximo...");
+                    continue;
+                }
+
+                Log::info("Overpass [{$endpoint}]: " . count($elements) . " elementos para {$lat},{$lng}.");
+                return $elements;
+
+            } catch (\Exception $e) {
+                Log::warning("Overpass [{$endpoint}] exception: " . $e->getMessage());
             }
-            
-            if (empty($elements)) {
-                Log::warning("Overpass query returned 0 elements for Lat:{$lat}, Lng:{$lng}. Radius:{$radius}");
-            } else {
-                Log::info("Overpass Found: " . count($elements) . " elements for Lat: {$lat}, Lng: {$lng}");
-            }
-            
-            return $elements;
-        } catch (\Exception $e) {
-            Log::error("Overpass Exception: " . $e->getMessage());
-            return [];
         }
+
+        Log::error("Overpass: todos os endpoints falharam para lat={$lat}, lng={$lng}.");
+        return [];
     }
 
     private function fetchClimate($lat, $lng)
@@ -282,65 +291,152 @@ class NeighborhoodService
         }
     }
 
-    private function fetchWikipedia($city)
+    /**
+     * Termos que são nomes genéricos e podem resolver artigos Wikipedia não relacionados
+     * a bairros ou cidades (ex: "Centro" -> artigo de geometria).
+     */
+    private const AMBIGUOUS_NEIGHBORHOOD_TERMS = [
+        'centro', 'norte', 'sul', 'leste', 'oeste', 'central',
+        'jardim', 'vila', 'bela vista', 'alto', 'baixo',
+    ];
+
+    /**
+     * Verifica se um artigo Wikipedia é realmente sobre um lugar (bairro/cidade),
+     * e não sobre um conceito genérico.
+     */
+    private function isValidWikipediaPlace(array $data): bool
     {
-        try {
-            $term = str_replace(' ', '_', $city);
-            $response = Http::withoutVerifying()
-                ->timeout(10)
-                ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
-                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term));
-            
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'extract' => $data['extract'] ?? '',
-                    'image' => $data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null,
-                    'desktop_url' => $data['content_urls']['desktop']['page'] ?? null
-                ];
-            }
-            return null;
-        } catch (\Exception $e) {
-            Log::error("Wikipedia Error: " . $e->getMessage());
-            return null;
+        // A API de summary retorna um campo 'type' com valores como:
+        // 'standard' = artigo genérico, 'disambiguation' = desambiguação
+        // Também checar o 'description' que costuma indicar "Município", "bairro", etc.
+        $type        = $data['type'] ?? '';
+        $description = strtolower($data['description'] ?? '');
+        $extract     = $data['extract'] ?? '';
+
+        if ($type === 'disambiguation') return false;
+        if (empty($extract))           return false;
+
+        // Se description indica claramente que é um lugar, aceite
+        $placeKeywords = ['município', 'cidade', 'bairro', 'distrito', 'região', 'localidade', 'capital'];
+        foreach ($placeKeywords as $kw) {
+            if (str_contains($description, $kw)) return true;
         }
+
+        // Se o extract começa falando de geometria, matemática, etc, rejeite
+        $rejectPatterns = ['/^o centro, em geometria/i', '/^em geometria/i', '/^em matemática/i', '/^em física/i'];
+        foreach ($rejectPatterns as $pattern) {
+            if (preg_match($pattern, $extract)) return false;
+        }
+
+        // Por padrão, aceite (extracts sem description clara)
+        return true;
     }
 
-    private function fetchLocalHistory($bairro, $city, $state)
+    /**
+     * Busca Wikipedia com fallback inteligente:
+     * 1. Bairro_(Cidade) — ex: Vila_Madalena_(São_Paulo)
+     * 2. Bairro simples  — ex: Vila_Madalena  (pulo se bairro for genérico e buscou só summary errado)
+     * 3. Cidade_(UF)     — ex: São_Paulo_(SP)
+     * 4. Cidade simples  — ex: São_Paulo
+     *
+     * Retorna array com 'extract', 'full_text', 'image', 'desktop_url' e 'source' (bairro|cidade)
+     */
+    private function fetchWikipediaInfo(string $bairro, string $city, string $state): ?array
+    {
+        $headers = ['User-Agent' => 'RaioXNeighborhood/1.0'];
+        $base    = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
+
+        // Bairros com nomes genéricos só buscamos com "Bairro_(Cidade)" — não o nome sozinho
+        $bairroIsAmbiguous = $bairro && in_array(strtolower($bairro), self::AMBIGUOUS_NEIGHBORHOOD_TERMS);
+
+        $candidates = [];
+
+        if ($bairro) {
+            $candidates[] = [str_replace(' ', '_', "{$bairro} ({$city})"), 'bairro'];
+            if (!$bairroIsAmbiguous) {
+                $candidates[] = [str_replace(' ', '_', $bairro), 'bairro'];
+            }
+        }
+
+        $candidates[] = [str_replace(' ', '_', "{$city} ({$state})"), 'cidade'];
+        $candidates[] = [str_replace(' ', '_', $city), 'cidade'];
+
+        foreach ($candidates as [$term, $source]) {
+            try {
+                $response = Http::withoutVerifying()
+                    ->timeout(10)
+                    ->withHeaders($headers)
+                    ->get($base . urlencode($term));
+
+                if ($response->successful()) {
+                    $data = $response->json();
+
+                    if (!$this->isValidWikipediaPlace($data)) {
+                        Log::info("Wikipedia [{$term}]: artigo rejeitado (não é lugar). Tentando próximo...");
+                        continue;
+                    }
+
+                    Log::info("Wikipedia hit: [{$source}] {$term}");
+
+                    // Busca conteúdo completo para enriquecer o resumo do Gemini
+                    $fullText = $this->fetchWikipediaFullContent($term, $headers);
+
+                    return [
+                        'source'      => $source,
+                        'term'        => $term,
+                        'extract'     => $data['extract'],
+                        'full_text'   => $fullText ?: $data['extract'],
+                        'image'       => $data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null,
+                        'desktop_url' => $data['content_urls']['desktop']['page'] ?? null,
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::warning("Wikipedia timeout/error for [{$term}]: " . $e->getMessage());
+            }
+        }
+
+        Log::warning("Wikipedia: nenhum resultado válido para bairro=[{$bairro}] cidade=[{$city}]");
+        return null;
+    }
+
+    /**
+     * Busca o conteúdo completo de uma página Wikipedia via API mobile-sections.
+     * Extrai e concatena texto das primeiras seções, limpando marcações wiki.
+     * Limita a ~4000 chars para não sobrecarregar o prompt do Gemini.
+     */
+    private function fetchWikipediaFullContent(string $term, array $headers): ?string
     {
         try {
-            // Tentativa 1: Bairro_(Cidade)
-            if ($bairro) {
-                $term1 = str_replace(' ', '_', "{$bairro}_({$city})");
-                $response1 = Http::withoutVerifying()
-                    ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
-                    ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term1));
-                if ($response1->successful()) {
-                    return $response1->json()['extract'] ?? null;
-                }
+            $response = Http::withoutVerifying()
+                ->timeout(15)
+                ->withHeaders($headers)
+                ->get('https://pt.wikipedia.org/api/rest_v1/page/mobile-sections/' . urlencode($term));
+
+            if (!$response->successful()) return null;
+
+            $data = $response->json();
+            $sections = array_merge(
+                [$data['lead'] ?? []],
+                array_slice($data['remaining']['sections'] ?? [], 0, 5)
+            );
+
+            $text = '';
+            foreach ($sections as $section) {
+                // Remove tags HTML, referências e limpeza básica
+                $raw = strip_tags($section['text'] ?? '');
+                $raw = preg_replace('/\[\d+\]/', '', $raw);       // remove [1], [2]
+                $raw = preg_replace('/\s+/', ' ', trim($raw));    // normaliza espaços
+                $text .= $raw . ' ';
+
+                if (strlen($text) > 4000) break;
             }
 
-            // Tentativa 2: Cidade_(Estado)
-            $term2 = str_replace(' ', '_', "{$city}_({$state})");
-            $response2 = Http::withoutVerifying()
-                ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
-                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term2));
-            if ($response2->successful()) {
-                return $response2->json()['extract'] ?? null;
-            }
+            $result = trim(substr($text, 0, 4000));
+            Log::info('Wikipedia full content fetched: ' . strlen($result) . ' chars for ' . $term);
 
-            // Tentativa 3: Somente Cidade (Otimizado com encoding)
-            $term3 = str_replace(' ', '_', $city);
-            $response3 = Http::withoutVerifying()
-                ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
-                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term3));
-            if ($response3->successful()) {
-                return $response3->json()['extract'] ?? null;
-            }
-
-            return null;
+            return $result ?: null;
         } catch (\Exception $e) {
-            Log::error("Wikipedia Local History Error: " . $e->getMessage());
+            Log::warning('Wikipedia full content error for [' . $term . ']: ' . $e->getMessage());
             return null;
         }
     }

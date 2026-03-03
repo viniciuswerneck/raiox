@@ -16,23 +16,54 @@ class GeminiService
     }
 
     /**
-     * Generate an AI summary for a neighborhood based on Wikipedia text.
+     * Gera um resumo rico e humanizado sobre o local, a partir do conteúdo da Wikipedia.
+     *
+     * @param string $wikiText  Conteúdo completo extraído da página da Wikipedia
+     * @param string $location  Nome do local para personalizar o texto (ex: "Vila Madalena, São Paulo")
      */
-    public function generateNeighborhoodSummary(string $wikiText): ?string
+    public function generateNeighborhoodSummary(string $wikiText, string $location = ''): ?string
     {
         if (empty($this->apiKey)) {
             Log::error('Gemini API Error: API Key is missing.');
             return null;
         }
 
+        $locationContext = $location ? "Local analisado: **{$location}**." : '';
+
+        // Detecta se o conteúdo é curto (cidades pequenas têm Wikipedia limitada)
+        $isShortContent = strlen($wikiText) < 500;
+
+        $supplementInstruction = $isShortContent
+            ? "ATENÇÃO: O texto de referência é breve. Isso significa que é uma cidade menor ou bairro com menor cobertura enciclopédica. **Use ativamente seu próprio conhecimento sobre este local** para enriquecer o texto — mencione características regionais, cultura local, proximidade de centros importantes, vocação econômica, paisagens típicas, etc. O texto de referência é apenas um ponto de partida."
+            : "Use o texto de referência como base factual, mas reescreva completamente com suas próprias palavras.";
+
+        $prompt = <<<PROMPT
+Você é um redator especialista em conteúdo imobiliário e jornalismo local.
+
+{$locationContext}
+
+Escreva um texto **original**, **rico** e **envolvente** com **3 a 4 parágrafos completos** sobre este local para potenciais moradores ou investidores.
+
+{$supplementInstruction}
+
+**Regras obrigatórias:**
+- Escreva em português brasileiro, fluente e natural, como um artigo de revista de alto padrão.
+- Aborde: história e formação do local, características da região, infraestrutura, qualidade de vida e por que é interessante morar ou investir lá.
+- NÃO mencione a Wikipedia, nem cite "de acordo com", "segundo fontes" ou expressões similares.
+- NÃO use listas, bullets ou subtítulos — apenas parágrafos corridos e bem escritos.
+- NÃO repita termos técnicos legais (leis, decretos, portarias).
+- Cada parágrafo deve ter ao menos 4 frases. O texto completo deve ter entre 300 e 500 palavras.
+- Seja rico em detalhes culturais, geográficos e sociais.
+
+**Texto de referência:**
+{$wikiText}
+PROMPT;
+
+        Log::info("Gemini: gerando resumo para [{$location}] com " . strlen($wikiText) . " chars de input.");
+
         try {
-            // Prompt mais focado em RESUMIR e não apenas repetir
-            $prompt = "REESCREVA o seguinte texto de forma atraente e humana para um site imobiliário. Fale sobre a história, o clima e por que é bom morar nesta região. Use no máximo 2 parágrafos. NÃO repita termos técnicos de leis ou decretos. Texto: " . $wikiText;
-
-            Log::info("Gemini Requesting Summary for: " . substr($wikiText, 0, 50) . "...");
-
             $response = Http::withoutVerifying()
-                ->timeout(30)
+                ->timeout(45)
                 ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                 ->post("{$this->baseUrl}?key={$this->apiKey}", [
                     'contents' => [
@@ -41,15 +72,19 @@ class GeminiService
                                 ['text' => $prompt]
                             ]
                         ]
+                    ],
+                    'generationConfig' => [
+                        'temperature'     => 0.75,
+                        'maxOutputTokens' => 1024,
                     ]
                 ]);
 
             if ($response->successful()) {
-                $data = $response->json();
+                $data   = $response->json();
                 $result = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
                 if ($result) {
-                    Log::info("Gemini Summary Generated successfully.");
-                    return $result;
+                    Log::info("Gemini: resumo gerado com sucesso (" . strlen($result) . " chars).");
+                    return trim($result);
                 }
             }
 

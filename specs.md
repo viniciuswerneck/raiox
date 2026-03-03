@@ -1,63 +1,63 @@
-# Projeto: Raio-X de Vizinhança (Neighborhood X-Ray)
+# specs.md — Raio-X de Vizinhança
 
-## 1. Visão Geral
-O **Raio-X de Vizinhança** é um Micro-SaaS B2C projetado para fornecer relatórios rápidos e detalhados sobre uma região específica do Brasil, utilizando apenas o CEP. O foco é auxiliar pessoas que desejam mudar de residência ou empreendedores que buscam entender o perfil demográfico, socioeconômico e a infraestrutura local.
+> Especificações técnicas e decisões de produto.
+> Atualizado: 2026-03-03
 
-## 2. Tecnologias Utilizadas
-- **Framework:** Laravel 12.x
-- **Linguagem:** PHP 8.4+
-- **Banco de Dados:** MySQL 8.0+
-- **Frontend:** Blade, TailwindCSS 4.0, Leaflet.js (Mapas)
-- **APIs de Terceiros:**
-    - **ViaCEP:** Dados de endereço e código IBGE.
-    - **Nominatim (OpenStreetMap):** Geocodificação (Lat/Lng).
-    - **Overpass API (OpenStreetMap):** Pontos de Interesse (POIs) e Mobilidade.
-    - **Open-Meteo:** Dados meteorológicos e Qualidade do Ar (AQI).
-    - **Wikipedia REST API:** Resumo histórico e imagens da cidade.
-    - **IBGE SIDRA/Serviço Dados:** População e estrutura regional.
+---
 
-## 3. Arquitetura e Padrões de Projeto
-O sistema utiliza o **Service Pattern** para isolar a inteligência de dados.
+## Sessões de Desenvolvimento — Registro de Mudanças
 
-### Componentes Principais:
-- **`NeighborhoodService`**: Orquestrador central que consome múltiplas APIs e gerencia o cache.
-- **`IbgeService`**: Especialista em dados demográficos do IBGE.
-- **`ReportController`**: Controla as rotas de busca e exibição do relatório.
+### Sessão 2026-03-03 (Mais Recente)
 
-## 4. Regras de Negócio e Inteligência
-1. **Cache de 30 Dias**:
-   - As consultas são salvas na tabela `location_reports`. 
-   - Se um CEP for consultado novamente em menos de 30 dias, os dados são lidos do banco local para evitar rate limiting e excesso de chamadas externas.
+#### Funcionalidades Implementadas
 
-2. **Índice de Caminhabilidade (Walk Score Customizado)**:
-   - **Nota A (Excelente)**: > 10 comércios/alimentação E > 5 pontos de mobilidade no raio de 2km.
-   - **Nota B (Caminhável)**: > 5 comércios E > 2 pontos de mobilidade.
-   - **Nota C (Dependente)**: Infraestrutura básica ou insuficiente.
+**1. Análise de Vizinhança com Google Gemini AI**
+- Integração do `GeminiService` com API `gemini-flash-latest`
+- Geração de texto de 3-4 parágrafos humanizados sobre história e qualidade de vida local
+- O Gemini usa seu próprio conhecimento quando o conteúdo da Wikipedia for curto (<500 chars)
+- Temperature: 0.75, MaxOutputTokens: 1024
 
-3. **Qualidade do Ar (AQI)**:
-   - Baseado no índice europeu (EAQI). Classificado visualmente: Verde (Bom), Amarelo (Moderado), Vermelho (Crítico).
+**2. Wikipedia com Fallback Inteligente**
+- 4 tentativas em cascata: `Bairro_(Cidade)` → `Bairro` → `Cidade_(UF)` → `Cidade`
+- Validação de artigos: rejeita artigos não-geográficos (geometria, matemática, etc.)
+- Filtro de termos ambíguos ("Centro", "Norte", etc.) — não buscados sozinhos
+- Busca conteúdo completo via `/page/mobile-sections/` para alimentar o Gemini com mais contexto
 
-4. **Socioeconômico**:
-   - Exibição de Renda Média per capita e Taxa de Saneamento Básico (IBGE).
+**3. Overpass API com 3 Endpoints de Fallback**
+- Problema: servidor principal sobrecarregado com frequência
+- Solução: tenta `overpass-api.de` → `overpass.kumi.systems` → `maps.mail.ru/osm`
+- Raio de busca: 10km
 
-## 5. Estrutura do Banco de Dados
-### Tabela: `location_reports`
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `cep` | String (Unique) | CEP limpo (apenas números) |
-| `lat`, `lng` | Decimal (10,8) | Coordenadas geográficas |
-| `pois_json` | JSON | Lista completa de estabelecimentos e pontos de ônibus |
-| `climate_json` | JSON | Dados de clima atual |
-| `wiki_json` | JSON | Resumo e URL da imagem da Wikipédia |
-| `air_quality_index` | Integer | Índice de qualidade do ar atual |
-| `walkability_score` | String (A, B, C) | Nota de caminhabilidade |
-| `average_income` | Decimal | Renda média da região |
-| `sanitation_rate` | Decimal | % de saneamento básico |
-| `history_extract` | Text | Resumo histórico da localidade |
-| `populacao` | BigInt | População total do município |
-| `raw_ibge_data` | JSON | Metadados regionais do IBGE |
+**4. Loader de IA Animado (welcome.blade.php)**
+- Núcleo central com anéis orbitando em direções opostas
+- 7 mensagens rotativas com fade (IBGE, Wikipedia, Satélite, OSM, Gemini AI...)
+- Badges iluminados que acendem conforme a etapa ativa
+- Barra de progresso indeterminada
 
-## 6. Endpoints do Sistema
-- `GET /`: Home.
-- `POST /search`: Recebe o CEP e redireciona para `/cep/{cep}`.
-- `GET /cep/{cep}`: Relatório completo (SEO-friendly).
+**5. Dashboard de Relatório (report/show.blade.php)**
+- Badge dinâmico na seção História: indica se veio do Bairro ou Município
+- Link "Ler mais na Wikipedia" com ícone
+- Todas as categorias de POIs mapeadas e traduzidas para PT-BR
+
+---
+
+## Problema Conhecido: Cidades Pequenas com Wikipedia Curta
+
+**Sintoma:** Texto gerado muito curto para municípios com artigos Wikipedia pequenos (ex: Jarinu/SP).
+
+**Causa:** Article Wikipedia curto → Gemini recebe pouco input → gera pouco output.
+
+**Solução implementada (2026-03-03):**
+O prompt do Gemini instrui explicitamente a usar conhecimento próprio quando o texto de referência for insuficiente. Comportamento:
+- Referência rica (>500 chars) → Gemini reescreve/expande o conteúdo da Wikipedia
+- Referência curta (<500 chars) → Gemini usa conhecimento próprio sobre o local para complementar
+
+---
+
+## Dados Simulados (Pendente Integração Real)
+
+| Campo | Status | Fonte Ideal |
+|-------|--------|-------------|
+| `average_income` | ⚠️ `rand(1500, 4500)` | SIDRA/IBGE Censo |
+| `sanitation_rate` | ⚠️ `rand(65, 98)` | SNIS/IBGE |
+| `idhm` | ⚠️ null | Atlas Brasil / PNUD |

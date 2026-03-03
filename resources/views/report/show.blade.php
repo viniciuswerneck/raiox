@@ -403,16 +403,39 @@
         </div>
 
         @if($report->history_extract)
+        @php
+            $wikiSource = $wiki['source'] ?? 'cidade';
+            $wikiTerm   = $wiki['term'] ?? null;
+            $wikiUrl    = $wiki['desktop_url'] ?? null;
+            $historyTitle = $wikiSource === 'bairro'
+                ? 'História do Bairro'
+                : 'História de ' . $report->cidade;
+        @endphp
         <!-- LOCAL HISTORY -->
         <div class="row g-4 mb-5">
             <div class="col-12">
                 <div class="card card-premium p-4 p-md-5 bg-white">
                     <div class="row align-items-center">
                         <div class="col-lg-8">
-                            <h2 class="fw-black mb-4"><i class="fa-solid fa-scroll me-2 text-primary"></i>Conheça a História</h2>
-                            <p class="lead drop-cap text-muted mb-0 lh-lg" style="text-align: justify;">
+                            <div class="d-flex align-items-center gap-3 mb-4">
+                                <h2 class="fw-black mb-0">
+                                    <i class="fa-solid fa-scroll me-2 text-primary"></i>{{ $historyTitle }}
+                                </h2>
+                                <span class="badge rounded-pill px-3 py-2 fw-bold"
+                                    style="font-size: 11px; letter-spacing: 0.05em; background: {{ $wikiSource === 'bairro' ? 'rgba(79,70,229,0.1)' : 'rgba(100, 116, 139, 0.1)' }}; color: {{ $wikiSource === 'bairro' ? '#4F46E5' : '#64748b' }};">
+                                    <i class="fa-brands fa-wikipedia-w me-1"></i>
+                                    {{ $wikiSource === 'bairro' ? 'Bairro' : 'Município' }}
+                                </span>
+                            </div>
+                            <p class="lead drop-cap text-muted lh-lg" style="text-align: justify;">
                                 {{ $report->history_extract }}
                             </p>
+                            @if($wikiUrl)
+                                <a href="{{ $wikiUrl }}" target="_blank" rel="noopener"
+                                    class="btn btn-sm btn-outline-primary mt-2 rounded-pill px-4 fw-bold">
+                                    <i class="fa-brands fa-wikipedia-w me-2"></i>Ler mais na Wikipedia
+                                </a>
+                            @endif
                         </div>
                         <div class="col-lg-4 d-none d-lg-block text-center">
                             <i class="fa-solid fa-landmark fa-8x text-light opacity-25"></i>
