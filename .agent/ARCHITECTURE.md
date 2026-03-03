@@ -22,18 +22,20 @@ Usuário → [welcome.blade.php]
    → redirect GET /cep/{cep}
    → ReportController@show
    → NeighborhoodService::getCachedReport()
-        ├─ [HIT cache DB] → retorna direto (90 dias)
+        ├─ [HIT cache DB location_reports] → retorna direto (90 dias)
         └─ [MISS] → NeighborhoodService::getFullReport()
               │
               ├── 1. ViaCEP API ──────────────── endereço + código IBGE
-              ├── 2. IbgeService ─────────────── população + microrregião
-              ├── 3. Nominatim (OSM) ─────────── lat/lng do endereço
-              ├── 4. Overpass API (3 endpoints)─ POIs num raio de 10km
-              ├── 5. Open-Meteo ──────────────── clima + qualidade do ar
-              ├── 6. Wikipedia ───────────────── fetchWikipediaInfo()
+              ├── 2. City & Neighborhood DB ───── HIT: retorna cache normalizado
+              │                                    MISS (Cria Localmente):
+              ├── 3. IbgeService ─────────────── população + microrregião
+              ├── 4. Nominatim (OSM) ─────────── lat/lng do endereço
+              ├── 5. Overpass API (3 endpoints)─ POIs num raio de 10km
+              ├── 6. Open-Meteo ──────────────── clima + qualidade do ar
+              ├── 7. Wikipedia ───────────────── fetchWikipediaInfo()
               │       ├── /page/summary/{termo}  (valida se é lugar real)
               │       └── /page/mobile-sections/ (conteúdo completo ~4000 chars)
-              └── 7. GeminiService ───────────── gera texto de 3-4 parágrafos
+              └── 8. GeminiService ───────────── gera texto e nota de segurança (JSON)
                       └── prompt especializado com conteúdo completo da Wikipedia
    → salva em location_reports (DB)
    → view report/show.blade.php
@@ -48,7 +50,9 @@ app/
   Http/Controllers/
     ReportController.php      # Único controller. search() + show()
   Models/
-    LocationReport.php        # Eloquent Model. Casts para JSON automáticos.
+    LocationReport.php        # Eloquent Model global. Casts para JSON.
+    City.php                  # Model Normalizado. Cache de textos da cidade.
+    Neighborhood.php          # Model Normalizado. Cache de textos do bairro.
     User.php                  # Padrão Laravel (não usado ativamente)
   Services/
     NeighborhoodService.php   # ⭐ CORE. Orquestra todas as APIs externas.
@@ -85,7 +89,7 @@ database/migrations/
 | 5 | **Open-Meteo** | `api.open-meteo.com/v1/forecast` | Temperatura, vento | null |
 | 6 | **Open-Meteo AQI** | `air-quality-api.open-meteo.com` | Índice AQI europeu | null |
 | 7 | **Wikipedia PT** | `pt.wikipedia.org/api/rest_v1` | Texto, imagem, URL da página | Próximo candidato |
-| 8 | **Google Gemini** | `generativelanguage.googleapis.com` | Texto humanizado 3-4 parágrafos | Usa extract bruto |
+| 8 | **Google Gemini** | `generativelanguage.googleapis.com` | JSON: texto, safety_level, desc | Usa extract bruto |
 
 ### Overpass API — Endpoints de Fallback (ordem)
 1. `https://overpass-api.de/api/interpreter` (principal)
@@ -121,16 +125,17 @@ O método `fetchWikipediaInfo()` tenta os seguintes termos **em ordem**, parando
 ## 🤖 GeminiService — Prompt de Geração
 
 ```
-Modelo: gemini-flash-latest
-Temperature: 0.75
-MaxOutputTokens: 1024
+Modelo: gemini-2.5-flash
+Temperature: 0.70
+MaxOutputTokens: 2048
+responseMimeType: application/json
 Timeout: 45s
 ```
 
-**Prompt:** Solicita texto de 3-4 parágrafos em português sobre história, infraestrutura e qualidade de vida do local. Regras: não mencionar Wikipedia, não usar listas/bullets, não repetir termos legais, usar palavras diferentes do texto de entrada.
+**Prompt:** Analista de segurança pública imobiliário. Exige output estruturado JSON contendo `historia` (2 parágrafos envolventes), `nivel_seguranca` ("ALTO", "MODERADO" ou "BAIXO") e `descricao_seguranca` justificando a nota de segurança.
 
-**Input:** até 4.000 chars do conteúdo completo da Wikipedia
-**Output:** ~750-900 palavras salvas em `history_extract`
+**Input:** até 15.000 chars do conteúdo completo da Wikipedia
+**Output:** JSON decodificado nativamente para popular tabelas no PHP.
 
 ---
 
@@ -147,6 +152,7 @@ Timeout: 45s
 | Infraestrutura Crítica (farm./hosp./esc./banco) | Filtrado de `pois_json` |
 | Mobilidade e Transporte | Filtrado de `pois_json` (bus_stop, bicycle_parking, fuel) |
 | Comércios e Serviços | Filtrado de `pois_json` (shops + amenidades de alimentação) |
+| Nível de Segurança | `safety_level` e `safety_description` (via Gemini) |
 | História Local | `history_extract` com badge de fonte (Bairro/Município) + link Wikipedia |
 
 ### Loader animado (welcome.blade.php):

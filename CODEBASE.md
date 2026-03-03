@@ -10,9 +10,11 @@
 | Arquivo Modificado | Impacta Diretamente |
 |--------------------|---------------------|
 | `app/Services/NeighborhoodService.php` | `app/Http/Controllers/ReportController.php` (injetado via DI) |
-| `app/Services/GeminiService.php` | `app/Services/NeighborhoodService.php` (chamado em `getFullReport`) |
+| `app/Services/GeminiService.php` | `app/Services/NeighborhoodService.php` (chamado em `getFullReport` para extrair JSON) |
 | `app/Services/IbgeService.php` | `app/Services/NeighborhoodService.php` (chamado em `getFullReport`) |
-| `app/Models/LocationReport.php` | `app/Services/NeighborhoodService.php` (salva/lê do DB) |
+| `app/Models/LocationReport.php` | Salva o histórico total por CEP pesquisado |
+| `app/Models/City.php` | Banco de cache e dados estáticos das Cidades |
+| `app/Models/Neighborhood.php` | Banco de cache e história local dos Bairros |
 | `resources/views/report/show.blade.php` | `app/Http/Controllers/ReportController.php` (renderizado em `show()`) |
 | `resources/views/welcome.blade.php` | `routes/web.php` (rota `home`) |
 | `database/migrations/` | `app/Models/LocationReport.php` (schema do banco) |
@@ -54,11 +56,16 @@
 | `wiki_json` | json | Dados da Wikipedia (source, term, extract, image, desktop_url, full_text) |
 | `air_quality_index` | integer | Índice AQI europeu (Open-Meteo) |
 | `walkability_score` | string | 'A', 'B' ou 'C' (calculado) |
-| `average_income` | decimal | Renda média (simulada — ver TODO) |
-| `sanitation_rate` | decimal | Taxa de saneamento (simulada — ver TODO) |
-| `history_extract` | text | Texto gerado pelo Gemini AI |
+| `average_income` | decimal | Renda média (herdado da Cidade) |
+| `sanitation_rate` | decimal | Taxa de saneamento (herdado da Cidade) |
+| `history_extract` | text | Texto gerado pelo Gemini AI (herdado da Cidade ou Bairro) |
+| `safety_level` | string | "ALTO", "MODERADO" ou "BAIXO" gerado pelo Gemini AI |
+| `safety_description` | string | Frase curta do Gemini AI justificando o nível de segurança |
 | `created_at` | timestamp | — |
 | `updated_at` | timestamp | Usado para controle de cache de 90 dias |
+
+### Tabela: `cities` e `neighborhoods`
+O sistema conta com Tabelas de Normalização (`cities` e `neighborhoods`) que gravam em cache de banco os dados da Wikipedia (wiki_json), a geração histórica (history_extract) e os alertas de segurança, reduzindo requisições na API do Gemini/Wikipedia para buscas repetidas de cidades ou bairros vizinhos.
 
 ### Cache de 90 dias (NeighborhoodService::getCachedReport)
 
