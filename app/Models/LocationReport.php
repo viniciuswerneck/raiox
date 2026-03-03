@@ -25,6 +25,7 @@ class LocationReport extends Model
         'walkability_score',
         'average_income',
         'sanitation_rate',
+        'history_extract',
     ];
 
     protected $casts = [

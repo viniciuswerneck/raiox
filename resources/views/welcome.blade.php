@@ -58,5 +58,16 @@
             </div>
         </div>
     </div>
+    <div id="loader" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex flex-col items-center justify-center text-white">
+        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 class="text-2xl font-bold mb-2">Estamos analisando as informações solicitadas</h2>
+        <p class="text-slate-400 animate-pulse">Cruzando dados de IBGE, Wikipedia e Satélite...</p>
+    </div>
+
+    <script>
+        document.querySelector('form').addEventListener('submit', function() {
+            document.getElementById('loader').classList.remove('hidden');
+        });
+    </script>
 </body>
 </html>

@@ -16,11 +16,29 @@ class NeighborhoodService
     {
         $cepClean = preg_replace('/\D/', '', $cep);
         
-        // 1. Check cache (max 30 days old)
+        // 1. Check cache (max 90 days old)
         $report = LocationReport::where('cep', $cepClean)->first();
 
-        // Re-enable Cache Logic
-        if ($report && $report->updated_at->gt(Carbon::now()->subDays(30)) && $report->air_quality_index !== null) {
+        // Se o relatório existe e é recente (menos de 90 dias)
+        if ($report && 
+            $report->updated_at->gt(Carbon::now()->subDays(90)) && 
+            $report->air_quality_index !== null && 
+            $report->history_extract !== null &&
+            !empty($report->pois_json)
+        ) {
+            // REGRA: O Clima e Ar sempre deve ser atualizado se tiver mais de 1 hora
+            // mas SEM alterar o 'updated_at' principal para não resetar o ciclo de 90 dias da IA
+            if ($report->updated_at->lt(Carbon::now()->subHour())) {
+                Log::info("Refreshing fresh climate data for CEP: {$cepClean}");
+                $climate = $this->fetchClimate($report->lat, $report->lng);
+                $airQuality = $this->fetchAirQuality($report->lat, $report->lng);
+                
+                // Usamos save() para gerenciar manualmente os timestamps se necessário, 
+                // ou simplesmente aceitamos que o clima não deve interferir no "nascimento" do relatório.
+                $report->climate_json = $climate;
+                $report->air_quality_index = $airQuality;
+                $report->save(['timestamps' => false]); // Salva sem mudar o updated_at
+            }
             return $report;
         }
 
@@ -36,8 +54,8 @@ class NeighborhoodService
             'cidade' => $data['localidade'],
             'uf' => $data['uf'],
             'codigo_ibge' => $data['ibge'] ?? '',
-            'populacao' => $data['populacao'] ?? null,
-            'raw_ibge_data' => $data['raw_ibge_data'] ?? [],
+            'populacao' => $data['population'] ?? null,
+            'raw_ibge_data' => $data['municipality_info'] ?? [],
             'lat' => $data['lat'] ?? null,
             'lng' => $data['lng'] ?? null,
             'pois_json' => $data['pois_json'] ?? [],
@@ -47,6 +65,7 @@ class NeighborhoodService
             'walkability_score' => $data['walkability_score'] ?? 'C',
             'average_income' => $data['average_income'] ?? null,
             'sanitation_rate' => $data['sanitation_rate'] ?? null,
+            'history_extract' => $data['history_extract'] ?? null,
         ];
 
         if ($report) {
@@ -105,10 +124,21 @@ class NeighborhoodService
         $climate = $this->fetchClimate($lat, $lng);
         $airQuality = $this->fetchAirQuality($lat, $lng);
 
-        // 6. Wikipedia
+        // 6. Wikipedia (General and History Fallback)
         $wiki = $this->fetchWikipedia($city);
+        $historyRaw = $this->fetchLocalHistory($address['bairro'] ?? '', $city, $state);
         
-        // 7. IBGE Socioeconomic (Simulated/Extended)
+        // 7. Gemini AI Summary (Enhanced History)
+        $history = $historyRaw;
+        if ($historyRaw) {
+            $gemini = new \App\Services\GeminiService();
+            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw);
+            if ($aiSummary) {
+                $history = $aiSummary;
+            }
+        }
+        
+        // 8. IBGE Socioeconomic (Simulated/Extended)
         $socio = $this->fetchSocioEconomic($ibgeCode);
 
         return array_merge($address, $ibgeData, [
@@ -121,6 +151,7 @@ class NeighborhoodService
             'walkability_score' => $walkScore,
             'average_income' => $socio['average_income'] ?? null,
             'sanitation_rate' => $socio['sanitation_rate'] ?? null,
+            'history_extract' => $history ?: ($wiki['extract'] ?? null),
         ]);
     }
 
@@ -139,6 +170,7 @@ class NeighborhoodService
         try {
             $query = "{$street}, {$city}, {$state}, Brazil";
             $response = Http::withoutVerifying()
+                ->timeout(10)
                 ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                 ->get("https://nominatim.openstreetmap.org/search", [
                     'q' => $query,
@@ -149,6 +181,7 @@ class NeighborhoodService
             $data = $response->json();
             if (empty($data)) {
                 $response = Http::withoutVerifying()
+                    ->timeout(10)
                     ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                     ->get("https://nominatim.openstreetmap.org/search", [
                         'q' => "{$city}, {$state}, Brazil",
@@ -167,16 +200,17 @@ class NeighborhoodService
     private function fetchOverpass($lat, $lng)
     {
         try {
-            $radius = 2000; // Reduzido levemente para estabilidade, mas ainda amplo
-            $query = "[out:json][timeout:60];(
+            $radius = 10000; // Raio de 10km solicitado pelo usuário
+            // Aumentamos o timeout interno do Overpass para 90s e usamos 'qt' (quadtile) para ordenação rápida
+            $query = "[out:json][timeout:90];(
                 nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking\"](around:{$radius},{$lat},{$lng});
                 nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books\"](around:{$radius},{$lat},{$lng});
                 nwr[\"leisure\"~\"park|gym|sports_centre|playground\"](around:{$radius},{$lat},{$lng});
                 nwr[\"highway\"=\"bus_stop\"](around:{$radius},{$lat},{$lng});
-            );out center;";
+            );out center qt;";
             
             $response = Http::withoutVerifying()
-                ->timeout(60)
+                ->timeout(100)
                 ->asForm()
                 ->post("https://overpass-api.de/api/interpreter", [
                     'data' => $query
@@ -206,7 +240,12 @@ class NeighborhoodService
                 }
             }
             
-            Log::info("Overpass Found: " . count($elements) . " elements for Lat: {$lat}, Lng: {$lng}");
+            if (empty($elements)) {
+                Log::warning("Overpass query returned 0 elements for Lat:{$lat}, Lng:{$lng}. Radius:{$radius}");
+            } else {
+                Log::info("Overpass Found: " . count($elements) . " elements for Lat: {$lat}, Lng: {$lng}");
+            }
+            
             return $elements;
         } catch (\Exception $e) {
             Log::error("Overpass Exception: " . $e->getMessage());
@@ -246,9 +285,11 @@ class NeighborhoodService
     private function fetchWikipedia($city)
     {
         try {
-            $cityEncoded = urlencode($city);
+            $term = str_replace(' ', '_', $city);
             $response = Http::withoutVerifying()
-                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/{$cityEncoded}");
+                ->timeout(10)
+                ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
+                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term));
             
             if ($response->successful()) {
                 $data = $response->json();
@@ -261,6 +302,45 @@ class NeighborhoodService
             return null;
         } catch (\Exception $e) {
             Log::error("Wikipedia Error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function fetchLocalHistory($bairro, $city, $state)
+    {
+        try {
+            // Tentativa 1: Bairro_(Cidade)
+            if ($bairro) {
+                $term1 = str_replace(' ', '_', "{$bairro}_({$city})");
+                $response1 = Http::withoutVerifying()
+                    ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
+                    ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term1));
+                if ($response1->successful()) {
+                    return $response1->json()['extract'] ?? null;
+                }
+            }
+
+            // Tentativa 2: Cidade_(Estado)
+            $term2 = str_replace(' ', '_', "{$city}_({$state})");
+            $response2 = Http::withoutVerifying()
+                ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
+                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term2));
+            if ($response2->successful()) {
+                return $response2->json()['extract'] ?? null;
+            }
+
+            // Tentativa 3: Somente Cidade (Otimizado com encoding)
+            $term3 = str_replace(' ', '_', $city);
+            $response3 = Http::withoutVerifying()
+                ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
+                ->get("https://pt.wikipedia.org/api/rest_v1/page/summary/" . urlencode($term3));
+            if ($response3->successful()) {
+                return $response3->json()['extract'] ?? null;
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error("Wikipedia Local History Error: " . $e->getMessage());
             return null;
         }
     }

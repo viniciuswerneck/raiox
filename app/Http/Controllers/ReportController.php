@@ -25,6 +25,7 @@ class ReportController extends Controller
 
     public function show($cep)
     {
+        set_time_limit(120); // Dá 2 minutos para a análise de 10km completar
         $report = $this->neighborhoodService->getCachedReport($cep);
 
         if (!$report) {

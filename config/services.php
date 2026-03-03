@@ -39,4 +39,7 @@ return [
         'maps_key' => env('GOOGLE_MAPS_KEY'),
     ],
 
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+    ],
 ];

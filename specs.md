@@ -53,6 +53,7 @@ O sistema utiliza o **Service Pattern** para isolar a inteligência de dados.
 | `walkability_score` | String (A, B, C) | Nota de caminhabilidade |
 | `average_income` | Decimal | Renda média da região |
 | `sanitation_rate` | Decimal | % de saneamento básico |
+| `history_extract` | Text | Resumo histórico da localidade |
 | `populacao` | BigInt | População total do município |
 | `raw_ibge_data` | JSON | Metadados regionais do IBGE |
 
