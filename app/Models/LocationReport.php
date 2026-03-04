@@ -28,6 +28,7 @@ class LocationReport extends Model
         'history_extract',
         'safety_level',
         'safety_description',
+        'real_estate_json',
     ];
 
     protected $casts = [
@@ -35,6 +36,7 @@ class LocationReport extends Model
         'pois_json' => 'array',
         'climate_json' => 'array',
         'wiki_json' => 'array',
+        'real_estate_json' => 'array',
         'populacao' => 'integer',
         'idhm' => 'float',
         'lat' => 'float',

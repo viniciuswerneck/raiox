@@ -12,11 +12,13 @@ class GeminiService
 
     public function __construct()
     {
-        // Pega as três chaves do .env
+        // Pega todas as chaves do .env (com failover automático)
         $keys = [
             env('GEMINI_API_KEY'),
+            env('GEMINI_API_KEY_0'),
             env('GEMINI_API_KEY_2'),
             env('GEMINI_API_KEY_3'),
+            env('GEMINI_API_KEY_4'),
         ];
 
         foreach ($keys as $key) {
@@ -53,7 +55,12 @@ Sua missão é criar o "Raio-X Definitivo" para o local: **{$location}**.
 {
   "historia": "Substitua isto pelo texto ESTRITAMENTE LONGO (4 a 8 parágrafos). Use OBRIGATORIAMENTE os literais '\\n\\n' para separar os parágrafos dentro do valor string do JSON. Expanda, seja minucioso, prolixo nos bons detalhes e mostre que você domina este local.",
   "nivel_seguranca": "ALTO", "MODERADO" ou "BAIXO" (Classifique de forma imparcial via índices criminais reais),
-  "descricao_seguranca": "Análise técnica em texto corrido (pelo menos 3 ou 4 frases extensas) sobre policiamento, iluminação e a percepção real de medo ao andar na rua de noite."
+  "descricao_seguranca": "Análise técnica em texto corrido (pelo menos 3 ou 4 frases extensas) sobre policiamento, iluminação e a percepção real de medo ao andar na rua de noite.",
+  "mercado_imobiliario": {
+    "preco_m2": "Estimativa real em reais do Preço/m² na região ex: R$ 5.000 a R$ 8.000",
+    "perfil_imoveis": "Breve frase descrevendo o que domina. Ex: Maioria de Apartamentos compactos, ou Condomínios Fechados de Alto Padrão",
+    "tendencia_valorizacao": "ALTA", "ESTAVEL" ou "BAIXA"
+  }
 }
 
 Texto de Apoio (Texto base de referência inicial):

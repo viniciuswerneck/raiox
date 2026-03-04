@@ -13,6 +13,7 @@ class City extends Model
 
     protected $casts = [
         'wiki_json' => 'array',
+        'real_estate_json' => 'array',
         'raw_ibge_data' => 'array',
         'population' => 'integer',
         'average_income' => 'decimal:2',

@@ -65,6 +65,7 @@ class NeighborhoodService
             'history_extract' => $data['history_extract'] ?? null,
             'safety_level' => $data['safety_level'] ?? null,
             'safety_description' => $data['safety_description'] ?? null,
+            'real_estate_json' => $data['real_estate_json'] ?? null,
         ];
 
         if ($report) {
@@ -115,6 +116,7 @@ class NeighborhoodService
              $cityHistory = $cityWiki['extract'] ?? 'Local em desenvolvimento.';
              $citySafetyLevel = 'MODERADO';
              $citySafetyDesc = 'Região que segue padrões métropolitamos.';
+             $cityRealEstate = null;
              
              $gemini = new \App\Services\GeminiService();
              // Chamamos o Gemini SEMPRE, inclusive com conhecimento próprio se a Wiki for curta ou nula
@@ -124,6 +126,7 @@ class NeighborhoodService
                  $cityHistory = $aiSummary['historia'] ?? $cityHistory;
                  $citySafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
                  $citySafetyDesc = $aiSummary['descricao_seguranca'] ?? $citySafetyDesc;
+                 $cityRealEstate = $aiSummary['mercado_imobiliario'] ?? null;
              }
 
             $cityModel = \App\Models\City::create([
@@ -137,7 +140,8 @@ class NeighborhoodService
                 'safety_level' => $citySafetyLevel,
                 'safety_description' => $citySafetyDesc,
                 'wiki_json' => $cityWiki,
-                'raw_ibge_data' => $ibgeData['municipality_info'] ?? []
+                'raw_ibge_data' => $ibgeData['municipality_info'] ?? [],
+                'real_estate_json' => $cityRealEstate
             ]);
         }
 
@@ -161,6 +165,8 @@ class NeighborhoodService
                 $bairroHistory = null;
                 $bairroSafetyLevel = 'MODERADO';
                 $bairroSafetyDesc = 'Região que segue padrões urbanos.';
+                $bairroRealEstate = null;
+
                 if ($bairroWiki && $bairroWiki['source'] === 'bairro') {
                     $bairroHistoryRaw = $bairroWiki['full_text'] ?? $bairroWiki['extract'] ?? 'Sem dados específicos do bairro na Wikipedia.';
                     $bairroHistory = $bairroWiki['extract'] ?? 'Bairro em constante crescimento.';
@@ -171,6 +177,7 @@ class NeighborhoodService
                         $bairroHistory = $aiSummary['historia'] ?? $bairroHistory;
                         $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
                         $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? 'Região com características residenciais.';
+                        $bairroRealEstate = $aiSummary['mercado_imobiliario'] ?? null;
                     }
                 } else {
                     // Se o bairro não tem wiki própria, pedimos para a IA inventar baseada no conhecimento dela
@@ -181,6 +188,7 @@ class NeighborhoodService
                         $bairroHistory = $aiSummary['historia'] ?? null;
                         $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
                         $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
+                        $bairroRealEstate = $aiSummary['mercado_imobiliario'] ?? null;
                     }
                     
                     $bairroWiki = null;
@@ -192,7 +200,8 @@ class NeighborhoodService
                     'history_extract' => $bairroHistory,
                     'safety_level' => $bairroSafetyLevel,
                     'safety_description' => $bairroSafetyDesc,
-                    'wiki_json' => $bairroWiki
+                    'wiki_json' => $bairroWiki,
+                    'real_estate_json' => $bairroRealEstate
                 ]);
             }
         }
@@ -240,6 +249,10 @@ class NeighborhoodService
             ? $neighborhoodModel->safety_description
             : $cityModel->safety_description;
 
+        $realEstate = $neighborhoodModel && $neighborhoodModel->real_estate_json
+            ? $neighborhoodModel->real_estate_json
+            : $cityModel->real_estate_json;
+
         return array_merge($address, $ibgeData, [
             'lat' => $lat,
             'lng' => $lng,
@@ -253,6 +266,7 @@ class NeighborhoodService
             'history_extract' => $history ?: ($wiki['extract'] ?? null),
             'safety_level' => $safetyLevel,
             'safety_description' => $safetyDesc,
+            'real_estate_json' => $realEstate,
         ]);
     }
 

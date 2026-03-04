@@ -13,6 +13,7 @@ class Neighborhood extends Model
 
     protected $casts = [
         'wiki_json' => 'array',
+        'real_estate_json' => 'array',
     ];
 
     public function city()
