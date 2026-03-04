@@ -29,6 +29,7 @@ class LocationReport extends Model
         'safety_level',
         'safety_description',
         'real_estate_json',
+        'search_radius',
     ];
 
     protected $casts = [

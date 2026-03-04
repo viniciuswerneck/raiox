@@ -507,7 +507,7 @@
                 <div class="card-pro h-100 d-flex flex-column">
                     <div class="mb-4 d-flex align-items-center justify-content-between">
                         <h5 class="mb-0 fw-black">Infraestrutura</h5>
-                        <div class="text-primary fw-bold small">RAIO 10KM</div>
+                        <div class="text-primary fw-bold small">RAIO {{ ($report->search_radius ?? 10000) / 1000 }}KM</div>
                     </div>
                     
                     <!-- Quick Stats Grid -->

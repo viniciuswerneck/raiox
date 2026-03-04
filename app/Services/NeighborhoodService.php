@@ -56,6 +56,7 @@ class NeighborhoodService
             'lat' => $data['lat'] ?? null,
             'lng' => $data['lng'] ?? null,
             'pois_json' => $data['pois_json'] ?? [],
+            'search_radius' => $data['search_radius'] ?? 10000,
             'climate_json' => $data['climate_json'] ?? [],
             'wiki_json' => $data['wiki_json'] ?? [],
             'air_quality_index' => $data['air_quality_index'] ?? null,
@@ -221,8 +222,24 @@ class NeighborhoodService
 
         if (!$lat || !$lng) return array_merge($address, $ibgeData);
 
-        // 4. Overpass (POIs & Mobility)
-        $pois = $this->fetchOverpass($lat, $lng);
+        // 4. Overpass (POIs & Mobility) - BUSCA GRANULAR PROGRESSIVA
+        // Escalas: 1km -> 3km -> 5km -> 7km -> 10km
+        $radii = [1000, 3000, 5000, 7000, 10000];
+        $pois = [];
+        $finalRadius = 10000;
+
+        foreach ($radii as $r) {
+            Log::info("Attempting Overpass search with radius: {$r}m for {$lat},{$lng}");
+            $pois = $this->fetchOverpass($lat, $lng, $r);
+            $finalRadius = $r;
+            
+            // Se encontrarmos pelo menos 30 pontos, paramos (densidade satisfatória)
+            if (count($pois) >= 30) {
+                Log::info("Found satisfactory density (" . count($pois) . " items) at {$r}m. Stopping search.");
+                break;
+            }
+        }
+        
         $walkScore = $this->calculateWalkabilityScore($pois);
 
         // 5. Open-Meteo (Weather & Air Quality)
@@ -257,6 +274,7 @@ class NeighborhoodService
             'lat' => $lat,
             'lng' => $lng,
             'pois_json' => $pois,
+            'search_radius' => $finalRadius,
             'climate_json' => $climate,
             'wiki_json' => $wiki,
             'air_quality_index' => $airQuality,
@@ -312,9 +330,8 @@ class NeighborhoodService
         }
     }
 
-    private function fetchOverpass($lat, $lng)
+    private function fetchOverpass($lat, $lng, $radius = 10000)
     {
-        $radius = 10000;
         $query = "[out:json][timeout:30];(
             nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|doctors|veterinary|kindergarten|childcare|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
             nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace|butcher|greengrocer|doityourself|pet|hairdresser|sports|shoes|toys|jewelry|car|car_repair|car_wash|laundry\"](around:{$radius},{$lat},{$lng});
