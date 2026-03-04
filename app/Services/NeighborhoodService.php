@@ -315,27 +315,29 @@ class NeighborhoodService
     private function fetchOverpass($lat, $lng)
     {
         $radius = 10000;
-        $query = "[out:json][timeout:15];(
+        $query = "[out:json][timeout:30];(
             nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|doctors|veterinary|kindergarten|childcare|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
             nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace|butcher|greengrocer|doityourself|pet|hairdresser|sports|shoes|toys|jewelry|car|car_repair|car_wash|laundry\"](around:{$radius},{$lat},{$lng});
             nwr[\"leisure\"~\"park|gym|sports_centre|playground|marketplace\"](around:{$radius},{$lat},{$lng});
             nwr[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"](around:{$radius},{$lat},{$lng});
             nwr[\"historic\"](around:{$radius},{$lat},{$lng});
             nwr[\"railway\"=\"station\"](around:{$radius},{$lat},{$lng});
-        );out center qt;";
+        );out center bb qt 800;";
 
         // Múltiplos endpoints públicos do Overpass para fallback
         $endpoints = [
             'https://overpass-api.de/api/interpreter',
+            'https://lz4.overpass-api.de/api/interpreter',
+            'https://z.overpass-api.de/api/interpreter',
             'https://overpass.kumi.systems/api/interpreter',
-            'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+            'https://overpass.osm.ch/api/interpreter'
         ];
 
         foreach ($endpoints as $endpoint) {
             try {
                 Log::info("Overpass: tentando endpoint {$endpoint}");
                 $response = Http::withoutVerifying()
-                    ->timeout(15)
+                    ->timeout(30)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);
 
@@ -407,23 +409,21 @@ class NeighborhoodService
     }
 
     /**
-     * Termos que são nomes genéricos e podem resolver artigos Wikipedia não relacionados
-     * a bairros ou cidades (ex: "Centro" -> artigo de geometria).
+     * Termos que são nomes genéricos ou prefixos comuns e podem resolver artigos Wikipedia 
+     * não relacionados (ex: "Centro" -> artigo de geometria, "Vila" -> artigo genérico).
      */
     private const AMBIGUOUS_NEIGHBORHOOD_TERMS = [
         'centro', 'norte', 'sul', 'leste', 'oeste', 'central',
-        'jardim', 'vila', 'bela vista', 'alto', 'baixo',
+        'jardim', 'vila', 'parque', 'alto', 'baixo', 'bela vista', 'boa vista', 
+        'santa', 'santo', 'são', 'nossa senhora', 'residencial', 'portal'
     ];
 
     /**
      * Verifica se um artigo Wikipedia é realmente sobre um lugar (bairro/cidade),
      * e não sobre um conceito genérico.
      */
-    private function isValidWikipediaPlace(array $data): bool
+    private function isValidWikipediaPlace(array $data, string $expectedCity = '', string $expectedState = ''): bool
     {
-        // A API de summary retorna um campo 'type' com valores como:
-        // 'standard' = artigo genérico, 'disambiguation' = desambiguação
-        // Também checar o 'description' que costuma indicar "Município", "bairro", etc.
         $type        = $data['type'] ?? '';
         $description = strtolower($data['description'] ?? '');
         $extract     = $data['extract'] ?? '';
@@ -432,19 +432,43 @@ class NeighborhoodService
         if (empty($extract))           return false;
 
         // Se description indica claramente que é um lugar, aceite
-        $placeKeywords = ['município', 'cidade', 'bairro', 'distrito', 'região', 'localidade', 'capital'];
+        $placeKeywords = ['município', 'cidade', 'bairro', 'distrito', 'região', 'localidade', 'capital', 'entidade', 'unidade federativa', 'povoado'];
+        $isPlace = false;
         foreach ($placeKeywords as $kw) {
-            if (str_contains($description, $kw)) return true;
+            if (str_contains($description, $kw)) {
+                $isPlace = true;
+                break;
+            }
         }
 
-        // Se o extract começa falando de geometria, matemática, etc, rejeite
-        $rejectPatterns = ['/^o centro, em geometria/i', '/^em geometria/i', '/^em matemática/i', '/^em física/i'];
+        // Se o extract começa falando de conceitos abstratos, rejeite
+        $rejectPatterns = [
+            '/^o centro, em geometria/i', 
+            '/^em geometria/i', 
+            '/^em matemática/i', 
+            '/^em física/i', 
+            '/^na religião/i',
+            '/^segundo a bíblia/i'
+        ];
         foreach ($rejectPatterns as $pattern) {
             if (preg_match($pattern, $extract)) return false;
         }
 
-        // Por padrão, aceite (extracts sem description clara)
-        return true;
+        // Validação de contexto (Cidade/Estado) se fornecidos
+        // CRÍTICO: Se o artigo não menciona a cidade ou estado, há grande chance de ser o local errado
+        if ($expectedCity || $expectedState) {
+            $textToSearch = strtolower($description . ' ' . $extract);
+            $cityLower  = strtolower($expectedCity);
+            $stateLower = strtolower($expectedState);
+
+            // Nome do estado por extenso (mapeamento simples para os principais ou regra geral)
+            if (!str_contains($textToSearch, $cityLower) && !str_contains($textToSearch, $stateLower)) {
+                // Se for um bairro, a cidade OBRIGATORIAMENTE deve estar no texto para aceitarmos o fallback
+                return false;
+            }
+        }
+
+        return $isPlace || !empty($description);
     }
 
     /**
@@ -461,24 +485,30 @@ class NeighborhoodService
         $headers = ['User-Agent' => 'RaioXNeighborhood/1.0'];
         $base    = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
 
-        // Bairros com nomes genéricos só buscamos com "Bairro_(Cidade)" — não o nome sozinho
-        $bairroIsAmbiguous = $bairro && in_array(strtolower($bairro), self::AMBIGUOUS_NEIGHBORHOOD_TERMS);
+        $bairroLower = strtolower($bairro);
+        $bairroIsAmbiguous = false;
+        foreach (self::AMBIGUOUS_NEIGHBORHOOD_TERMS as $term) {
+            if (str_contains($bairroLower, $term)) {
+                $bairroIsAmbiguous = true;
+                break;
+            }
+        }
 
         $candidates = [];
 
         if ($bairro) {
-            $candidates[] = [str_replace(' ', '_', "{$bairro} ({$city})"), 'bairro'];
+            $candidates[] = [str_replace(' ', '_', "{$bairro} ({$city})"), 'bairro', true]; // true = strict (must match city/state)
             if (!$bairroIsAmbiguous) {
-                $candidates[] = [str_replace(' ', '_', $bairro), 'bairro'];
+                $candidates[] = [str_replace(' ', '_', $bairro), 'bairro', true];
             }
         }
 
         if (!$onlyBairro) {
-            $candidates[] = [str_replace(' ', '_', "{$city} ({$state})"), 'cidade'];
-            $candidates[] = [str_replace(' ', '_', $city), 'cidade'];
+            $candidates[] = [str_replace(' ', '_', "{$city} ({$state})"), 'cidade', false];
+            $candidates[] = [str_replace(' ', '_', $city), 'cidade', true];
         }
 
-        foreach ($candidates as [$term, $source]) {
+        foreach ($candidates as [$term, $source, $shouldValidate]) {
             try {
                 $response = Http::withoutVerifying()
                     ->timeout(10)
@@ -488,8 +518,12 @@ class NeighborhoodService
                 if ($response->successful()) {
                     $data = $response->json();
 
-                    if (!$this->isValidWikipediaPlace($data)) {
-                        Log::info("Wikipedia [{$term}]: artigo rejeitado (não é lugar). Tentando próximo...");
+                    // Se shouldValidate for true, passamos a cidade/estado para validação rigorosa
+                    $vCity = $shouldValidate ? $city : '';
+                    $vState = $shouldValidate ? $state : '';
+
+                    if (!$this->isValidWikipediaPlace($data, $vCity, $vState)) {
+                        Log::info("Wikipedia [{$term}]: artigo rejeitado por falta de contexto ou tipo inválido.");
                         continue;
                     }
 

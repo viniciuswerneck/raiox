@@ -728,6 +728,21 @@
         @endif
     </div>
 
+    <!-- LEGAL DISCLAIMER -->
+    <div class="container mb-5 no-print">
+        <div class="p-4 rounded-4 border border-light" style="background: rgba(248, 250, 252, 0.5);">
+            <div class="d-flex align-items-start gap-3">
+                <i class="fa-solid fa-circle-info text-muted mt-1"></i>
+                <div>
+                    <h6 class="fw-bold text-dark small mb-1">Aviso de Isenção de Responsabilidade</h6>
+                    <p class="text-muted mb-0" style="font-size: 0.8rem; line-height: 1.5; text-align: justify;">
+                        As informações apresentadas neste relatório são consolidadas automaticamente a partir de fontes públicas da internet (Wikipedia, OpenStreetMap, Open-Meteo e IBGE) e processadas através de inteligência artificial. Devido à natureza dinâmica e colaborativa destas fontes, os dados podem conter imprecisões ou estar desatualizados. A plataforma não se responsabiliza pela veracidade absoluta das informações ou por decisões tomadas com base nestes dados. Recomendamos sempre a verificação presencial e a consulta a órgãos oficiais.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FOOTER -->
     <footer class="bg-dark text-white-50 py-5 mt-5">
         <div class="container">
