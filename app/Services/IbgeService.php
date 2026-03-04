@@ -14,26 +14,33 @@ class IbgeService
         // Basic municipality info
         $municipality = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{$ibgeCode}");
         
-        // Estimated population (using indicator 96385 - IBGE Research ID 29)
-        // Note: In real scenarios, these codes may change
+        // Estimated population (96385)
         $populationRequest = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/96385/resultados/{$ibgeCode}");
+        // PIB per capita (29171)
+        $pibRequest = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/29171/resultados/{$ibgeCode}");
         
         $population = null;
         if ($populationRequest->successful()) {
             $popData = $populationRequest->json();
-            // Dig into the IBGE JSON structure
             if (!empty($popData) && isset($popData[0]['res'][0]['res'])) {
-                $populationRes = $popData[0]['res'][0]['res'];
-                // Some IBGE endpoints return results as { "year": "value" }, so end() gets the most recent value
-                $populationValue = is_array($populationRes) ? end($populationRes) : $populationRes;
-                $population = (int) $populationValue;
+                $popValue = end($popData[0]['res'][0]['res']);
+                $population = (int) $popValue;
+            }
+        }
+
+        $pibPerCapita = null;
+        if ($pibRequest->successful()) {
+            $pibData = $pibRequest->json();
+            if (!empty($pibData) && isset($pibData[0]['res'][0]['res'])) {
+                $pibValue = end($pibData[0]['res'][0]['res']);
+                $pibPerCapita = (float) $pibValue;
             }
         }
 
         return [
             'municipality_info' => $municipality->json(),
             'population' => $population,
-            'idhm' => null, // IDHM usually requires a different API or static mapping for simplicity
+            'pib_per_capita' => $pibPerCapita,
             'raw_data' => $municipality->json()
         ];
     }
