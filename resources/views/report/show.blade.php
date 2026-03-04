@@ -950,32 +950,42 @@
                 const originalText = btn.innerHTML;
                 const noPrintElements = document.querySelectorAll('.no-print');
                 
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Gerando PDF...';
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Gerando PDF Alta Fidelidade...';
                 btn.disabled = true;
 
                 // Oculta elementos que não devem sair no PDF
                 noPrintElements.forEach(el => el.style.visibility = 'hidden');
 
-                const opt = {
-                    margin:       [10, 5, 10, 5],
-                    filename:     `Relatorio-RaioX-${@json($report->cidade)}-${@json($report->cep)}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { 
-                        scale: 2,
-                        useCORS: true, 
-                        logging: false,
-                        letterRendering: true
-                    },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-                };
+                // Forçar a visualização do mapa para captura (Wait for tiles)
+                setTimeout(() => {
+                    const opt = {
+                        margin:       [5, 5, 5, 5],
+                        filename:     `Relatorio-RaioX-${@json($report->cidade)}-${@json($report->cep)}.pdf`,
+                        image:        { type: 'jpeg', quality: 1.0 },
+                        html2canvas:  { 
+                            scale: 3, // Aumento de escala para nitidez "retina"
+                            useCORS: true, 
+                            logging: false,
+                            letterRendering: true,
+                            backgroundColor: '#f8fafc' 
+                        },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+                    };
 
-                html2pdf().set(opt).from(document.body).save().then(() => {
-                    // Restaura a visibilidade
-                    noPrintElements.forEach(el => el.style.visibility = 'visible');
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                });
+                    html2pdf().set(opt).from(document.body).save().then(() => {
+                        // Restaura a visibilidade
+                        noPrintElements.forEach(el => el.style.visibility = 'visible');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }).catch(err => {
+                        console.error('PDF Error:', err);
+                        // Restaura a visibilidade mesmo em caso de erro
+                        noPrintElements.forEach(el => el.style.visibility = 'visible');
+                        btn.innerHTML = '<i class="fa-solid fa-circle-exclamation me-2"></i>Erro ao gerar PDF';
+                        btn.disabled = false;
+                    });
+                }, 500); // Delay sutil para garantir render final
             });
         });
     </script>
@@ -984,6 +994,41 @@
         @keyframes pulse {
             0% { transform: scale(0.5); opacity: 1; }
             100% { transform: scale(2); opacity: 0; }
+        }
+
+        /* PRINT / PDF FULL FIDELITY */
+        @media print {
+            .no-print, #download-pdf, .btn-pro { display: none !important; }
+            .card-pro { 
+                break-inside: avoid !important; 
+                page-break-inside: avoid !important;
+                border: 1px solid rgba(0,0,0,0.05) !important;
+                box-shadow: none !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body { 
+                background: #f8fafc !important; 
+                color: #1e293b !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .metric-icon-pro { 
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .badge-pro { 
+                border: 1px solid rgba(0,0,0,0.1) !important;
+                background: white !important;
+                color: black !important;
+            }
+            #map { height: 400px !important; }
+        }
+
+        /* Estilos para evitar quebras de cards no HTML2PDF */
+        .card-pro, .col-lg-4, .col-lg-6, .col-lg-8, .row {
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
     </style>
 

@@ -67,6 +67,8 @@ Texto de Apoio (Texto base de referência inicial):
 {$wikiText}
 PROMPT;
 
+        $lastValidResult = null;
+
         // Loop de failover nas chaves de API disponíveis
         foreach ($this->apiKeys as $index => $apiKey) {
             try {
@@ -101,58 +103,53 @@ PROMPT;
                         
                         $result = trim($result);
                         
-                        // Clean control characters BUT preserve real unicode, newlines, and tabs inside strings
-                        // Often APIs return invalid JSON if quotes or newlines aren't properly escaped in strings.
-                        // Let's rely on json_decode first, but if it fails, fallback to simple cleanups.
-                        
-                        Log::info("Gemini JSON Response (Success on Key #" . ($index + 1) . "): " . substr($result, 0, 100) . "...");
-                        
                         // Encontra o json real extraindo apenas de '{' até '}'
                         if (preg_match('/\{.*\}/s', $result, $matches)) {
                             $result = $matches[0];
                         }
                         
-                        // =========================================================================
-                        // ⚠️ ATENÇÃO: NÃO ALTERE A LÓGICA DE PARSING DE JSON ABAIXO ⚠️
-                        // O Gemini 2.5 Flash retorna blocos de JSON inválidos misturados com texto
-                        // corrompido, ISO-8859-1 e novas linhas literais não escapadas.
-                        // O fluxo abaixo (Regex robusto + Invalid_UTF8_Ignore) foi montado com muito
-                        // suor para suportar o retorno da IA sem crashar no json_decode do PHP 8.
-                        // Modificar qualquer parte abaixo pode quebrar a captura do histórico.
-                        // =========================================================================
-                        
                         $json = json_decode($result, true);
 
                         if (json_last_error() !== JSON_ERROR_NONE) {
-                            // Erro típico do Gemini: enviar quebras de linha reais (literais) dentro de strings do JSON, o que quebra o parser.
-                            // Substituímos qualquer quebra de linha literal ou carriage return por um espaço
                             $result = str_replace(["\r\n", "\r", "\n"], " ", $result);
-                            
-                            // Removemos caracteres de controle invisíveis (0 a 31) que também invalidam o JSON
                             $result = preg_replace('/[\x00-\x1F\x7F]+/', '', $result);
-                            
                             $json = json_decode($result, true);
                         }
 
                         if (json_last_error() === JSON_ERROR_NONE && is_array($json)) {
+                            $historia = $json['historia'] ?? '';
+                            $minChars = 800; // Mínimo de caracteres para um Raio-X de qualidade
+                            
+                            // Guardamos como último recurso
+                            $lastValidResult = $json;
+
+                            if (mb_strlen($historia) < $minChars) {
+                                Log::warning("Gemini Quality Fail na Key #" . ($index + 1) . ". Texto curto (" . mb_strlen($historia) . " chars). Buscando qualidade maior...");
+                                continue; 
+                            }
+
                             return $json;
                         } else {
-                            Log::error("Gemini Parse JSON Error: " . json_last_error_msg() . " | Code: " . json_last_error() . " | Text: " . mb_substr($result, 0, 300));
-                            return null;
+                            Log::error("Gemini Parse JSON Error na Key #" . ($index + 1));
+                            continue;
                         }
                     }
                 }
 
-                // Se houver erro, logar e continar o loop para tentar a próxima chave
                 $errorBody = $response->body();
-                Log::warning("Gemini API Falhou na Key #" . ($index + 1) . ". Status: " . $response->status() . " Body: " . substr($errorBody, 0, 200));
+                Log::warning("Gemini API Falhou na Key #" . ($index + 1) . ". Status: " . $response->status());
 
             } catch (\Exception $e) {
                 Log::warning('Gemini API Exception na Key #' . ($index + 1) . ': ' . $e->getMessage());
             }
         }
 
-        Log::error("Gemini: Todas as chaves (" . count($this->apiKeys) . ") falharam.");
+        if ($lastValidResult) {
+            Log::info("Gemini: Usando o melhor resultado curto disponivel como fallback final.");
+            return $lastValidResult;
+        }
+
+        Log::error("Gemini: Todas as chaves (" . count($this->apiKeys) . ") falharam totalmente.");
         return null;
     }
 }

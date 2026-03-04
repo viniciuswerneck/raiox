@@ -79,23 +79,74 @@ class NeighborhoodService
         return $report;
     }
 
-    /**
-     * Get all neighborhood data for a CEP
-     */
     public function getFullReport(string $cep): array
     {
-        set_time_limit(300); // Previne timeout do PHP (120s) quando as APIs demoram muito
+        set_time_limit(300); 
         
         $cepClean = preg_replace('/\D/', '', $cep);
+        $isNumericCep = (strlen($cepClean) === 8);
         
-        // 1. ViaCEP (Includes IBGE code)
-        $address = $this->fetchViaCep($cepClean);
-        if (!$address || isset($address['erro'])) return [];
+        $address = null;
+        $street = '';
+        $city = '';
+        $state = '';
+        $ibgeCode = null;
+        $lat = null;
+        $lng = null;
 
-        $city = $address['localidade'];
-        $street = $address['logradouro'] ?? '';
-        $state = $address['uf'];
-        $ibgeCode = $address['ibge'] ?? null;
+        // 1. Tentar ViaCEP se parecer um CEP numérico
+        if ($isNumericCep) {
+            $address = $this->fetchViaCep($cepClean);
+            if ($address && !isset($address['erro'])) {
+                $city = $address['localidade'];
+                $street = $address['logradouro'] ?? '';
+                $state = $address['uf'];
+                $ibgeCode = $address['ibge'] ?? null;
+            }
+        }
+
+        // 2. Fallback Nominatim (Se ViaCEP falhou ou se veio um endereço em texto)
+        // Se após o ViaCEP ainda não temos os dados básicos, usamos Geocoding
+        if (!$city || !$state) {
+            Log::info("Geocodificando termo de busca: {$cep}");
+            $geo = $this->fetchNominatim($cep, '', ''); // Passa o termo bruto
+            if ($geo) {
+                $lat = $geo['lat'];
+                $lng = $geo['lon'];
+                $addr = $geo['address'] ?? [];
+                
+                $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? '';
+                $state = $addr['state'] ?? '';
+                $street = $addr['road'] ?? '';
+                
+                // Normaliza UF (Nominatim retorna nome completo as vezes)
+                $stateMap = [
+                    'São Paulo' => 'SP', 'Rio de Janeiro' => 'RJ', 'Minas Gerais' => 'MG',
+                    'Paraná' => 'PR', 'Santa Catarina' => 'SC', 'Rio Grande do Sul' => 'RS'
+                ];
+                $state = $stateMap[$state] ?? $state;
+
+                // Prepara um array fake de address para manter compatibilidade
+                $address = [
+                    'localidade' => $city,
+                    'logradouro' => $street,
+                    'uf' => $state,
+                    'bairro' => $addr['neighbourhood'] ?? $addr['suburb'] ?? '',
+                    'cep' => $addr['postcode'] ?? $cepClean ?: 'S/C'
+                ];
+            }
+        }
+
+        if (!$city || !$state) {
+            Log::error("Não foi possível identificar Cidade/Estado para: {$cep}");
+            return [];
+        }
+
+        // Se não temos IBGE code (veio do Nominatim), tentamos achar pelo nome no Banco ou API
+        if (!$ibgeCode) {
+            $cityModel = \App\Models\City::where('name', $city)->where('uf', $state)->first();
+            $ibgeCode = $cityModel ? $cityModel->ibge_code : null;
+        }
 
         // CITY DATA
         $cityModel = \App\Models\City::where('ibge_code', $ibgeCode)
@@ -213,20 +264,30 @@ class NeighborhoodService
             }
         }
 
-        // 3. Nominatim (Geocoding)
-        $geo = null;
-        if (!empty($street)) {
-            $geo = $this->fetchNominatim($street, $city, $state);
-        }
-        
-        if (!$geo) {
-            $geo = $this->fetchNominatim($city, $city, $state); 
+        // 3. Nominatim (Geocoding) - Executa apenas se ainda não temos coordenadas
+        if (!$lat || !$lng) {
+            if (!empty($street)) {
+                $geo = $this->fetchNominatim($street, $city, $state);
+            }
+            
+            if (!$geo) {
+                $geo = $this->fetchNominatim($city, $city, $state); 
+            }
+
+            $lat = $geo['lat'] ?? null;
+            $lng = $geo['lon'] ?? null;
+            
+            // Se o Nominatim achou algo que o ViaCEP não achou (bairro, etc), enriquecemos
+            if ($geo && empty($address['bairro'])) {
+                $addr = $geo['address'] ?? [];
+                $address['bairro'] = $addr['neighbourhood'] ?? $addr['suburb'] ?? $addr['hamlet'] ?? '';
+            }
         }
 
-        $lat = $geo['lat'] ?? null;
-        $lng = $geo['lon'] ?? null;
-
-        if (!$lat || !$lng) return array_merge($address, $ibgeData);
+        if (!$lat || !$lng) {
+            Log::error("Impossível geolocalizar o endereço mesmo após fallback: {$cep}");
+            return array_merge($address ?? [], $ibgeData ?? []);
+        }
 
         // 4. Overpass (POIs & Mobility) - BUSCA GRANULAR PROGRESSIVA
         // Escalas: 1km -> 3km -> 5km -> 7km -> 10km
@@ -307,24 +368,33 @@ class NeighborhoodService
     private function fetchNominatim($street, $city, $state)
     {
         try {
-            $query = "{$street}, {$city}, {$state}, Brazil";
+            // Se vir apenas um campo, tratamos como query única
+            $query = empty($city) ? $street : "{$street}, {$city}, {$state}, Brazil";
+            
+            Log::info("Nominatim: pesquisando [{$query}]");
+
             $response = Http::withoutVerifying()
                 ->timeout(10)
                 ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                 ->get("https://nominatim.openstreetmap.org/search", [
                     'q' => $query,
                     'format' => 'json',
+                    'addressdetails' => 1,
                     'limit' => 1
                 ]);
             
             $data = $response->json();
-            if (empty($data)) {
+            
+            // Fallback se não achou com rua: busca pela cidade
+            if (empty($data) && !empty($city)) {
+                Log::info("Nominatim: fallback para cidade [{$city}]");
                 $response = Http::withoutVerifying()
                     ->timeout(10)
                     ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                     ->get("https://nominatim.openstreetmap.org/search", [
                         'q' => "{$city}, {$state}, Brazil",
                         'format' => 'json',
+                        'addressdetails' => 1,
                         'limit' => 1
                     ]);
                 $data = $response->json();
@@ -356,11 +426,17 @@ class NeighborhoodService
             'https://overpass.osm.ch/api/interpreter'
         ];
 
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer' => 'https://google.com'
+        ];
+
         foreach ($endpoints as $endpoint) {
             try {
                 Log::info("Overpass: tentando endpoint {$endpoint}");
                 $response = Http::withoutVerifying()
                     ->timeout(30)
+                    ->withHeaders($headers)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);
 
