@@ -5,89 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config('app.name') }} - Raio-X de {{ $report->cidade }}</title>
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Icons & Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     
     <!-- Leaflet Map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-light: #818cf8;
-            --secondary: #0f172a;
-            --accent: #10b981;
-            --warning: #f59e0b;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #64748b;
+            --accent: #f59e0b;
+            --success: #10b981;
             --danger: #ef4444;
-            --bg-body: #f8fafc;
+            --dark: #0f172a;
+            --glass: rgba(255, 255, 255, 0.75);
+            --card-radius: 24px;
+            --font-main: 'Inter', sans-serif;
+            --font-heading: 'Outfit', sans-serif;
         }
 
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg-body);
+        body {
+            background-color: #f8fafc;
             color: #1e293b;
+            font-family: var(--font-main);
+            overflow-x: hidden;
         }
 
-        h1, h2, h3, h4, h5, .font-display { font-family: 'Outfit', sans-serif; }
+        h1, h2, h3, h4, .font-heading {
+            font-family: var(--font-heading);
+            font-weight: 800;
+        }
 
-        /* Premium Hero Section */
-        .hero-premium {
-            background: #020617;
+        /* Hero Imersivo */
+        .hero-section {
             position: relative;
-            padding: 80px 0 140px;
-            overflow: hidden;
+            min-height: 480px;
+            background-color: var(--dark);
             color: white;
+            padding: 80px 0 140px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
         }
 
-        .hero-overlay {
+        .hero-bg-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            opacity: 0.4;
-            filter: brightness(0.6) contrast(1.2);
-            z-index: 0;
-        }
-
-        .hero-gradient {
-            position: absolute;
-            bottom: 0; left: 0; width: 100%; height: 60%;
-            background: linear-gradient(to top, #020617, transparent);
+            background: linear-gradient(0deg, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.4) 60%, rgba(15, 23, 42, 0.2) 100%);
             z-index: 1;
         }
 
-        .hero-content { position: relative; z-index: 2; }
+        .hero-bg-img {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.5;
+            z-index: 0;
+            transition: transform 10s ease;
+        }
 
-        /* Card System (Symmetry) */
-        .card-territory {
-            background: white;
-            border: 1px solid rgba(0,0,0,0.04);
-            border-radius: 24px;
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.04);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        .hero-section:hover .hero-bg-img {
+            transform: scale(1.1);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .cep-badge {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        /* Dashboard Bento Grid Style */
+        .dashboard-container {
+            margin-top: -80px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .card-pro {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: var(--card-radius);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             height: 100%;
-        }
-
-        .card-territory:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
-        }
-
-        /* Metric Widgets */
-        .metric-v2 {
             padding: 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
         }
 
-        .metric-ico-v2 {
+        .card-pro:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .metric-icon-pro {
             width: 48px;
             height: 48px;
             border-radius: 14px;
@@ -96,79 +127,127 @@
             justify-content: center;
             font-size: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.1);
         }
 
-        .label-v2 {
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #94a3b8;
-            margin-bottom: 4px;
-        }
-
-        .val-v2 { font-weight: 900; font-size: 1.5rem; line-height: 1.1; }
-
-        /* Custom Badges */
-        .badge-premium {
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 0.7rem;
-            font-weight: 900;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-
-        /* Map styling */
-        #map {
-            height: 580px;
-            border-radius: 24px;
-            z-index: 10;
-            border: 4px solid white;
-            box-shadow: 0 20px 40px -20px rgba(0,0,0,0.2);
-        }
-
-        .section-tag {
-            background: rgba(79, 70, 229, 0.05);
-            color: var(--primary);
-            padding: 4px 12px;
-            border-radius: 100px;
-            font-size: 0.75rem;
-            font-weight: 800;
+        /* Status Pills */
+        .status-pill {
             display: inline-flex;
             align-items: center;
-            margin-bottom: 12px;
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Mapa e POIs */
+        #map-container {
+            height: 520px;
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            border: 4px solid white;
+            box-shadow: 0 15px 35px -10px rgba(15, 23, 42, 0.15);
+        }
+
+        #map { height: 100%; width: 100%; }
+
+        .poi-drawer {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+            scrollbar-width: thin;
         }
 
         .poi-item {
-            padding: 16px;
+            background: white;
             border-radius: 16px;
+            padding: 16px;
             margin-bottom: 12px;
             border: 1px solid #f1f5f9;
-            transition: all 0.2s ease;
-            background: #fdfdfd;
+            transition: transform 0.2s ease;
         }
 
         .poi-item:hover {
-            background: white;
-            border-color: var(--primary-light);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            transform: scale(1.02);
+            border-color: var(--primary);
         }
 
-        /* History Dropcap */
-        .history-text::first-letter {
+        /* Typography Decorations */
+        .editorial-text {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            color: #475569;
+            text-align: justify;
+        }
+
+        .drop-cap::first-letter {
             float: left;
-            font-size: 3.5rem;
+            font-size: 4.5rem;
             line-height: 0.8;
             padding-right: 12px;
-            padding-top: 4px;
             font-weight: 900;
             color: var(--primary);
-            font-family: 'Outfit';
+            font-family: var(--font-heading);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .reveal { animation: fadeInUp 0.8s ease backwards; }
+
+        /* Categorias do Mapa */
+        .map-category-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 10px 20px;
+            border-radius: 99px;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .map-category-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 8px 15px -3px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Print Adjustments */
+        @media print {
+            .no-print, .btn, .cep-badge, .breadcrumb, footer, .map-category-btn, #map-container .leaflet-control-container {
+                display: none !important;
+            }
+            .hero-section {
+                padding: 40px 0 !important;
+                min-height: auto !important;
+                background-color: #0f172a !important;
+                -webkit-print-color-adjust: exact;
+            }
+            .card-pro {
+                break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+                background: white !important;
+            }
+            body { background: white !important; }
+            .dashboard-container { margin-top: 20px !important; }
+            .hero-bg-img { display: none !important; }
+            .hero-bg-overlay { background: #0f172a !important; }
         }
     </style>
 </head>
-<body>
+<body id="pdf-content">
 
     @php
         $wiki = $report->wiki_json ?? [];
@@ -177,260 +256,362 @@
         $pois = $report->pois_json ?? [];
         $ibgeRaw = $report->raw_ibge_data ?? [];
         
-        $mobility = array_filter($pois, fn($p) => ($p['tags']['highway'] ?? '') === 'bus_stop' || ($p['tags']['amenity'] ?? '') === 'bicycle_parking' || ($p['tags']['amenity'] ?? '') === 'fuel');
-        $health_edu = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'school', 'bank', 'university', 'clinic', 'dentist', 'place_of_worship', 'library', 'post_office']));
-        
-        $commerces = array_filter($pois, function($p) use ($mobility, $health_edu) {
-            $isShop = isset($p['tags']['shop']);
-            $isFood = in_array($p['tags']['amenity'] ?? '', ['restaurant', 'cafe', 'bar', 'fast_food', 'pub', 'ice_cream', 'food_court']);
-            $isInOther = in_array($p['id'], array_column($mobility, 'id')) || in_array($p['id'], array_column($health_edu, 'id'));
-            return ($isShop || $isFood) && !$isInOther;
-        });
-
         $translations = [
             'supermarket' => 'Supermercado', 'restaurant' => 'Restaurante', 'pharmacy' => 'Farmácia', 'cafe' => 'Café/Padaria',
-            'bakery' => 'Padaria', 'school' => 'Escola', 'bank' => 'Banco', 'hospital' => 'Hospital', 'bus_stop' => 'Parada de Ônibus',
-            'bicycle_parking' => 'Estac. Bicicletas', 'convenience' => 'Conveniência', 'clothes' => 'Loja de Roupas', 'mall' => 'Shopping',
-            'fuel' => 'Posto Combustível', 'bar' => 'Bar/Pub', 'fast_food' => 'Fast Food', 'university' => 'Universidade', 
-            'clinic' => 'Clínica', 'dentist' => 'Dentista', 'pub' => 'Pub/Bar', 'beauty' => 'Salão de Beleza', 'department_store' => 'Loja de Depto',
-            'place_of_worship' => 'Igreja/Templo', 'cinema' => 'Cinema', 'theatre' => 'Teatro', 'library' => 'Biblioteca', 
-            'post_office' => 'Correios', 'park' => 'Parque/Lazer', 'gym' => 'Academia', 'sports_centre' => 'Centro Esportivo', 
-            'playground' => 'Playground', 'ice_cream' => 'Sorveteria', 'food_court' => 'Praça de Alimentação', 
-            'hardware' => 'Material de Construção', 'electronics' => 'Eletrônicos', 'furniture' => 'Móveis', 'optician' => 'Ótica', 
-            'books' => 'Livraria', 'car_repair' => 'Oficina Mecânica', 'car_wash' => 'Lava Rápido', 'pet_shop' => 'Pet Shop',
-            'veterinary' => 'Veterinária', 'hairdresser' => 'Cabeleireiro', 'laundry' => 'Lavanderia'
+            'bakery' => 'Padaria', 'school' => 'Escola', 'bank' => 'Banco', 'hospital' => 'Hospital',
+            'bus_stop' => 'Parada de Ônibus', 'bicycle_parking' => 'Estac. Bicicletas', 'convenience' => 'Conveniência',
+            'clothes' => 'Loja de Roupas', 'mall' => 'Shopping', 'fuel' => 'Posto Combustível', 'bar' => 'Bar/Pub',
+            'fast_food' => 'Fast Food', 'university' => 'Universidade', 'clinic' => 'Clínica', 'dentist' => 'Dentista',
+            'pub' => 'Pub/Bar', 'beauty' => 'Salão de Beleza', 'department_store' => 'Loja de Depto',
+            'place_of_worship' => 'Igreja/Templo', 'cinema' => 'Cinema', 'theatre' => 'Teatro',
+            'library' => 'Biblioteca', 'post_office' => 'Correios', 'park' => 'Parque/Lazer',
+            'gym' => 'Academia', 'sports_centre' => 'Centro Esportivo', 'playground' => 'Playground',
+            'ice_cream' => 'Sorveteria', 'food_court' => 'Praça de Alimentação', 'hardware' => 'Material de Construção',
+            'electronics' => 'Eletrônicos', 'furniture' => 'Móveis', 'optician' => 'Ótica', 'books' => 'Livraria',
+            'car_repair' => 'Oficina Mecânica', 'car_wash' => 'Lava Rápido', 'pet_shop' => 'Pet Shop',
+            'veterinary' => 'Veterinária', 'hairdresser' => 'Cabeleireiro', 'laundry' => 'Lavanderia',
+            'police' => 'Polícia / Delegacia', 'fire_station' => 'Bombeiros', 'townhall' => 'Prefeitura / Poupatempo',
+            'public_service' => 'Serviço Público', 'marketplace' => 'Feira Livre / Mercado', 'monument' => 'Monumento Histórico',
+            'memorial' => 'Memorial', 'museum' => 'Museu', 'arts_centre' => 'Centro Cultural', 'theatre' => 'Teatro',
+            'attraction' => 'Atração Turística', 'artwork' => 'Obra de Arte / Estátua', 'gallery' => 'Galeria de Arte',
+            'station' => 'Estação de Trem / Metrô'
         ];
 
-        // Status Logic
-        $aqiLabel = 'BOM'; $aqiColor = 'text-green-500';
-        if($aqi > 20) { $aqiLabel = 'MODERADO'; $aqiColor = 'text-warning'; }
-        if($aqi > 40) { $aqiLabel = 'RUIM'; $aqiColor = 'text-danger'; }
+        // Categorização Organizada
+        $health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors']));
+        $safety = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['police', 'fire_station', 'security']));
+        $services = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['bank', 'post_office', 'townhall', 'public_service', 'courthouse', 'embassy', 'library']));
+        $culture_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['arts_centre', 'museum', 'theatre', 'cinema', 'marketplace', 'place_of_worship']) || isset($p['tags']['historic']) || in_array($p['tags']['leisure'] ?? '', ['park', 'playground', 'sports_centre']));
+        $mobility = array_filter($pois, fn($p) => ($p['tags']['highway'] ?? '') === 'bus_stop' || ($p['tags']['amenity'] ?? '') === 'bicycle_parking' || ($p['tags']['amenity'] ?? '') === 'fuel' || ($p['tags']['railway'] ?? '') === 'station');
+        
+        $health_edu = array_merge($health, array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university'])));
 
-        $safetyColor = 'text-success'; $safetyBg = 'bg-success-subtle';
-        if($report->safety_level == 'MODERADO') { $safetyColor = 'text-warning'; $safetyBg = 'bg-warning-subtle'; }
-        if($report->safety_level == 'BAIXO') { $safetyColor = 'text-danger'; $safetyBg = 'bg-danger-subtle'; }
+        // Theme colors for score
+        $walkColor = match($report->walkability_score) {
+            'A' => '#10b981', 'B' => '#6366f1', default => '#64748b'
+        };
+        $walkLabel = match($report->walkability_score) {
+            'A' => 'Excelente Escopo', 'B' => 'Funcionalidade Básica', default => 'Dependente de Veículo'
+        };
+
+        // AQI Logic
+        $aqiRes = [
+            'level' => 'Bom', 'color' => 'success', 'desc' => 'Qualidade ideal para atividades ao ar livre.'
+        ];
+        if($aqi > 20) $aqiRes = ['level' => 'Moderado', 'color' => 'warning', 'desc' => 'Pessoas sensíveis podem ser afetadas.'];
+        if($aqi > 40) $aqiRes = ['level' => 'Ruim', 'color' => 'danger', 'desc' => 'Risco moderado para toda a população.'];
     @endphp
 
     <!-- HERO SECTION -->
-    <header class="hero-premium shadow-2xl">
+    <section class="hero-section">
         @if($wiki['image'] ?? null)
-            <img src="{{ $wiki['image'] }}" class="hero-overlay" alt="{{ $report->cidade }}">
+            <img src="{{ $wiki['image'] }}" class="hero-bg-img" alt="{{ $report->cidade }}">
         @endif
-        <div class="hero-gradient"></div>
+        <div class="hero-bg-overlay"></div>
         
         <div class="container hero-content">
             <div class="row align-items-center">
-                <div class="col-lg-8">
-                    <div class="d-flex align-items-center mb-3">
-                        <a href="{{ route('home') }}" class="btn btn-sm btn-outline-light rounded-pill px-3 me-3 opacity-75 hover-opacity-100">
-                            <i class="fa-solid fa-arrow-left me-2"></i>Início
-                        </a>
-                        <span class="badge bg-indigo-500 rounded-pill px-3 py-2 fw-black uppercase tracking-widest" style="font-size: 0.6rem;">Análise Territorial Ativa</span>
+                <div class="col-lg-8 reveal">
+                    <div class="cep-badge no-print">
+                        <i class="fa-solid fa-location-crosshairs text-primary"></i>
+                        @php $fCep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep); @endphp
+                        <span>REGIÃO DO CEP {{ $fCep }}</span>
                     </div>
-                    <h4 class="text-white-50 font-display fw-bold mb-1 uppercase tracking-widest">Informações de {{ $report->bairro ?: 'Município' }}</h4>
-                    <h1 class="display-1 fw-black mb-3 text-white tracking-tighter">{{ $report->cidade }} <span class="text-indigo-400 opacity-75">{{ $report->uf }}</span></h1>
-                    <p class="h5 fw-medium opacity-75 leading-relaxed max-w-2xl mb-0">
-                        {{ $report->logradouro ? $report->logradouro . ' • ' : '' }}{{ $report->bairro }} 
-                        <span class="mx-2 opacity-25">|</span> 
-                        CEP {{ $report->cep }}
+                    <h1 class="display-1 text-white mb-2">
+                        {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
+                    </h1>
+                    @php
+                        $formattedCep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep);
+                    @endphp
+                    <p class="h3 fw-light text-white-50 opacity-75 text-nowrap">
+                        {{ $report->logradouro ?: $report->bairro }} • <span class="fw-medium text-white">CEP {{ $formattedCep }}</span>
                     </p>
-                </div>
-                <div class="col-lg-4 text-center text-lg-end mt-5 mt-lg-0">
-                    <div class="d-inline-block glass-panel p-4 rounded-5 border-white border-opacity-10">
-                        <div class="label-v2 text-white opacity-50 mb-1">População Estimada</div>
-                        <div class="h2 fw-black mb-0 font-display">{{ number_format($report->populacao, 0, ',', '.') }}</div>
-                        <div class="text-indigo-400 small fw-bold mt-1">Dados IBGE 2024</div>
+                    <div class="mt-5 d-flex gap-3 no-print">
+                        <a href="{{ route('home') }}" class="btn btn-outline-light rounded-pill px-4 py-2 fw-bold">
+                            <i class="fa-solid fa-arrow-left me-2"></i>Nova Busca
+                        </a>
+                        <button id="download-pdf" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg shadow-primary">
+                            <i class="fa-solid fa-file-pdf me-2"></i>Baixar Relatório PDF
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-    </header>
+    </section>
 
-    <div class="container" style="margin-top: -60px; position: relative; z-index: 10;">
-        
-        <!-- TOP METRICS GRID (4 Slots) -->
+    <div class="container dashboard-container">
+        <!-- TOP METRICS GRID -->
         <div class="row g-4 mb-5">
-            <div class="col-sm-6 col-lg-3">
-                <div class="card-territory metric-v2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="metric-ico-v2 bg-indigo-50 text-indigo-600"><i class="fa-solid fa-person-walking"></i></div>
-                        <div class="h5 font-display fw-black text-indigo-600">{{ $report->walkability_score }}</div>
-                    </div>
+            <!-- Walkability (Bento Large) -->
+            <div class="col-lg-4 reveal" style="animation-delay: 0.1s">
+                <div class="card-pro d-flex flex-column justify-content-between overflow-hidden position-relative">
                     <div>
-                        <div class="label-v2">Caminhabilidade</div>
-                        <div class="val-v2">{{ $report->walkability_score == 'A' ? 'Excelente' : ($report->walkability_score == 'B' ? 'Básica' : 'Limitada') }}</div>
+                        <div class="metric-icon-pro bg-primary bg-opacity-10 text-primary">
+                            <i class="fa-solid fa-person-walking"></i>
+                        </div>
+                        <h4 class="mb-1">Caminhabilidade</h4>
+                        <p class="text-muted small">Mobilidade ativa e acesso peatonal.</p>
+                    </div>
+                    <div class="text-center py-4">
+                        <div style="font-size: 6rem; line-height: 1; font-weight: 900; color: {{ $walkColor }}">
+                            {{ $report->walkability_score }}
+                        </div>
+                        <span class="status-pill" style="background: {{ $walkColor }}15; color: {{ $walkColor }}">
+                            {{ $walkLabel }}
+                        </span>
+                    </div>
+                    <div style="position: absolute; bottom: -20px; right: -20px; opacity: 0.05; font-size: 8rem;">
+                        <i class="fa-solid fa-shoe-prints"></i>
                     </div>
                 </div>
             </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="card-territory metric-v2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="metric-ico-v2 bg-amber-50 text-warning"><i class="fa-solid fa-cloud-sun"></i></div>
-                        <div class="h5 font-display fw-black @if($aqi > 40) text-danger @else text-amber-600 @endif">{{ $aqi }} <small class="fw-bold opacity-50" style="font-size: 10px;">AQI</small></div>
-                    </div>
-                    <div>
-                        <div class="label-v2">Qualidade do Ar</div>
-                        <div class="val-v2">{{ $aqiLabel }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="card-territory metric-v2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="metric-ico-v2 bg-emerald-50 text-emerald-600"><i class="fa-solid fa-sack-dollar"></i></div>
-                        <div class="small fw-bold text-emerald-600">Mensal</div>
-                    </div>
-                    <div>
-                        <div class="label-v2">Renda Média</div>
-                        <div class="val-v2">R$ {{ number_format($report->average_income, 0, ',', '.') }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="card-territory metric-v2 {{ $safetyBg }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="metric-ico-v2 bg-white {{ $safetyColor }} shadow-sm"><i class="fa-solid fa-shield-halved"></i></div>
-                        <div class="badge-premium bg-white {{ $safetyColor }} border shadow-sm">{{ $report->safety_level }}</div>
-                    </div>
-                    <div>
-                        <div class="label-v2 {{ $safetyColor }}">Segurança</div>
-                        <div class="val-v2 {{ $safetyColor }}">Nível Local</div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- MAIN LAYOUT (Symmetry) -->
-        <div class="row g-5 mb-5 align-items-stretch">
             <div class="col-lg-8">
-                <div class="card-territory h-100 overflow-hidden">
-                    <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fa-solid fa-map-location-dot h3 text-indigo-600 me-3 mb-0"></i>
-                            <div>
-                                <h3 class="fw-black mb-0 h5">Mapa de Vizinhança</h3>
-                                <p class="small text-muted mb-0">Localização exata e pontos de interesse identificados</p>
+                <div class="row g-4 h-100">
+                    <!-- Air & Climate -->
+                    <div class="col-md-6 reveal" style="animation-delay: 0.2s">
+                        <div class="card-pro">
+                            <div class="d-flex justify-content-between align-items-start mb-4">
+                                <div class="metric-icon-pro bg-amber-100 text-amber-600">
+                                    <i class="fa-solid fa-wind"></i>
+                                </div>
+                                @if($climate)
+                                    <div class="text-end">
+                                        <div class="h2 mb-0 fw-black text-dark">{{ round($climate['temperature']) }}°C</div>
+                                        <div class="badge bg-light text-muted fw-bold">Tempo Real</div>
+                                    </div>
+                                @endif
+                            </div>
+                            <h5 class="fw-bold">Qualidade do Ar</h5>
+                            <div class="mt-3">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="h4 mb-0 fw-bold">{{ $aqi }}</span>
+                                    <span class="status-pill bg-{{ $aqiRes['color'] }} text-white">{{ $aqiRes['level'] }}</span>
+                                </div>
+                                <p class="small text-muted mb-0 leading-tight">{{ $aqiRes['desc'] }}</p>
                             </div>
                         </div>
-                        <div class="section-tag mb-0">RAIO 10KM</div>
                     </div>
-                    <div id="map"></div>
+
+                    <!-- Economics -->
+                    <div class="col-md-6 reveal" style="animation-delay: 0.3s">
+                        <div class="card-pro bg-dark text-white border-0 shadow-xl" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                            <div class="d-flex justify-content-between align-items-start mb-4">
+                                <div class="metric-icon-pro bg-white bg-opacity-10 text-primary">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <div class="text-end">
+                                    <div class="h2 mb-0 fw-black text-primary">R${{ number_format($report->average_income, 0, ',', '.') }}</div>
+                                    <div class="small fw-bold opacity-50 uppercase">Renda Média</div>
+                                </div>
+                            </div>
+                            <h5 class="fw-bold">Saneamento & Infra</h5>
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="small opacity-75">Cobertura de Esgoto</span>
+                                    <span class="small fw-bold">{{ $report->sanitation_rate }}%</span>
+                                </div>
+                                <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                                    <div class="progress-bar bg-primary" style="width:{{ $report->sanitation_rate }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Safety (Small) -->
+                    @php
+                        $sColor = match($report->safety_level) {
+                            'ALTA' => 'success', 'MODERADO' => 'warning', default => 'danger'
+                        };
+                    @endphp
+                    <div class="col-12 reveal" style="animation-delay: 0.4s">
+                        <div class="card-pro d-flex align-items-center justify-content-between p-3" style="background: var(--glass);">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="metric-icon-pro bg-{{ $sColor }}-subtle text-{{ $sColor }} mb-0">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">Índice de Segurança</h6>
+                                    <span class="text-muted small">{{ $report->safety_description ?: 'Baseado em dados estatísticos regionais.' }}</span>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ $sColor }} rounded-pill px-3 py-2 fw-black" style="font-size: 0.9rem;">
+                                    {{ $report->safety_level ?? 'N/A' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIDDLE SECTION: MAP & INFRASTRUCTURE -->
+        <div class="row g-4 mb-5">
+            <div class="col-xl-8">
+                <div id="map-print-section" class="card-pro p-0 overflow-hidden bg-white border-0 shadow-lg" style="height: 520px;">
+                    <div class="p-4 d-flex justify-content-between align-items-center bg-white border-bottom no-print">
+                        <div>
+                            <h4 class="mb-0">Mapeamento Territorial</h4>
+                            <p class="text-muted small mb-0">Visualização interativa de pontos próximos ao CEP.</p>
+                        </div>
+                        <div class="d-none d-md-flex gap-2">
+                            <span class="map-category-btn active" data-filter="all"><i class="fa-solid fa-layer-group"></i>Tudo</span>
+                            <span class="map-category-btn" data-filter="saude"><i class="fa-solid fa-house-medical text-success"></i>Saúde</span>
+                            <span class="map-category-btn" data-filter="seguranca"><i class="fa-solid fa-shield-heart text-danger"></i>Segurança</span>
+                            <span class="map-category-btn" data-filter="servicos"><i class="fa-solid fa-landmark-flag text-primary"></i>Serviços</span>
+                            <span class="map-category-btn" data-filter="cultura"><i class="fa-solid fa-masks-theater text-amber-600"></i>Cultura</span>
+                        </div>
+                    </div>
+                    <div id="map-container" style="height: 440px;">
+                        <div id="map" style="height: 100%;"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-lg-4">
-                <div class="card-territory d-flex flex-column h-100">
-                    <div class="p-4 border-bottom">
-                        <h4 class="fw-black mb-0"><i class="fa-solid fa-compass me-2 text-indigo-600"></i>Pontos de Apoio</h4>
+            <div class="col-xl-4">
+                <div class="card-pro h-100 d-flex flex-column">
+                    <div class="mb-4 d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0 fw-black">Infraestrutura</h5>
+                        <div class="text-primary fw-bold small">RAIO 10KM</div>
                     </div>
                     
-                    <!-- POI Groups -->
-                    <div class="p-4 overflow-auto custom-scrollbar" style="max-height: 520px;">
-                        <!-- Healthcare/Education -->
-                        <div class="mb-4">
-                            <span class="label-v2 block mb-3">Infraestrutura Crítica</span>
-                            @forelse(array_slice($health_edu, 0, 8) as $h)
-                                <div class="poi-item d-flex align-items-center">
-                                    <div class="bg-indigo-50 text-indigo-600 rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px; height:32px; flex-shrink:0;">
-                                        <i class="fa-solid fa-location-dot fa-xs"></i>
-                                    </div>
-                                    <div class="overflow-hidden">
-                                        <div class="fw-bold text-dark small text-truncate">{{ $h['tags']['name'] ?? 'Local de Apoio' }}</div>
-                                        <div class="text-muted" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">{{ $translations[$h['tags']['amenity'] ?? ''] ?? 'Serviço' }}</div>
-                                    </div>
-                                </div>
-                            @empty
-                                <p class="small text-muted opacity-50">Sem dados mapeados.</p>
-                            @endforelse
+                    <!-- Quick Stats Grid -->
+                    <div class="row g-2 mb-4">
+                        <div class="col-6">
+                            <div class="card p-2 border-0 bg-success bg-opacity-10 text-center rounded-4">
+                                <div class="h5 fw-black text-success mb-0">{{ count($health) }}</div>
+                                <div class="text-success opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Saúde</div>
+                            </div>
                         </div>
-
-                        <!-- Commerce -->
-                        <div>
-                            <span class="label-v2 block mb-3">Comércios e Alimentação</span>
-                            @forelse(array_slice($commerces, 0, 10) as $c)
-                                <div class="poi-item d-flex align-items-center">
-                                    <div class="bg-emerald-50 text-emerald-600 rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px; height:32px; flex-shrink:0;">
-                                        <i class="fa-solid fa-bag-shopping fa-xs"></i>
-                                    </div>
-                                    <div class="overflow-hidden">
-                                        <div class="fw-bold text-dark small text-truncate">{{ $c['tags']['name'] ?? 'Comércio Local' }}</div>
-                                        <div class="text-muted" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">{{ $translations[$c['tags']['shop'] ?? $c['tags']['amenity'] ?? ''] ?? 'Venda' }}</div>
-                                    </div>
-                                </div>
-                            @empty
-                                <p class="small text-muted opacity-50">Sem dados mapeados.</p>
-                            @endforelse
+                        <div class="col-6">
+                            <div class="card p-2 border-0 bg-danger bg-opacity-10 text-center rounded-4">
+                                <div class="h5 fw-black text-danger mb-0">{{ count($safety) }}</div>
+                                <div class="text-danger opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Segurança</div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- HISTORY & ANALYSIS SECTION -->
-        <section class="mb-5">
-            <div class="card-territory p-4 p-md-5">
-                <div class="row align-items-center g-5">
-                    <div class="col-lg-7">
-                        <div class="section-tag"><i class="fa-solid fa-scroll me-2"></i>Análise por Inteligência Artificial</div>
-                        <h2 class="display-5 fw-black mb-4">A Essência de {{ $report->cidade }}</h2>
-                        
-                        <div class="history-text text-muted lh-lg" style="text-align: justify; font-size: 1.05rem;">
-                            {{ $report->history_extract }}
+                        <div class="col-6">
+                            <div class="card p-2 border-0 bg-primary bg-opacity-10 text-center rounded-4">
+                                <div class="h5 fw-black text-primary mb-0">{{ count($services) }}</div>
+                                <div class="text-primary opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Serviços</div>
+                            </div>
                         </div>
-
-                        <div class="mt-4 pt-4 border-top">
-                            <div class="d-flex align-items-center bg-slate-50 p-4 rounded-4">
-                                <i class="fa-solid fa-shield-halved h3 text-indigo-600 me-4 mb-0"></i>
-                                <div>
-                                    <div class="label-v2">Nota da Segurança Pública</div>
-                                    <p class="mb-0 fw-bold text-dark">{{ $report->safety_description }}</p>
-                                </div>
+                        <div class="col-6">
+                            <div class="card p-2 border-0 bg-amber-100 text-center rounded-4">
+                                <div class="h5 fw-black text-amber-600 mb-0">{{ count($culture_leisure) }}</div>
+                                <div class="text-amber-600 opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Lazer</div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-5 text-center">
-                        @if($wiki['image'] ?? null)
-                            <div class="position-relative d-inline-block">
-                                <img src="{{ $wiki['image'] }}" class="img-fluid rounded-5 shadow-2xl border border-white border-8" 
-                                     style="max-height: 480px; width: auto; object-fit: cover; transform: rotate(1deg);" alt="{{ $report->cidade }}">
-                                <div class="position-absolute bottom-0 end-0 bg-indigo-600 p-3 rounded-circle shadow-lg m-(-4) animate-pulse border border-white border-4">
-                                    <i class="fa-brands fa-wikipedia-w text-white h3 mb-0"></i>
-                                </div>
+
+                    <div class="poi-drawer flex-grow-1" style="max-height: 320px;">
+                        <!-- Segurança -->
+                        @if(count($safety) > 0)
+                            <div class="mb-3">
+                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Segurança & Emergência</h6>
+                                @foreach(array_slice($safety, 0, 3) as $p)
+                                    <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white;">
+                                        <i class="fa-solid fa-building-shield text-danger opacity-50 me-3"></i>
+                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Unidade' }}</div>
+                                    </div>
+                                @endforeach
                             </div>
-                        @else
-                            <div class="bg-slate-100 p-5 rounded-5 border border-dashed text-slate-300">
-                                <i class="fa-solid fa-camera fa-6x"></i>
+                        @endif
+
+                        <!-- Cultura -->
+                        @if(count($culture_leisure) > 0)
+                            <div class="mb-3">
+                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Cultura & Lazer</h6>
+                                @foreach(array_slice($culture_leisure, 0, 5) as $p)
+                                    @php $isHistoric = isset($p['tags']['historic']) || ($p['tags']['tourism'] ?? '') === 'museum' || ($p['tags']['amenity'] ?? '') === 'marketplace'; @endphp
+                                    <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white;">
+                                        <i class="fa-solid @if($isHistoric) fa-landmark @else fa-tree @endif text-amber-600 opacity-50 me-3"></i>
+                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Ponto Cultural' }}</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <!-- Mobilidade -->
+                        @if(count($mobility) > 0)
+                            <div class="mb-3">
+                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Mobilidade</h6>
+                                @foreach(array_slice($mobility, 0, 5) as $p)
+                                    <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white;">
+                                        <i class="fa-solid fa-bus text-primary opacity-50 me-3"></i>
+                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Transporte' }}</div>
+                                    </div>
+                                @endforeach
                             </div>
                         @endif
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
 
+        <!-- HISTORY SECTION -->
+        @if($report->history_extract)
+            <div class="row mb-5 reveal">
+                <div class="col-12">
+                    <div class="card-pro p-5 border-0 shadow-lg overflow-hidden position-relative">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8 position-relative" style="z-index: 2">
+                                <div class="d-flex align-items-center gap-3 mb-4">
+                                    <div class="bg-primary text-white p-3 rounded-4 shadow-sm">
+                                        <i class="fa-solid fa-book-open fa-lg"></i>
+                                    </div>
+                                    <h2 class="mb-0">Legado e Cultura Regional</h2>
+                                </div>
+                                <div class="editorial-text drop-cap mb-4">
+                                    {{ $report->history_extract }}
+                                </div>
+                                @if($wiki['desktop_url'] ?? null)
+                                    <a href="{{ $wiki['desktop_url'] }}" target="_blank" class="btn btn-dark rounded-pill px-4 py-2 fw-bold text-uppercase no-print" style="font-size: 12px;">
+                                        <i class="fa-brands fa-wikipedia-w me-2"></i>Ver Fonte Original
+                                    </a>
+                                @endif
+                            </div>
+                            <div class="col-lg-4 d-none d-lg-block">
+                                <div class="position-relative">
+                                    @if($wiki['image'] ?? null)
+                                        <img src="{{ $wiki['image'] }}" class="img-fluid rounded-4 shadow-2xl border-4 border-white rotate-2" alt="História">
+                                    @else
+                                        <div class="bg-light p-5 rounded-4 text-center">
+                                            <i class="fa-solid fa-landmark fa-8x opacity-10"></i>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     <!-- FOOTER -->
-    <footer class="bg-white py-5 border-top">
+    <footer class="bg-dark text-white-50 py-5 mt-5">
         <div class="container">
-            <div class="row g-4 align-items-center">
-                <div class="col-md-6 text-center text-md-start">
-                    <span class="text-xl font-black tracking-tighter text-dark uppercase italic">{{ config('app.name') }}<span class="text-indigo-500">.</span>territory</span>
-                    <p class="text-muted small mt-2">Tecnologia avançada de cruzamento de dados urbanos e demográficos.</p>
+            <div class="row align-items-center g-4">
+                <div class="col-md-4 text-center text-md-start">
+                    <h3 class="text-white mb-1">{{ config('app.name') }}</h3>
+                    <p class="small mb-0 opacity-50">Inteligência de Dados Territoriais</p>
                 </div>
-                <div class="col-md-6 text-center text-md-end">
-                    <div class="d-flex justify-content-center justify-content-md-end gap-4 mb-3">
-                        <small class="text-slate-400 fw-black uppercase tracking-widest" style="font-size: 9px;">ViaCEP</small>
-                        <small class="text-slate-400 fw-black uppercase tracking-widest" style="font-size: 9px;">Overpass OSM</small>
-                        <small class="text-slate-400 fw-black uppercase tracking-widest" style="font-size: 9px;">Open-Meteo</small>
-                        <small class="text-slate-400 fw-black uppercase tracking-widest" style="font-size: 9px;">Gemini 2.5</small>
+                <div class="col-md-4 text-center">
+                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                        <span class="small fw-bold border-bottom border-secondary">IBGE</span>
+                        <span class="small fw-bold border-bottom border-secondary">OSM</span>
+                        <span class="small fw-bold border-bottom border-secondary">GOOGLE AI</span>
                     </div>
-                    <p class="text-muted small mb-0">© {{ date('Y') }} - Desenvolvido para Análise B2C Premium.</p>
+                </div>
+                <div class="col-md-4 text-center text-md-end">
+                    <p class="small mb-0 fw-bold">© {{ date('Y') }} - Todos os direitos reservados.</p>
                 </div>
             </div>
         </div>
     </footer>
 
-    <!-- Leaflet Configuration -->
+    <!-- Scripts -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const lat = {{ $report->lat }};
@@ -438,44 +619,138 @@
             const pois = @json($report->pois_json ?? []);
             const translations = @json($translations);
 
-            // Premium Map Style (Muted but colorful markers)
+            // Light Material Map Style
             const map = L.map('map', { 
                 scrollWheelZoom: false,
-                attributionControl: false
+                attributionControl: false,
+                zoomControl: true
             }).setView([lat, lng], 15);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd',
                 maxZoom: 19
             }).addTo(map);
 
-            // Add Central Marker
-            const centralIcon = L.divIcon({
-                className: 'custom-div-icon',
-                html: "<div style='background-color:#4f46e5; width:24px; height:24px; border-radius:50%; border:4px solid white; box-shadow: 0 0 15px rgba(79,70,229,0.5);'></div>",
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
+            // Custom Main Marker
+            const pulseIcon = L.divIcon({
+                className: 'main-pulse-pin',
+                html: `<div style="position:relative; width:40px; height:40px;">
+                    <div style="position:absolute; width:100%; height:100%; background:rgba(99, 102, 241, 0.4); border-radius:50%; animation:pulse 2s infinite;"></div>
+                    <div style="position:absolute; width:12px; height:12px; background:#4F46E5; border:3px solid white; border-radius:50%; top:14px; left:14px; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>
+                </div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
             });
-            L.marker([lat, lng], {icon: centralIcon}).addTo(map).bindPopup("<b class='font-display'>Ponto de Referência</b><br>Equidistante à análise.");
 
-            // Add POIs
+            L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
+
+            const poiLayers = L.layerGroup().addTo(map);
+            const poiData = [];
+
+            // Filterable POIs
             pois.forEach(poi => {
-                if(poi.lat && poi.lon) {
-                    const tag = poi.tags.amenity || poi.tags.shop || poi.tags.highway;
-                    const name = poi.tags.name || translations[tag] || 'Estabelecimento';
-                    
-                    const marker = L.circleMarker([poi.lat, poi.lon], {
-                        radius: 6,
-                        fillColor: "#6366f1",
-                        color: "#fff",
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.8
-                    }).addTo(map);
+                if (!poi.lat || !poi.lon) return;
+                const rawType = poi.tags.amenity || poi.tags.shop || poi.tags.highway || poi.tags.historic || 'Comércio';
+                const type = translations[rawType] || rawType;
+                
+                let color = '#64748b'; // slate (default)
+                let category = 'comercio';
 
-                    marker.bindPopup(`<small class='fw-bold text-indigo-600 uppercase tracking-widest' style='font-size:9px'>${translations[tag] || tag || 'POI'}</small><br><b class='font-display'>${name}</b>`);
+                // Categorias para o Mapa
+                if (['hospital', 'pharmacy', 'clinic', 'dentist', 'doctors'].includes(rawType)) {
+                    color = '#10b981'; // success
+                    category = 'saude';
+                } else if (['police', 'fire_station'].includes(rawType)) {
+                    color = '#ef4444'; // danger
+                    category = 'seguranca';
+                } else if (['bank', 'post_office', 'townhall', 'public_service', 'library'].includes(rawType)) {
+                    color = '#6366f1'; // primary
+                    category = 'servicos';
+                } else if (['arts_centre', 'museum', 'theatre', 'cinema', 'marketplace', 'place_of_worship', 'park', 'monument', 'memorial'].includes(rawType) || poi.tags.historic) {
+                    color = '#d97706'; // amber-600
+                    category = 'cultura';
+                } else if (['bus_stop', 'fuel', 'bicycle_parking'].includes(rawType)) {
+                    color = '#0ea5e9'; // sky
+                    category = 'transporte';
                 }
+
+                const marker = L.circleMarker([poi.lat, poi.lon], {
+                    color: 'white',
+                    fillColor: color,
+                    fillOpacity: 0.9,
+                    radius: 7,
+                    weight: 2
+                }).bindPopup(`
+                    <div class="p-2">
+                        <div class="fw-bold mb-1 text-dark">${poi.tags.name || 'Local Estabelecido'}</div>
+                        <div class="badge bg-light text-primary text-uppercase" style="font-size: 10px">${type}</div>
+                    </div>
+                `);
+
+                poiData.push({ marker, category });
+                marker.addTo(poiLayers);
+            });
+
+            // Filter Logic
+            document.querySelectorAll('.map-category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filter = this.getAttribute('data-filter');
+                    
+                    document.querySelectorAll('.map-category-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    poiLayers.clearLayers();
+                    poiData.forEach(item => {
+                        if (filter === 'all' || item.category === filter) {
+                            item.marker.addTo(poiLayers);
+                        }
+                    });
+                });
+            });
+
+            // PDF Export Logic
+            document.getElementById('download-pdf').addEventListener('click', function() {
+                const btn = this;
+                const originalText = btn.innerHTML;
+                const noPrintElements = document.querySelectorAll('.no-print');
+                
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Gerando PDF...';
+                btn.disabled = true;
+
+                // Oculta elementos que não devem sair no PDF
+                noPrintElements.forEach(el => el.style.visibility = 'hidden');
+
+                const opt = {
+                    margin:       [10, 5, 10, 5],
+                    filename:     `Relatorio-RaioX-${@json($report->cidade)}-${@json($report->cep)}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { 
+                        scale: 2,
+                        useCORS: true, 
+                        logging: false,
+                        letterRendering: true
+                    },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                html2pdf().set(opt).from(document.body).save().then(() => {
+                    // Restaura a visibilidade
+                    noPrintElements.forEach(el => el.style.visibility = 'visible');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
             });
         });
     </script>
+    
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

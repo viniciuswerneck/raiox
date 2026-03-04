@@ -19,11 +19,12 @@ class NeighborhoodService
         // 1. Check cache (max 90 days old)
         $report = LocationReport::where('cep', $cepClean)->first();
 
-        // Se o relatório existe e é recente (menos de 90 dias)
+        // Se o relatório existe, é recente (menos de 90 dias) e POSSUI O RESUMO LONGO (mínimo 1000 chars)
         if ($report && 
             $report->updated_at->gt(Carbon::now()->subDays(90)) && 
             $report->air_quality_index !== null && 
             $report->history_extract !== null &&
+            strlen($report->history_extract) > 1500 &&
             !empty($report->pois_json)
         ) {
             // REGRA: O Clima e Ar sempre deve ser atualizado se tiver mais de 1 hora
@@ -85,6 +86,8 @@ class NeighborhoodService
      */
     public function getFullReport(string $cep): array
     {
+        set_time_limit(300); // Previne timeout do PHP (120s) quando as APIs demoram muito
+        
         $cepClean = preg_replace('/\D/', '', $cep);
         
         // 1. ViaCEP (Includes IBGE code)
@@ -110,21 +113,22 @@ class NeighborhoodService
             }
             $socio = $this->fetchSocioEconomic($ibgeCode);
 
-            // Fetch Wikipedia Only for City
-            $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
-            $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? null;
-            $cityHistory = $cityWiki['extract'] ?? null;
-            $citySafetyLevel = null;
-            $citySafetyDesc = null;
-            if ($historyRaw) {
-                $gemini = new \App\Services\GeminiService();
-                $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
-                if ($aiSummary) {
-                    $cityHistory = $aiSummary['historia'] ?? $cityHistory;
-                    $citySafetyLevel = $aiSummary['nivel_seguranca'] ?? null;
-                    $citySafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
-                }
-            }
+             // Fetch Wikipedia Only for City
+             $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
+             $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? 'Sem dados na Wikipedia.';
+             $cityHistory = $cityWiki['extract'] ?? 'Local em desenvolvimento.';
+             $citySafetyLevel = 'MODERADO';
+             $citySafetyDesc = 'Região que segue padrões métropolitamos.';
+             
+             $gemini = new \App\Services\GeminiService();
+             // Chamamos o Gemini SEMPRE, inclusive com conhecimento próprio se a Wiki for curta ou nula
+             $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
+             
+             if ($aiSummary) {
+                 $cityHistory = $aiSummary['historia'] ?? $cityHistory;
+                 $citySafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
+                 $citySafetyDesc = $aiSummary['descricao_seguranca'] ?? $citySafetyDesc;
+             }
 
             $cityModel = \App\Models\City::create([
                 'ibge_code' => $ibgeCode,
@@ -159,25 +163,31 @@ class NeighborhoodService
                 $bairroWiki = $this->fetchWikipediaInfo($bairro, $city, $state, true); 
                 
                 $bairroHistory = null;
+                $bairroSafetyLevel = 'MODERADO';
+                $bairroSafetyDesc = 'Região que segue padrões urbanos.';
                 if ($bairroWiki && $bairroWiki['source'] === 'bairro') {
-                    $bairroHistoryRaw = $bairroWiki['full_text'] ?? $bairroWiki['extract'] ?? null;
-                    $bairroHistory = $bairroWiki['extract'] ?? null;
-                    $bairroSafetyLevel = null;
-                    $bairroSafetyDesc = null;
-                    if ($bairroHistoryRaw) {
-                        $gemini = new \App\Services\GeminiService();
-                        $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
-                        if ($aiSummary) {
-                            $bairroHistory = $aiSummary['historia'] ?? $bairroHistory;
-                            $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? null;
-                            $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
-                        }
+                    $bairroHistoryRaw = $bairroWiki['full_text'] ?? $bairroWiki['extract'] ?? 'Sem dados específicos do bairro na Wikipedia.';
+                    $bairroHistory = $bairroWiki['extract'] ?? 'Bairro em constante crescimento.';
+                    
+                    $gemini = new \App\Services\GeminiService();
+                    $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
+                    if ($aiSummary) {
+                        $bairroHistory = $aiSummary['historia'] ?? $bairroHistory;
+                        $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
+                        $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? 'Região com características residenciais.';
                     }
                 } else {
+                    // Se o bairro não tem wiki própria, pedimos para a IA inventar baseada no conhecimento dela
+                    $gemini = new \App\Services\GeminiService();
+                    $aiSummary = $gemini->generateNeighborhoodSummary("Gere um resumo sobre o bairro {$bairro} em {$city}. Use seu conhecimento prévio.", "{$bairro}, {$city}");
+                    
+                    if ($aiSummary) {
+                        $bairroHistory = $aiSummary['historia'] ?? null;
+                        $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
+                        $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
+                    }
+                    
                     $bairroWiki = null;
-                    $bairroHistory = null;
-                    $bairroSafetyLevel = null;
-                    $bairroSafetyDesc = null;
                 }
 
                 $neighborhoodModel = \App\Models\Neighborhood::create([
@@ -295,11 +305,14 @@ class NeighborhoodService
     private function fetchOverpass($lat, $lng)
     {
         $radius = 10000;
-        $query = "[out:json][timeout:60];(
-            nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking\"](around:{$radius},{$lat},{$lng});
-            nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books\"](around:{$radius},{$lat},{$lng});
-            nwr[\"leisure\"~\"park|gym|sports_centre|playground\"](around:{$radius},{$lat},{$lng});
+        $query = "[out:json][timeout:15];(
+            nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
+            nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace\"](around:{$radius},{$lat},{$lng});
+            nwr[\"leisure\"~\"park|gym|sports_centre|playground|marketplace\"](around:{$radius},{$lat},{$lng});
+            nwr[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"](around:{$radius},{$lat},{$lng});
             nwr[\"highway\"=\"bus_stop\"](around:{$radius},{$lat},{$lng});
+            nwr[\"historic\"](around:{$radius},{$lat},{$lng});
+            nwr[\"railway\"=\"station\"](around:{$radius},{$lat},{$lng});
         );out center qt;";
 
         // Múltiplos endpoints públicos do Overpass para fallback
@@ -313,7 +326,7 @@ class NeighborhoodService
             try {
                 Log::info("Overpass: tentando endpoint {$endpoint}");
                 $response = Http::withoutVerifying()
-                    ->timeout(75)
+                    ->timeout(15)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);
 

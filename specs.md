@@ -11,11 +11,11 @@
 
 #### Funcionalidades Implementadas
 
-**1. Análise de Vizinhança com Google Gemini AI**
-- Integração do `GeminiService` com API `gemini-flash-latest`
-- Geração de texto de 3-4 parágrafos humanizados sobre história e qualidade de vida local
-- O Gemini usa seu próprio conhecimento quando o conteúdo da Wikipedia for curto (<500 chars)
-- Temperature: 0.75, MaxOutputTokens: 1024
+**1. Análise de Vizinhança com Google Gemini AI (REGRA DE OURO)**
+- Integração do `GeminiService` com API `gemini-2.0-flash`.
+- Geração de texto de **4 a 8 parágrafos** envolventes e comerciais.
+- **Enriquecimento Obrigatório:** O Gemini usa seu próprio conhecimento para complementar a Wikipedia.
+- **Validação de Cache:** Resumos com menos de 1000 caracteres são descartados e regenerados.
 
 **2. Wikipedia com Fallback Inteligente**
 - 4 tentativas em cascata: `Bairro_(Cidade)` → `Bairro` → `Cidade_(UF)` → `Cidade`

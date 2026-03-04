@@ -21,6 +21,9 @@
 | `config/services.php` | `app/Services/GeminiService.php` (lê `services.gemini.key`) |
 | `.env` | `config/services.php`, `config/database.php` |
 
+### ⚠️ Regras Imutáveis: Gemini JSON Parsing (GeminiService.php)
+A estrutura de `GeminiService.php` faz o tratamento e decodificação forçada do retorno da API (`v1beta/models/gemini-2.5-flash`). Modelos Flash tendem a retornar JSON mal-formados e ISO quebrado não-escapados. **A lógica nativa do PHP usando conversão agressiva `preg_replace` e `json_decode(..., JSON_INVALID_UTF8_IGNORE)` no serviço NÃO DEVE SER ALTERADA sob nenhuma hipótese**, do contrário, voltará a acusar erros 4 *Syntax error* e invalidará os grandes textos guardados da Wikipedia nos bairros e cidades do país.
+
 ---
 
 ## Rotas (routes/web.php)
