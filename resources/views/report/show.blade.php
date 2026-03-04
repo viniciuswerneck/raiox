@@ -274,17 +274,19 @@
             'public_service' => 'Serviço Público', 'marketplace' => 'Feira Livre / Mercado', 'monument' => 'Monumento Histórico',
             'memorial' => 'Memorial', 'museum' => 'Museu', 'arts_centre' => 'Centro Cultural', 'theatre' => 'Teatro',
             'attraction' => 'Atração Turística', 'artwork' => 'Obra de Arte / Estátua', 'gallery' => 'Galeria de Arte',
-            'station' => 'Estação de Trem / Metrô'
+            'station' => 'Estação de Trem / Metrô', 'kindergarten' => 'Creche / Instituição Infantil',
+            'childcare' => 'Espaço Infantil', 'doctors' => 'Unidade Básica (UBS) / Médicos',
+            'doityourself' => 'Ferramentas/Construção', 'shoes' => 'Sapatos'
         ];
 
         // Categorização Organizada
-        $health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors']));
-        $safety = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['police', 'fire_station', 'security']));
-        $services = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['bank', 'post_office', 'townhall', 'public_service', 'courthouse', 'embassy', 'library']));
-        $culture_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['arts_centre', 'museum', 'theatre', 'cinema', 'marketplace', 'place_of_worship']) || isset($p['tags']['historic']) || in_array($p['tags']['leisure'] ?? '', ['park', 'playground', 'sports_centre']));
-        $mobility = array_filter($pois, fn($p) => ($p['tags']['highway'] ?? '') === 'bus_stop' || ($p['tags']['amenity'] ?? '') === 'bicycle_parking' || ($p['tags']['amenity'] ?? '') === 'fuel' || ($p['tags']['railway'] ?? '') === 'station');
+        $health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors', 'veterinary']));
         
-        $health_edu = array_merge($health, array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university'])));
+        $education_faith = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university', 'kindergarten', 'childcare', 'place_of_worship']));
+        
+        $commerce = array_filter($pois, fn($p) => isset($p['tags']['shop']) || in_array($p['tags']['amenity'] ?? '', ['fuel', 'restaurant', 'cafe', 'fast_food', 'bakery', 'bar', 'pub', 'marketplace', 'bank']));
+        
+        $services_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['police', 'fire_station', 'post_office', 'townhall', 'public_service', 'cinema', 'theatre', 'arts_centre', 'library']) || in_array($p['tags']['leisure'] ?? '', ['park', 'gym', 'sports_centre', 'playground']) || isset($p['tags']['historic']));
 
         // Theme colors for score
         $walkColor = match($report->walkability_score) {
@@ -450,20 +452,27 @@
         <div class="row g-4 mb-5">
             <div class="col-xl-8">
                 <div id="map-print-section" class="card-pro p-0 overflow-hidden bg-white border-0 shadow-lg" style="height: 520px;">
-                    <div class="p-4 d-flex justify-content-between align-items-center bg-white border-bottom no-print">
+                    <div class="p-4 d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 bg-white border-bottom no-print">
                         <div>
                             <h4 class="mb-0">Mapeamento Territorial</h4>
                             <p class="text-muted small mb-0">Visualização interativa de pontos próximos ao CEP.</p>
                         </div>
-                        <div class="d-none d-md-flex gap-2">
+                        <div class="d-flex flex-wrap gap-2">
                             <span class="map-category-btn active" data-filter="all"><i class="fa-solid fa-layer-group"></i>Tudo</span>
-                            <span class="map-category-btn" data-filter="saude"><i class="fa-solid fa-house-medical text-success"></i>Saúde</span>
-                            <span class="map-category-btn" data-filter="seguranca"><i class="fa-solid fa-shield-heart text-danger"></i>Segurança</span>
-                            <span class="map-category-btn" data-filter="servicos"><i class="fa-solid fa-landmark-flag text-primary"></i>Serviços</span>
-                            <span class="map-category-btn" data-filter="cultura"><i class="fa-solid fa-masks-theater text-amber-600"></i>Cultura</span>
+                            <span class="map-category-btn" data-filter="saude"><i class="fa-solid fa-house-medical text-success"></i>Saúde/Farmácias</span>
+                            <span class="map-category-btn" data-filter="ensino"><i class="fa-solid fa-graduation-cap text-primary"></i>Educação/Templos</span>
+                            <span class="map-category-btn" data-filter="comercio"><i class="fa-solid fa-store text-amber-600"></i>Comércio</span>
+                            <span class="map-category-btn" data-filter="servicos"><i class="fa-solid fa-landmark-flag text-dark"></i>Serviços/Lazer</span>
                         </div>
                     </div>
-                    <div id="map-container" style="height: 440px;">
+                    <div id="map-container" style="height: 440px; position: relative;">
+                        <!-- Custom Map Style Controls -->
+                        <div class="position-absolute d-flex gap-2 no-print" style="top: 15px; right: 15px; z-index: 1000;">
+                            <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="clara"><i class="fa-regular fa-sun text-warning me-1"></i>Clara</button>
+                            <button class="btn btn-dark btn-sm fw-bold shadow-sm border map-style-btn" data-style="escura"><i class="fa-solid fa-moon text-light me-1"></i>Escura</button>
+                            <button class="btn btn-primary btn-sm fw-bold shadow-sm border map-style-btn" data-style="satelite"><i class="fa-solid fa-satellite text-white me-1"></i>Satélite</button>
+                        </div>
+                        
                         <div id="map" style="height: 100%;"></div>
                     </div>
                 </div>
@@ -481,65 +490,70 @@
                         <div class="col-6">
                             <div class="card p-2 border-0 bg-success bg-opacity-10 text-center rounded-4">
                                 <div class="h5 fw-black text-success mb-0">{{ count($health) }}</div>
-                                <div class="text-success opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Saúde</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="card p-2 border-0 bg-danger bg-opacity-10 text-center rounded-4">
-                                <div class="h5 fw-black text-danger mb-0">{{ count($safety) }}</div>
-                                <div class="text-danger opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Segurança</div>
+                                <div class="text-success opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Saúde & Fármacias</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="card p-2 border-0 bg-primary bg-opacity-10 text-center rounded-4">
-                                <div class="h5 fw-black text-primary mb-0">{{ count($services) }}</div>
-                                <div class="text-primary opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Serviços</div>
+                                <div class="h5 fw-black text-primary mb-0">{{ count($education_faith) }}</div>
+                                <div class="text-primary opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Educação/Apoio</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="card p-2 border-0 bg-amber-100 text-center rounded-4">
-                                <div class="h5 fw-black text-amber-600 mb-0">{{ count($culture_leisure) }}</div>
-                                <div class="text-amber-600 opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Lazer</div>
+                                <div class="h5 fw-black text-amber-600 mb-0">{{ count($commerce) }}</div>
+                                <div class="text-amber-600 opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Comércio Local</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card p-2 border-0 bg-dark bg-opacity-10 text-center rounded-4">
+                                <div class="h5 fw-black text-dark mb-0">{{ count($services_leisure) }}</div>
+                                <div class="text-dark opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Lazer & Serviços</div>
                             </div>
                         </div>
                     </div>
 
                     <div class="poi-drawer flex-grow-1" style="max-height: 320px;">
-                        <!-- Segurança -->
-                        @if(count($safety) > 0)
+                        <!-- Escolas e Apoio Comunitário -->
+                        @if(count($education_faith) > 0)
                             <div class="mb-3">
-                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Segurança & Emergência</h6>
-                                @foreach(array_slice($safety, 0, 3) as $p)
+                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Ensino & Templos</h6>
+                                @foreach(array_slice($education_faith, 0, 4) as $p)
+                                    @php $isSchool = in_array($p['tags']['amenity'] ?? '', ['school', 'university', 'kindergarten', 'childcare']); @endphp
                                     <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white;">
-                                        <i class="fa-solid fa-building-shield text-danger opacity-50 me-3"></i>
-                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Unidade' }}</div>
+                                        <i class="fa-solid @if($isSchool) fa-graduation-cap @else fa-church @endif text-primary opacity-50 me-3"></i>
+                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? ($isSchool ? 'Instituição de Ensino/Creche' : 'Templo/Igreja') }}</div>
                                     </div>
                                 @endforeach
                             </div>
                         @endif
 
-                        <!-- Cultura -->
-                        @if(count($culture_leisure) > 0)
+                        <!-- Comércio e Lojas -->
+                        @if(count($commerce) > 0)
                             <div class="mb-3">
-                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Cultura & Lazer</h6>
-                                @foreach(array_slice($culture_leisure, 0, 5) as $p)
-                                    @php $isHistoric = isset($p['tags']['historic']) || ($p['tags']['tourism'] ?? '') === 'museum' || ($p['tags']['amenity'] ?? '') === 'marketplace'; @endphp
+                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Comércio & Conveniência</h6>
+                                @foreach(array_slice($commerce, 0, 4) as $p)
+                                    @php 
+                                        $isFood = in_array($p['tags']['amenity'] ?? '', ['restaurant', 'cafe', 'fast_food', 'bakery']); 
+                                        $isFuel = ($p['tags']['amenity'] ?? '') === 'fuel';
+                                    @endphp
                                     <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white;">
-                                        <i class="fa-solid @if($isHistoric) fa-landmark @else fa-tree @endif text-amber-600 opacity-50 me-3"></i>
-                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Ponto Cultural' }}</div>
+                                        <i class="fa-solid @if($isFood) fa-utensils text-amber-600 @elseif($isFuel) fa-gas-pump text-dark @else fa-store text-amber-600 @endif opacity-50 me-3"></i>
+                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? ($isFuel ? 'Posto de Gasolina' : 'Comércio') }}</div>
                                     </div>
                                 @endforeach
                             </div>
                         @endif
 
-                        <!-- Mobilidade -->
-                        @if(count($mobility) > 0)
+                        <!-- Saúde Total -->
+                        @if(count($health) > 0)
                             <div class="mb-3">
-                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Mobilidade</h6>
-                                @foreach(array_slice($mobility, 0, 5) as $p)
+                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Hospitais, Clínicas e Farmácias</h6>
+                                @foreach(array_slice($health, 0, 4) as $p)
+                                    @php $isPharmacy = ($p['tags']['amenity'] ?? '') === 'pharmacy'; @endphp
                                     <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white;">
-                                        <i class="fa-solid fa-bus text-primary opacity-50 me-3"></i>
-                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Transporte' }}</div>
+                                        <i class="fa-solid @if($isPharmacy) fa-pills @else fa-house-medical @endif text-success opacity-50 me-3"></i>
+                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Unidade de Saúde' }}</div>
                                     </div>
                                 @endforeach
                             </div>
@@ -619,17 +633,43 @@
             const pois = @json($report->pois_json ?? []);
             const translations = @json($translations);
 
-            // Light Material Map Style
+            // Base Map Layers
+            const baseLayers = {
+                "Clara": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
+                "Escura": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
+                "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+            };
+
             const map = L.map('map', { 
                 scrollWheelZoom: false,
                 attributionControl: false,
-                zoomControl: true
+                zoomControl: true,
+                layers: [baseLayers["Clara"]]
             }).setView([lat, lng], 15);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(map);
+            // Custom Map Style Controls
+            let currentMapStyle = 'clara';
+            document.querySelectorAll('.map-style-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const style = this.getAttribute('data-style');
+                    if (style === currentMapStyle) return;
+
+                    // Remove current layer
+                    if (currentMapStyle === 'clara') map.removeLayer(baseLayers["Clara"]);
+                    if (currentMapStyle === 'escura') map.removeLayer(baseLayers["Escura"]);
+                    if (currentMapStyle === 'satelite') map.removeLayer(baseLayers["Satélite"]);
+
+                    // Add new layer
+                    if (style === 'clara') baseLayers["Clara"].addTo(map);
+                    if (style === 'escura') baseLayers["Escura"].addTo(map);
+                    if (style === 'satelite') baseLayers["Satélite"].addTo(map);
+                    
+                    currentMapStyle = style;
+                });
+            });
 
             // Custom Main Marker
             const pulseIcon = L.divIcon({
@@ -657,21 +697,18 @@
                 let category = 'comercio';
 
                 // Categorias para o Mapa
-                if (['hospital', 'pharmacy', 'clinic', 'dentist', 'doctors'].includes(rawType)) {
+                if (['hospital', 'pharmacy', 'clinic', 'dentist', 'doctors', 'veterinary'].includes(rawType)) {
                     color = '#10b981'; // success
                     category = 'saude';
-                } else if (['police', 'fire_station'].includes(rawType)) {
-                    color = '#ef4444'; // danger
-                    category = 'seguranca';
-                } else if (['bank', 'post_office', 'townhall', 'public_service', 'library'].includes(rawType)) {
+                } else if (['school', 'university', 'kindergarten', 'childcare', 'place_of_worship'].includes(rawType)) {
                     color = '#6366f1'; // primary
+                    category = 'ensino';
+                } else if (['police', 'fire_station', 'bank', 'post_office', 'townhall', 'public_service', 'library', 'arts_centre', 'museum', 'theatre', 'cinema', 'park', 'playground', 'sports_centre', 'gym'].includes(rawType) || poi.tags.historic) {
+                    color = '#0f172a'; // dark
                     category = 'servicos';
-                } else if (['arts_centre', 'museum', 'theatre', 'cinema', 'marketplace', 'place_of_worship', 'park', 'monument', 'memorial'].includes(rawType) || poi.tags.historic) {
+                } else {
                     color = '#d97706'; // amber-600
-                    category = 'cultura';
-                } else if (['bus_stop', 'fuel', 'bicycle_parking'].includes(rawType)) {
-                    color = '#0ea5e9'; // sky
-                    category = 'transporte';
+                    category = 'comercio'; // fuel, restaurant, cafe, shop, bakery, marketplace, fast_food, etc
                 }
 
                 const marker = L.circleMarker([poi.lat, poi.lon], {

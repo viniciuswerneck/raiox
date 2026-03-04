@@ -19,26 +19,22 @@ class NeighborhoodService
         // 1. Check cache (max 90 days old)
         $report = LocationReport::where('cep', $cepClean)->first();
 
-        // Se o relatório existe, é recente (menos de 90 dias) e POSSUI O RESUMO LONGO (mínimo 1000 chars)
+        // Se o relatório existe, é recente (menos de 90 dias) e possui resumo base (ou longo)
         if ($report && 
-            $report->updated_at->gt(Carbon::now()->subDays(90)) && 
-            $report->air_quality_index !== null && 
+            $report->created_at->gt(Carbon::now()->subDays(90)) && 
             $report->history_extract !== null &&
-            strlen($report->history_extract) > 1500 &&
+            strlen($report->history_extract) > 50 &&
             !empty($report->pois_json)
         ) {
             // REGRA: O Clima e Ar sempre deve ser atualizado se tiver mais de 1 hora
-            // mas SEM alterar o 'updated_at' principal para não resetar o ciclo de 90 dias da IA
             if ($report->updated_at->lt(Carbon::now()->subHour())) {
                 Log::info("Refreshing fresh climate data for CEP: {$cepClean}");
                 $climate = $this->fetchClimate($report->lat, $report->lng);
                 $airQuality = $this->fetchAirQuality($report->lat, $report->lng);
                 
-                // Usamos save() para gerenciar manualmente os timestamps se necessário, 
-                // ou simplesmente aceitamos que o clima não deve interferir no "nascimento" do relatório.
                 $report->climate_json = $climate;
                 $report->air_quality_index = $airQuality;
-                $report->save(['timestamps' => false]); // Salva sem mudar o updated_at
+                $report->save(); // Save update_at pra não rodar a cada refresh depois de 1 hora
             }
             return $report;
         }
@@ -306,11 +302,10 @@ class NeighborhoodService
     {
         $radius = 10000;
         $query = "[out:json][timeout:15];(
-            nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
-            nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace\"](around:{$radius},{$lat},{$lng});
+            nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|doctors|veterinary|kindergarten|childcare|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
+            nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace|butcher|greengrocer|doityourself|pet|hairdresser|sports|shoes|toys|jewelry|car|car_repair|car_wash|laundry\"](around:{$radius},{$lat},{$lng});
             nwr[\"leisure\"~\"park|gym|sports_centre|playground|marketplace\"](around:{$radius},{$lat},{$lng});
             nwr[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"](around:{$radius},{$lat},{$lng});
-            nwr[\"highway\"=\"bus_stop\"](around:{$radius},{$lat},{$lng});
             nwr[\"historic\"](around:{$radius},{$lat},{$lng});
             nwr[\"railway\"=\"station\"](around:{$radius},{$lat},{$lng});
         );out center qt;";
