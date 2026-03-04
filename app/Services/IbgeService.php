@@ -11,36 +11,33 @@ class IbgeService
      */
     public function getMunicipalityData(string $ibgeCode): array
     {
-        // Basic municipality info
+        // Info básica
         $municipality = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{$ibgeCode}");
         
-        // Estimated population (96385)
-        $populationRequest = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/96385/resultados/{$ibgeCode}");
-        // PIB per capita (29171)
-        $pibRequest = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/29171/resultados/{$ibgeCode}");
-        
-        $population = null;
-        if ($populationRequest->successful()) {
-            $popData = $populationRequest->json();
-            if (!empty($popData) && isset($popData[0]['res'][0]['res'])) {
-                $popValue = end($popData[0]['res'][0]['res']);
-                $population = (int) $popValue;
-            }
-        }
+        $indicators = [
+            'population' => '96385',
+            'pib' => '29171',
+            'sanitation' => '60037', // Esgotamento sanitário adequado
+            'idhm' => '29168'         // IDH Municipal
+        ];
 
-        $pibPerCapita = null;
-        if ($pibRequest->successful()) {
-            $pibData = $pibRequest->json();
-            if (!empty($pibData) && isset($pibData[0]['res'][0]['res'])) {
-                $pibValue = end($pibData[0]['res'][0]['res']);
-                $pibPerCapita = (float) $pibValue;
+        $results = [];
+        foreach ($indicators as $key => $id) {
+            $response = Http::withoutVerifying()->timeout(10)->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/{$id}/resultados/{$ibgeCode}");
+            if ($response->successful()) {
+                $data = $response->json();
+                if (!empty($data) && isset($data[0]['res'][0]['res'])) {
+                    $results[$key] = end($data[0]['res'][0]['res']);
+                }
             }
         }
 
         return [
             'municipality_info' => $municipality->json(),
-            'population' => $population,
-            'pib_per_capita' => $pibPerCapita,
+            'population' => isset($results['population']) ? (int)$results['population'] : null,
+            'pib_per_capita' => isset($results['pib']) ? (float)$results['pib'] : null,
+            'sanitation_rate' => isset($results['sanitation']) ? (float)$results['sanitation'] : null,
+            'idhm' => isset($results['idhm']) ? (float)$results['idhm'] : null,
             'raw_data' => $municipality->json()
         ];
     }

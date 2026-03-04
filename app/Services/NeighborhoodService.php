@@ -141,7 +141,8 @@ class NeighborhoodService
                 'name' => $city,
                 'population' => $ibgeData['population'] ?? null,
                 'average_income' => $socio['average_income'] ?? null,
-                'sanitation_rate' => $socio['sanitation_rate'] ?? null,
+                'sanitation_rate' => $ibgeData['sanitation_rate'] ?? $socio['sanitation_rate'] ?? null,
+                'idhm' => $ibgeData['idhm'] ?? null,
                 'history_extract' => $cityHistory,
                 'safety_level' => $citySafetyLevel,
                 'safety_description' => $citySafetyDesc,
@@ -635,9 +636,11 @@ class NeighborhoodService
             $estimatedMonthlyIncome = 2400.00;
         }
 
+        $sanitation = $ibgeData['sanitation_rate'] ?? 85.0;
+
         return [
             'average_income' => round($estimatedMonthlyIncome, 2),
-            'sanitation_rate' => 85.5, // Valor base; o ideal seria uma tabela SIDRA específica para isto
+            'sanitation_rate' => $sanitation, 
         ];
     }
 
