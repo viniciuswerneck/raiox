@@ -26,8 +26,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- html2pdf.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     
     <style>
         :root {
@@ -452,7 +451,7 @@
         }
     </style>
 </head>
-<body id="pdf-content">
+<body>
 
     <!-- LOADER OVERLAY -->
     <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="display: none !important;">
@@ -580,9 +579,6 @@
                         <a href="{{ route('home') }}" class="btn btn-outline-light rounded-pill px-4 py-2 fw-bold">
                             <i class="fa-solid fa-arrow-left me-2"></i>Nova Busca
                         </a>
-                        <button id="download-pdf" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg shadow-primary">
-                            <i class="fa-solid fa-file-pdf me-2"></i>Baixar Relatório PDF
-                        </button>
                     </div>
                 </div>
             </div>
@@ -1306,49 +1302,7 @@
                 });
             });
 
-            // PDF Export Logic
-            document.getElementById('download-pdf').addEventListener('click', function() {
-                const btn = this;
-                const originalText = btn.innerHTML;
-                const noPrintElements = document.querySelectorAll('.no-print');
-                
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Gerando PDF Alta Fidelidade...';
-                btn.disabled = true;
 
-                // Oculta elementos que não devem sair no PDF
-                noPrintElements.forEach(el => el.style.visibility = 'hidden');
-
-                // Forçar a visualização do mapa para captura (Wait for tiles)
-                setTimeout(() => {
-                    const opt = {
-                        margin:       [5, 5, 5, 5],
-                        filename:     `Relatorio-RaioX-${@json($report->cidade)}-${@json($report->cep)}.pdf`,
-                        image:        { type: 'jpeg', quality: 1.0 },
-                        html2canvas:  { 
-                            scale: 3, // Aumento de escala para nitidez "retina"
-                            useCORS: true, 
-                            logging: false,
-                            letterRendering: true,
-                            backgroundColor: '#f8fafc' 
-                        },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-                    };
-
-                    html2pdf().set(opt).from(document.body).save().then(() => {
-                        // Restaura a visibilidade
-                        noPrintElements.forEach(el => el.style.visibility = 'visible');
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    }).catch(err => {
-                        console.error('PDF Error:', err);
-                        // Restaura a visibilidade mesmo em caso de erro
-                        noPrintElements.forEach(el => el.style.visibility = 'visible');
-                        btn.innerHTML = '<i class="fa-solid fa-circle-exclamation me-2"></i>Erro ao gerar PDF';
-                        btn.disabled = false;
-                    });
-                }, 500); // Delay sutil para garantir render final
-            });
 
             // ================== NOVO MODO COMPARATIVO ==================
             window.toggleCompare = function() {
@@ -1420,7 +1374,7 @@
 
         /* PRINT / PDF FULL FIDELITY */
         @media print {
-            .no-print, #download-pdf, .btn-pro { display: none !important; }
+            .no-print, .btn-pro { display: none !important; }
             .card-pro { 
                 break-inside: avoid !important; 
                 page-break-inside: avoid !important;
@@ -1447,11 +1401,6 @@
             #map { height: 400px !important; }
         }
 
-        /* Estilos para evitar quebras de cards no HTML2PDF */
-        .card-pro, .col-lg-4, .col-lg-6, .col-lg-8, .row {
-            page-break-inside: avoid;
-            break-inside: avoid;
-        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
