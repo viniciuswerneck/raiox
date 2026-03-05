@@ -214,6 +214,7 @@ class NeighborhoodService
         }
 
         // 3. Nominatim (Geocoding) - Executa apenas se ainda não temos coordenadas
+        $geo = null;
         if (!$lat || !$lng) {
             if (!empty($street)) {
                 $geo = $this->fetchNominatim($street, $city, $state);
