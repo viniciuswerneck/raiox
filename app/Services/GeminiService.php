@@ -28,7 +28,7 @@ class GeminiService
         }
     }
 
-    public function generateNeighborhoodSummary(string $wikiText, string $location = ''): ?array
+    public function generateNeighborhoodSummary(string $wikiText, string $location = '', array $aactContext = []): ?array
     {
         if (empty($this->apiKeys)) {
             Log::error('Gemini API Error: Nenhuma API Key configurada.');
@@ -36,12 +36,37 @@ class GeminiService
         }
 
         $locationContext = $location ? "sobre a cidade/bairro de **{$location}**" : '';
+        
+        // Estruturação do contexto AACT / NCC
+        $categoria = $aactContext['categoria'] ?? 'Não classificada';
+        $poisCount = $aactContext['pois_count'] ?? 0;
+        $income = $aactContext['renda'] ?? 0;
+        
+        $nccBlock = <<<NCC
+### [MÓDULO NCC - NARRATIVA CONDICIONADA POR CATEGORIA]
+DADOS REAIS E AUDITADOS DO MICROTERRITÓRIO (AACT - NÃO IGNORE):
+- Categoria AACT: {$categoria}
+- Densidade Comercial: {$poisCount} POIs detectados via GPS
+- Renda Média Estimada: R$ {$income}
+
+REGRA 1 - A CLASSIFICAÇÃO É LEI:
+Adapte TODA a narrativa à Categoria AACT ({$categoria}). É proibido usar termos incompatíveis com a categoria.
+- Se "COMERCIAL CENTRAL": OBRIGATÓRIO refletir alta circulação, comércio forte, dinâmica intensa. PROIBIDO "bairro operário simples", "só casas".
+- Se "RESIDENCIAL HORIZONTAL" ou "RESIDENCIAL MÉDIO": OBRIGATÓRIO refletir bairro misto, casas, de fluxo moderado. PROIBIDO "polo corporativo" ou "verticalização intensa".
+- Se "CENTRO URBANO MUNICIPAL": Centro de cidade pequena. Verticalização limitada, uso misto equilibrado.
+- Se "RESIDENCIAL POPULAR": Modéstia. PROIBIDO citação de "alto padrão" ou polo financeiro.
+
+REGRA 2 - VALIDADOR DE COERÊNCIA:
+A narrativa NÃO PODE contradizer a Categoria ({$categoria}), os POIs ({$poisCount}), nem a Renda (R$ {$income}). Sem glamourização se a renda não suportar. Sem periferização se tiver forte comércio de rua. Cada CEP deve ser tratado como único!
+NCC;
 
         $prompt = <<<PROMPT
 VOCÊ É UM AUDITOR NARRATIVO (AAN) E UM ANALISTA IMOBILIÁRIO SÊNIOR ESTABELECENDO UM "RAIO-X DEFINITIVO".
 Local Base: **{$location}**.
 
 O CEP É UMA UNIDADE MICRO. A CIDADE É APENAS CONTEXTO MACRO. O macro NUNCA pode sobrescrever o micro.
+
+{$nccBlock}
 
 ### REGRAS CRÍTICAS DE AUDITORIA NARRATIVA P0 (AAN):
 1. **FATOR MICROTERRITORIAL ESTILOSAMENTE NARRATIVO (4+ Parágrafos)**: Gere uma "historia" descritiva densa, focada exclusivamente nas ruas do micro-espaço que compõe "{$location}". O texto deve ser informativo e não promocional. É expressamente PROIBIDA qualquer "glamourização" se o perfil for puramente popular/funcional.

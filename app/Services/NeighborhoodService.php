@@ -140,28 +140,100 @@ class NeighborhoodService
             return [];
         }
 
+        // 2.5. Nominatim (Geocoding) - Executa antes para termos as coordenadas pro Overpass
+        $geo = null;
+        if (!$lat || !$lng) {
+            if (!empty($street)) {
+                $geo = $this->fetchNominatim($street, $city, $state);
+            }
+            if (!$geo) {
+                $geo = $this->fetchNominatim($city, $city, $state); 
+            }
+            $lat = $geo['lat'] ?? null;
+            $lng = $geo['lon'] ?? null;
+            if ($geo && empty($address['bairro'])) {
+                $addr = $geo['address'] ?? [];
+                $address['bairro'] = $addr['neighbourhood'] ?? $addr['suburb'] ?? $addr['hamlet'] ?? '';
+            }
+        }
+
+        if (!$lat || !$lng) {
+            Log::error("Impossível geolocalizar o endereço mesmo após fallback: {$cep}");
+            return []; // Falha
+        }
+
+        // 2.6. Overpass (POIs & Mobility) - BUSCA GRANULAR REDUZIDA PARA VELOCIDADE
+        $radii = [1500, 4000];
+        $pois = [];
+        $finalRadius = 4000;
+
+        foreach ($radii as $r) {
+            Log::info("Attempting Overpass search with radius: {$r}m for {$lat},{$lng}");
+            $pois = $this->fetchOverpass($lat, $lng, $r);
+            $finalRadius = $r;
+            if (count($pois) >= 30) {
+                Log::info("Found satisfactory density (" . count($pois) . " items) at {$r}m.");
+                break;
+            }
+        }
+        
+        $walkScore = $this->calculateWalkabilityScore($pois);
+
+        // 2.7. Buscar dados do IBGE para a Renda antes da IA
+        $ibgeService = new \App\Services\IbgeService();
+        if (!$ibgeCode) {
+            $ibgeData = $ibgeService->getMunicipalityDataByName($city, $state);
+            $ibgeCode = $ibgeData['ibge_code'] ?? null;
+        } else {
+            $ibgeData = $ibgeService->getMunicipalityData($ibgeCode);
+        }
+        $socio = $this->fetchSocioEconomic($ibgeData);
+        $income = $socio['average_income'] ?? 1500;
+
+        // 2.8. AACT PREVIEW (Contexto para o prompt do Gemini)
+        $bairro = $address['bairro'] ?? '';
+        $poiCounts = ['popular' => 0, 'central' => 0, 'turistico' => 0, 'lazer_alto' => 0];
+        foreach ($pois as $poi) {
+            $amenity = $poi['tags']['amenity'] ?? '';
+            $shop = $poi['tags']['shop'] ?? '';
+            $tourism = $poi['tags']['tourism'] ?? '';
+            if (in_array($shop, ['supermarket', 'convenience', 'doityourself', 'car_repair', 'butcher'])) $poiCounts['popular']++;
+            if (in_array($amenity, ['bank', 'hospital', 'university']) || $shop == 'mall') $poiCounts['central']++;
+            if (!empty($tourism) || in_array($amenity, ['bar', 'nightclub'])) $poiCounts['turistico']++;
+            if (in_array($amenity, ['arts_centre', 'theatre', 'ice_cream'])) $poiCounts['lazer_alto']++;
+        }
+        
+        $classification = 'Residencial Médio';
+        $isCentro = (str_contains(strtolower($bairro), 'centro') || str_contains(strtolower($bairro), 'central'));
+        if ($poiCounts['turistico'] >= 5) {
+            $classification = 'Turístico Premium';
+        } elseif ($isCentro || $poiCounts['central'] >= 5) {
+            $classification = 'Comercial Central';
+        } elseif ($income > 5000 || $poiCounts['lazer_alto'] > 3) {
+            $classification = 'Residencial Alto Padrão';
+        } elseif (!$isCentro && $income < 2000 && $poiCounts['central'] < 2) {
+            $classification = 'Residencial Popular';
+        } else {
+            if (count($pois) < 5) $classification = 'Zona de Expansão / Rural';
+        }
+
+        $aactContext = [
+            'categoria' => $classification,
+            'pois_count' => count($pois),
+            'renda' => $income,
+            'populacao' => $ibgeData['population'] ?? 0
+        ];
+
         // 3. RECUPERAR OU CRIAR CIDADE (Reutiliza se já existir)
         $cityModel = \App\Models\City::where('name', $city)->where('uf', $state)->first();
 
         if (!$cityModel) {
             Log::info("CIDADE NOVA: Criando registro para {$city}/{$state}");
-            $ibgeData = [];
-            if (!$ibgeCode) {
-                // Tenta achar código IBGE se for cidade nova
-                $ibgeService = new \App\Services\IbgeService();
-                $ibgeData = $ibgeService->getMunicipalityDataByName($city, $state);
-                $ibgeCode = $ibgeData['ibge_code'] ?? null;
-            } else {
-                $ibgeService = new \App\Services\IbgeService();
-                $ibgeData = $ibgeService->getMunicipalityData($ibgeCode);
-            }
-
-            $socio = $this->fetchSocioEconomic($ibgeData);
             $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
             $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? 'Sem dados na Wikipedia.';
             
             $gemini = new \App\Services\GeminiService();
-            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
+            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city, $aactContext);
             
             $cityModel = \App\Models\City::create([
                 'ibge_code' => $ibgeCode,
@@ -201,7 +273,7 @@ class NeighborhoodService
                 $bairroHistoryRaw = $bairroWiki['full_text'] ?? "Gere um resumo sobre o bairro {$bairro} em {$city}.";
                 
                 $gemini = new \App\Services\GeminiService();
-                $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
+                $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}", $aactContext);
                 
                 $neighborhoodModel = \App\Models\Neighborhood::create([
                     'city_id' => $cityModel->id,
@@ -216,52 +288,6 @@ class NeighborhoodService
                 Log::info("BAIRRO CACHE: Reutilizando dados de {$bairro} em {$city}");
             }
         }
-
-        // 3. Nominatim (Geocoding) - Executa apenas se ainda não temos coordenadas
-        $geo = null;
-        if (!$lat || !$lng) {
-            if (!empty($street)) {
-                $geo = $this->fetchNominatim($street, $city, $state);
-            }
-            
-            if (!$geo) {
-                $geo = $this->fetchNominatim($city, $city, $state); 
-            }
-
-            $lat = $geo['lat'] ?? null;
-            $lng = $geo['lon'] ?? null;
-            
-            // Se o Nominatim achou algo que o ViaCEP não achou (bairro, etc), enriquecemos
-            if ($geo && empty($address['bairro'])) {
-                $addr = $geo['address'] ?? [];
-                $address['bairro'] = $addr['neighbourhood'] ?? $addr['suburb'] ?? $addr['hamlet'] ?? '';
-            }
-        }
-
-        if (!$lat || !$lng) {
-            Log::error("Impossível geolocalizar o endereço mesmo após fallback: {$cep}");
-            return []; // Retorna vazio para o Job marcar como Falha
-        }
-
-        // 4. Overpass (POIs & Mobility) - BUSCA GRANULAR REDUZIDA PARA VELOCIDADE
-        // Escalas: 1.5km -> 4km
-        $radii = [1500, 4000];
-        $pois = [];
-        $finalRadius = 4000;
-
-        foreach ($radii as $r) {
-            Log::info("Attempting Overpass search with radius: {$r}m for {$lat},{$lng}");
-            $pois = $this->fetchOverpass($lat, $lng, $r);
-            $finalRadius = $r;
-            
-            // Se encontrarmos pelo menos 30 pontos, paramos (densidade satisfatória)
-            if (count($pois) >= 30) {
-                Log::info("Found satisfactory density (" . count($pois) . " items) at {$r}m. Stopping search.");
-                break;
-            }
-        }
-        
-        $walkScore = $this->calculateWalkabilityScore($pois);
 
         // 5. Open-Meteo (Weather & Air Quality)
         $climate = $this->fetchClimate($lat, $lng);
