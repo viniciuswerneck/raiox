@@ -132,6 +132,9 @@ class CompareController extends Controller
 
     private function mapReportToAnalysis(LocationReport $report): array
     {
+        $realEstate = $report->real_estate_json ?? [];
+        $precoM2 = $realEstate['preco_m2'] ?? 'Sob Consulta';
+
         return [
             'cep' => $report->cep,
             'bairro' => $report->bairro,
@@ -140,7 +143,10 @@ class CompareController extends Controller
             'income' => $report->average_income,
             'infra' => $report->infra_score,
             'mobility' => $report->mobility_score,
-            'leisure' => $report->leisure_score
+            'leisure' => $report->leisure_score,
+            'preco_m2' => $precoM2,
+            'lat' => $report->lat,
+            'lng' => $report->lng
         ];
     }
 }
