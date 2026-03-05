@@ -132,8 +132,10 @@
                 </div>
             </div>
             <div class="hidden md:flex items-center space-x-8 text-sm font-bold uppercase tracking-widest text-slate-400">
+                <a href="{{ route('ranking.index') }}" class="text-white bg-indigo-600/20 px-4 py-2 rounded-lg border border-indigo-500/20 hover:bg-indigo-600/40 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-ranking-star text-indigo-400"></i> Explorar Rankings
+                </a>
                 <a href="#" class="hover:text-white transition-colors">Tecnologia</a>
-                <a href="#" class="hover:text-white transition-colors">Dados</a>
                 <a href="https://github.com/viniciuswerneck/raiox" target="_blank" class="hover:text-white transition-colors">GitHub</a>
             </div>
         </nav>
@@ -319,8 +321,64 @@
                     </div>
                 @enderror
 
-                <!-- Symmetry Grid -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 px-4">
+                </div>
+
+                <!-- Trending / Rankings Quick View -->
+                <div class="pt-8">
+                    <div class="flex items-center justify-center space-x-3 mb-6">
+                        <div class="h-[1px] w-12 bg-indigo-500/20"></div>
+                        <span class="text-indigo-400 text-[10px] font-black uppercase tracking-[0.3em] whitespace-nowrap">Tendências do Território</span>
+                        <div class="h-[1px] w-12 bg-indigo-500/20"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        @php
+                            $trending = \App\Models\LocationReport::select('cidade', 'bairro', 'uf', 'cep', 'walkability_score', 'air_quality_index')
+                                ->orderBy('created_at', 'desc')
+                                ->limit(3)
+                                ->get();
+                        @endphp
+
+                        @foreach($trending as $item)
+                        <a href="{{ route('report.show', $item->cep) }}" class="feature-card p-4 rounded-3xl text-left block group">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="bg-indigo-500/20 p-2 rounded-xl text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                </div>
+                                <span class="bg-indigo-500/10 text-indigo-400 text-[9px] font-black px-2 py-1 rounded-md">#{{ $loop->iteration }} NO RANKING</span>
+                            </div>
+                            <h4 class="text-white font-bold text-sm uppercase mb-1 group-hover:text-indigo-300 transition-colors">{{ $item->bairro ?: $item->cidade }}</h4>
+                            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">{{ $item->cidade }} / {{ $item->uf }}</p>
+                            
+                            <div class="mt-4 flex items-center gap-3">
+                                <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase">
+                                    <i class="fa-solid fa-person-walking text-primary"></i> {{ $item->walkability_score }}
+                                </div>
+                                <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase">
+                                    <i class="fa-solid fa-wind text-accent"></i> {{ $item->air_quality_index }} AQI
+                                </div>
+                            </div>
+                        </a>
+                        @endforeach
+                        
+                        @if($trending->isEmpty())
+                            <div class="col-span-3 py-10 bg-white/5 rounded-3xl border border-dashed border-white/10 text-center">
+                                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Aguardando as primeiras análises territoriais...</p>
+                            </div>
+                        @endif
+                    </div>
+                    
+                    <div class="mt-8">
+                        <a href="{{ route('ranking.index') }}" class="text-indigo-400 hover:text-indigo-300 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group transition-all">
+                            Ver ranking completo de cidades <i class="fa-solid fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Footer Stats Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 px-4 pt-12">
                     <div class="feature-card p-4 rounded-2xl text-center">
                         <div class="text-2xl mb-2">📊</div>
                         <h4 class="text-white font-bold text-sm uppercase mb-1">IBGE Data</h4>

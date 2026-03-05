@@ -710,7 +710,7 @@
                         
                         <div class="col-lg-8 ps-lg-5 text-start">
                             <div class="row g-4">
-                                <div class="col-md-6">
+                                <div class="col-md-5">
                                     <h6 class="text-secondary small fw-black mb-4 text-uppercase tracking-widest" style="opacity: 0.8;">Análise de Performance</h6>
                                     
                                     <div class="mb-4">
@@ -733,34 +733,48 @@
                                     </div>
                                 </div>
                                 
-                                <div class="col-md-6">
-                                    <h6 class="text-secondary small fw-black mb-4 text-uppercase tracking-widest" style="opacity: 0.8;">Destaques da Região</h6>
+                                <div class="col-md-4">
+                                    <h6 class="text-secondary small fw-black mb-4 text-uppercase tracking-widest" style="opacity: 0.8;">Posicionamento</h6>
+                                    <div class="d-flex flex-column gap-2">
+                                        @php
+                                            // Pega a posição desse bairro no ranking da cidade dele
+                                            $results = \App\Models\LocationReport::select('bairro', DB::raw('COUNT(*) as searches'))
+                                                ->where('cidade', $report->cidade)
+                                                ->groupBy('bairro')
+                                                ->orderBy('searches', 'desc')
+                                                ->get();
+                                            
+                                            $position = $results->filter(fn($r) => $r->bairro == $report->bairro)->keys()->first() + 1;
+                                            $totalBairros = $results->count();
+                                        @endphp
+
+                                        <div class="badge-medal" style="background: var(--primary)10; border-color: var(--primary)30;">
+                                            <div class="badge-icon" style="color: var(--primary);"><i class="fa-solid fa-ranking-star"></i></div>
+                                            <div>
+                                                <div class="fw-black small text-primary">#{{ $position }}º Mais Popular</div>
+                                                <div class="text-muted" style="font-size: 10px;">{{ $report->cidade }}</div>
+                                            </div>
+                                        </div>
+
+                                        <a href="{{ route('ranking.index') }}" class="text-primary fw-black uppercase tracking-widest mt-2 text-decoration-none" style="font-size: 10px;">
+                                            Ver Ranking Completo <i class="fa-solid fa-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <h6 class="text-secondary small fw-black mb-4 text-uppercase tracking-widest" style="opacity: 0.8;">Destaques</h6>
                                     <div class="d-flex flex-column gap-2">
                                         @if($safetyVal >= 80)
                                             <div class="badge-medal">
                                                 <div class="badge-icon" style="color: #10b981;"><i class="fa-solid fa-shield-halved"></i></div>
-                                                <div>
-                                                    <div class="fw-black small text-dark">Zoneamento Seguro</div>
-                                                    <div class="text-muted" style="font-size: 10px;">Baixíssima reatividade criminal.</div>
-                                                </div>
+                                                <div class="fw-black small text-dark" style="font-size: 10px;">Seguro</div>
                                             </div>
                                         @endif
                                         @if($commerceScore >= 70)
                                             <div class="badge-medal">
                                                 <div class="badge-icon" style="color: #6366f1;"><i class="fa-solid fa-store"></i></div>
-                                                <div>
-                                                    <div class="fw-black small text-dark">Dinamismo Urbano</div>
-                                                    <div class="text-muted" style="font-size: 10px;">Conveniência absoluta em 10km.</div>
-                                                </div>
-                                            </div>
-                                        @endif
-                                        @if($infraScore >= 80)
-                                            <div class="badge-medal">
-                                                <div class="badge-icon" style="color: #f59e0b;"><i class="fa-solid fa-gem"></i></div>
-                                                <div>
-                                                    <div class="fw-black small text-dark">Infraestrutura Gold</div>
-                                                    <div class="text-muted" style="font-size: 10px;">Saneamento e serviços de ponta.</div>
-                                                </div>
+                                                <div class="fw-black small text-dark" style="font-size: 10px;">Comercial</div>
                                             </div>
                                         @endif
                                     </div>
