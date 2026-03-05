@@ -14,8 +14,8 @@ class CompareAgent
     {
         Log::info("CompareAgent: Comparando {$reportA->cep} vs {$reportB->cep}");
 
-        $metricsA = $this->calculateMetrics($reportA);
-        $metricsB = $this->calculateMetrics($reportB);
+        $metricsA = $this->getRegionMetrics($reportA->pois_json ?? []);
+        $metricsB = $this->getRegionMetrics($reportB->pois_json ?? []);
 
         return [
             'metrics_a' => $metricsA,
@@ -30,12 +30,10 @@ class CompareAgent
     }
 
     /**
-     * Calcula métricas numéricas baseadas no POI JSON de um relatório
+     * Calcula métricas numéricas baseadas no POI JSON (Público para reuso no Pipeline)
      */
-    private function calculateMetrics(LocationReport $report): array
+    public function getRegionMetrics(array $pois): array
     {
-        $pois = $report->pois_json ?? [];
-        
         $infra = 0;
         $mobility = 0;
         $leisure = 0;
@@ -80,7 +78,7 @@ class CompareAgent
             'mobility' => $mobility,
             'leisure' => $leisure,
             'commerce' => $commerce,
-            'total_score' => (int)min($totalScore, 100) // Limite de 100 para o radar/progresso visual
+            'total_score' => (int)min($totalScore, 100) 
         ];
     }
 }

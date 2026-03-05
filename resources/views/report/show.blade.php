@@ -1458,10 +1458,11 @@
                     
                     // Loader Animation Logic
                     const loaderSteps = [
-                        { text: "Acessando satélites...", progress: 30 },
-                        { text: "Calculando IDHM comparativo...", progress: 60 },
-                        { text: "Sincronizando Gemini AI...", progress: 85 },
-                        { text: "Quase pronto...", progress: 95 }
+                        { text: "Acessando satélites...", progress: 20 },
+                        { text: "Analisando dados estruturais...", progress: 45 },
+                        { text: "Calculando Scores Territoriais...", progress: 70 },
+                        { text: "Sincronizando Gemini AI...", progress: 90 },
+                        { text: "Quase pronto...", progress: 98 }
                     ];
                     
                     let step = 0;

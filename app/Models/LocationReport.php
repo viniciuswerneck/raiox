@@ -23,6 +23,10 @@ class LocationReport extends Model
         'wiki_json',
         'air_quality_index',
         'walkability_score',
+        'infra_score',
+        'mobility_score',
+        'leisure_score',
+        'general_score',
         'average_income',
         'sanitation_rate',
         'history_extract',
@@ -47,6 +51,10 @@ class LocationReport extends Model
         'idhm' => 'float',
         'lat' => 'float',
         'lng' => 'float',
+        'infra_score' => 'integer',
+        'mobility_score' => 'integer',
+        'leisure_score' => 'integer',
+        'general_score' => 'integer',
     ];
 
     protected static function booted()

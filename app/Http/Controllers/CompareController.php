@@ -48,6 +48,10 @@ class CompareController extends Controller
             // Se algum não existir, retornamos nulo para tratar no Controller (disparar pipeline)
             if (!$reportA || !$reportB) return null;
 
+            // --- LAZY UPDATE: Se os relatórios existem mas não têm scores calculados (Legados) ---
+            $this->ensureScoresExist($reportA);
+            $this->ensureScoresExist($reportB);
+
             // 4. Verificar se já existe uma comparação salva no Banco de Dados
             $dbComparison = RegionComparison::findPair($cepA, $cepB);
             if ($dbComparison) return $dbComparison;
@@ -59,8 +63,8 @@ class CompareController extends Controller
             
             // Gerar análise via Gemini
             $analysis = $this->geminiService->generateComparisonAnalysis(
-                $this->mapReportToAnalysis($reportA, $results['metrics_a']),
-                $this->mapReportToAnalysis($reportB, $results['metrics_b'])
+                $this->mapReportToAnalysis($reportA),
+                $this->mapReportToAnalysis($reportB)
             );
 
             return RegionComparison::create([
@@ -103,7 +107,30 @@ class CompareController extends Controller
         ]);
     }
 
-    private function mapReportToAnalysis(LocationReport $report, array $metrics): array
+    /**
+     * Garante que o relatório tenha os scores populados (Lazy Update)
+     */
+    private function ensureScoresExist(LocationReport $report)
+    {
+        // Se já tem general_score > 0, assumimos que já foi processado
+        // (Ou se não tem POIs, não há o que calcular)
+        if ($report->general_score > 0 || empty($report->pois_json)) {
+            return;
+        }
+
+        Log::info("CompareController: Lazy Update de scores para o CEP {$report->cep}");
+        
+        $metrics = $this->compareAgent->getRegionMetrics($report->pois_json);
+        
+        $report->update([
+            'infra_score' => $metrics['infra'],
+            'mobility_score' => $metrics['mobility'],
+            'leisure_score' => $metrics['leisure'],
+            'general_score' => $metrics['total_score']
+        ]);
+    }
+
+    private function mapReportToAnalysis(LocationReport $report): array
     {
         return [
             'cep' => $report->cep,
@@ -111,9 +138,9 @@ class CompareController extends Controller
             'cidade' => $report->cidade,
             'class' => $report->territorial_classification ?? 'Residencial',
             'income' => $report->average_income,
-            'infra' => $metrics['infra'],
-            'mobility' => $metrics['mobility'],
-            'leisure' => $metrics['leisure']
+            'infra' => $report->infra_score,
+            'mobility' => $report->mobility_score,
+            'leisure' => $report->leisure_score
         ];
     }
 }

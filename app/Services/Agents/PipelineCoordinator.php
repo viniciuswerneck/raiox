@@ -11,17 +11,20 @@ class PipelineCoordinator
     private $poiAgent;
     private $climaAgent;
     private $socioAgent;
+    private $compareAgent;
 
     public function __construct(
         GeoAgent $geoAgent,
         POIAgent $poiAgent,
         ClimaAgent $climaAgent,
-        SocioAgent $socioAgent
+        SocioAgent $socioAgent,
+        CompareAgent $compareAgent
     ) {
         $this->geoAgent = $geoAgent;
         $this->poiAgent = $poiAgent;
         $this->climaAgent = $climaAgent;
         $this->socioAgent = $socioAgent;
+        $this->compareAgent = $compareAgent;
     }
 
     /**
@@ -81,6 +84,10 @@ class PipelineCoordinator
         // Fase 4: POIs (Reduzimos o raio para 1.0km para evitar timeout em centros densos como SP)
         $pois = $this->poiAgent->fetchPOIs($lat, $lng, 1000); 
         $walkScore = $this->poiAgent->calculateWalkabilityScore($pois);
+        
+        // Novo: Cálculo de Scores para o Banco
+        $metrics = $this->compareAgent->getRegionMetrics($pois);
+        
         Log::info("PipelineCoordinator: POIs capturados: " . count($pois) . " | WalkScore: {$walkScore}");
 
         // Agregando tudo
@@ -95,6 +102,10 @@ class PipelineCoordinator
             'pois_json' => $pois,
             'search_radius' => 1000,
             'walkability_score' => $walkScore,
+            'infra_score' => $metrics['infra'],
+            'mobility_score' => $metrics['mobility'],
+            'leisure_score' => $metrics['leisure'],
+            'general_score' => $metrics['total_score'],
             'climate_json' => $climateData['climate_json'],
             'air_quality_index' => $climateData['air_quality_index'],
             'population' => $socioData['population'],
