@@ -4,11 +4,14 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\SitemapController;
 
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+Route::get('/sitemap.xml', [SitemapController::class, 'index']);
+Route::get('/robots.txt', [SitemapController::class, 'robots']);
 Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
 Route::post('/search', [ReportController::class, 'search'])->name('search');
 Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');

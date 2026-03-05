@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name') }} - Raio-X de {{ $report->cidade }}</title>
+    <title>Raio-X de {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }} | {{ config('app.name') }}</title>
+    <meta name="description" content="Relatório detalhado sobre o bairro {{ $report->bairro }} em {{ $report->cidade }}. Veja índices de segurança, caminhabilidade, qualidade do ar e infraestrutura urbana.">
+    <meta name="keywords" content="viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, qualidade do ar {{ $report->cidade }}">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="Raio-X Territorial: {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}">
+    <meta property="og:description" content="Confira a análise completa de infraestrutura e qualidade de vida desta região.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ url('/hero_background_city_1772568797393.png') }}">
     
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

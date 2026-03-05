@@ -43,4 +43,18 @@ class LocationReport extends Model
         'lat' => 'float',
         'lng' => 'float',
     ];
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_all');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_safety');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_walk');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_air');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_cidade_all');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_cidade_safety');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_cidade_walk');
+            \Illuminate\Support\Facades\Cache::forget('ranking_results_cidade_air');
+        });
+    }
 }
