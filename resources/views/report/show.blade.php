@@ -10,6 +10,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    
     <!-- Leaflet Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -96,7 +99,7 @@
 
         /* Dashboard Bento Grid Style */
         .dashboard-container {
-            margin-top: -80px;
+            margin-top: -120px;
             position: relative;
             z-index: 10;
         }
@@ -109,7 +112,7 @@
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             height: 100%;
-            padding: 24px;
+            padding: 32px;
         }
 
         .card-pro:hover {
@@ -176,10 +179,10 @@
 
         /* Typography Decorations */
         .editorial-text {
-            line-height: 1.8;
-            font-size: 1.1rem;
+            line-height: 1.6;
+            font-size: 1rem;
             color: #475569;
-            text-align: justify;
+            text-align: left;
         }
 
         .drop-cap::first-letter {
@@ -530,6 +533,18 @@
 
     <!-- HERO SECTION -->
     <section class="hero-section">
+        <!-- Floating Logo Overlay -->
+        <div class="position-absolute top-0 start-0 p-4 no-print" style="z-index: 100;">
+            <div class="d-flex align-items-center gap-2">
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-4 border border-white border-opacity-20 shadow-lg overflow-hidden" style="width: 44px; height: 44px;">
+                    <img src="{{ asset('favicon.png') }}" class="w-100 h-100 object-fit-cover" alt="Logo">
+                </div>
+                <div class="text-white">
+                    <div class="fw-black h6 mb-0 text-uppercase italic tracking-tighter" style="font-size: 14px;">{{ config('app.name') }}</div>
+                    <div class="small opacity-50 text-uppercase fw-bold" style="font-size: 7px; letter-spacing: 2px;">Terrestrial Intelligence</div>
+                </div>
+            </div>
+        </div>
         @if($wiki['image'] ?? null)
             <img src="{{ $wiki['image'] }}" class="hero-bg-img" alt="{{ $report->cidade }}">
         @endif
@@ -977,7 +992,7 @@
         @if($report->history_extract)
             <div class="row mb-5 reveal">
                 <div class="col-12">
-                    <div class="card-pro p-5 border-0 shadow-lg overflow-hidden position-relative">
+                    <div class="card-pro border-0 shadow-lg overflow-hidden position-relative">
                         <div class="d-flex align-items-center gap-3 mb-4">
                             <div class="bg-primary text-white d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; border-radius: 14px;">
                                 <i class="fa-solid fa-book-open"></i>
@@ -986,14 +1001,22 @@
                         </div>
                         
                         <div class="position-relative">
-                            <!-- Imagem com efeito Newspaper (Float) -->
+                            <!-- Imagem History (Newspaper Style Float) -->
                             @if($wiki['image'] ?? null)
-                                <div class="float-lg-end ms-lg-5 mb-4 mb-lg-2 text-center text-lg-start d-block rotate-2 mx-auto shadow-2xl" style="max-width: 380px;">
-                                    <img src="{{ $wiki['image'] }}" class="img-fluid rounded-4 border-8 border-white shadow-lg" alt="História Local">
+                                <div class="float-md-start me-md-4 mb-4 text-center text-md-start" style="max-width: 450px;">
+                                    <div class="position-relative">
+                                        <img src="{{ $wiki['image'] }}" class="img-fluid rounded-4 shadow-lg mb-2" style="max-height: 400px; object-fit: cover;" alt="História Local">
+                                        <div class="position-absolute bottom-0 start-0 w-100 p-2 bg-dark bg-opacity-50 text-white rounded-bottom-4 d-md-none" style="backdrop-filter: blur(5px); font-size: 10px;">
+                                            {{ $report->cidade }}
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted italic opacity-75 d-none d-md-block" style="font-size: 11px;">
+                                        <i class="fa-solid fa-camera me-1"></i> Registro histórico: {{ $report->cidade }}
+                                    </div>
                                 </div>
                             @endif
                             
-                            <div class="editorial-text drop-cap text-justify" style="line-height: 1.8; font-size: 1.05rem; color: #334155;">
+                            <div class="editorial-text drop-cap" style="text-align: justify;">
                                 {!! nl2br(e($report->history_extract)) !!}
                                 
                                 <div class="mt-4 no-print">
@@ -1057,8 +1080,15 @@
         <div class="container">
             <div class="row align-items-center g-4">
                 <div class="col-md-4 text-center text-md-start">
-                    <h3 class="text-white mb-1">{{ config('app.name') }}</h3>
-                    <p class="small mb-0 opacity-50">Inteligência de Dados Territoriais</p>
+                    <div class="d-flex align-items-center gap-3 justify-content-center justify-content-md-start">
+                        <div class="rounded-3 overflow-hidden" style="width: 38px; height: 38px;">
+                            <img src="{{ asset('favicon.png') }}" class="w-100 h-100 object-fit-cover" style="filter: grayscale(1) brightness(1.5);" alt="Footer Logo">
+                        </div>
+                        <div>
+                            <h3 class="text-white mb-0 h6 fw-black text-uppercase tracking-tighter">{{ config('app.name') }}</h3>
+                            <p class="small mb-0 opacity-50" style="font-size: 10px;">Data Intelligence</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-4 text-center">
                     <div class="d-flex flex-wrap justify-content-center gap-3">
