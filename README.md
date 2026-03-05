@@ -1,91 +1,76 @@
-# Raio-X de Vizinhança
+# Raio-X de Vizinhança 🗺️🛡️
 
-> Relatórios inteligentes de qualquer bairro brasileiro a partir de um CEP.
+> Inteligência Territorial em Tempo Real: Relatórios precisos de qualquer micro-região brasileira via CEP.
 
-**Stack:** Laravel 11 · PHP 8.x · MySQL · Bootstrap 5 · Leaflet.js · Google Gemini AI
-
----
-
-## O que faz
-
-Dado um CEP, o sistema:
-1. Localiza o endereço completo (ViaCEP)
-2. Busca dados demográficos do município (IBGE)
-3. Geocodifica as coordenadas (Nominatim/OSM)
-4. Mapeia POIs em raio de 10km (Overpass API)
-5. Coleta clima e qualidade do ar (Open-Meteo)
-6. Busca história do bairro ou cidade (Wikipedia PT)
-7. Gera texto humanizado de 3-4 parágrafos (Google Gemini AI)
-8. Exibe tudo em dashboard interativo com mapa (Leaflet)
+**Stack:** [Laravel 11](https://laravel.com) · PHP 8.4 · MySQL · Bootstrap 5 · Leaflet.js · Google Gemini AI
 
 ---
 
-## Pré-requisitos
+## 🏗️ Como Funciona (Arquitetura Agent-Based)
 
-- PHP 8.2+
-- MySQL 8+
-- Chave de API do [Google AI Studio](https://aistudio.google.com)
+Ao digitar um CEP, o sistema orquestra uma frota de **Micro-Agentes** especializados:
+
+1.  **GeoAgent**: Resolve endereço e coordenadas exatas (ViaCEP + OSM).
+2.  **POIAgent**: Mapeia comércios, lazer e infraestrutura em 1km (Overpass API).
+3.  **SocioAgent**: Coleta Renda, IDHM e População (IBGE c/ Retry Síncrono).
+4.  **ClimaAgent**: Dados meteorológicos e qualidade do ar em tempo real (Open-Meteo).
+5.  **LLMAgent**: Gera narrativa humanizada e auditoria de segurança (Gemini AI).
 
 ---
 
-## Instalação
+## ⚡ Diferenciais de Resiliência
+
+- **Blindagem Socioeconômica**: Garantia de dados básicos para capitais mesmo se o IBGE falhar.
+- **Failover Multi-Key**: Rotação inteligente de chaves da API Gemini para 100% de uptime.
+- **Pipeline Assíncrono**: O dashboard abre instantaneamente; a análise profunda de IA carrega em background.
+- **Cache Inteligente**: Proteção de dados históricos e geográficos por 90 dias.
+
+---
+
+## 🛠️ Instalação Local
 
 ```bash
+# 1. Clonar e Instalar
 git clone https://github.com/viniciuswerneck/raiox.git
 cd raiox
 composer install
+
+# 2. Configurar Ambiente
 cp .env.example .env
 php artisan key:generate
+
+# 3. Banco de Dados
+php artisan migrate
+
+# 4. Iniciar Servidores (Em terminais separados)
+php artisan queue:work  # Para processar a IA em background
+php artisan serve       # Para o dashboard web
 ```
 
-Configure o `.env`:
+**Configuração do `.env`:**
 ```env
 DB_DATABASE=raiox
 DB_USERNAME=root
-DB_PASSWORD=sua_senha
+DB_PASSWORD=
 
-GEMINI_API_KEY=sua_chave_gemini
-```
-
-```bash
-php artisan migrate
-php artisan serve
-```
-
-Acesse: `http://127.0.0.1:8000`
-
----
-
-## Documentação Técnica
-
-| Arquivo | Conteúdo |
-|---------|----------|
-| `CODEBASE.md` | Mapa de dependências entre arquivos, schema do banco, regras de cache |
-| `.agent/ARCHITECTURE.md` | Arquitetura completa, fluxo de dados, APIs externas, lógica de negócio, TODOs |
-| `specs.md` | Histórico de sessões de desenvolvimento, decisões de produto |
-| `.agent/workflows/` | Workflows para deploy, debug, preview e outros |
-
----
-
-## Cache
-
-Relatórios são cacheados por **90 dias** no banco. Clima/AQI são atualizados a cada hora.
-
-Para forçar regeneração de um CEP:
-```sql
-DELETE FROM location_reports WHERE cep = '01310200';
+GEMINI_API_KEY=sua_chave_aqui
 ```
 
 ---
 
-## APIs Externas (todas gratuitas)
+## 🔌 Ecossistema de APIs
 
-| Serviço | Uso |
-|---------|-----|
-| ViaCEP | Resolução do CEP |
-| IBGE Localidades | Dados demográficos |
-| Nominatim (OSM) | Geocodificação |
-| Overpass API | Pontos de interesse |
-| Open-Meteo | Clima e qualidade do ar |
-| Wikipedia PT | Texto histórico |
-| Google Gemini Flash | Geração de texto com IA |
+| Serviço | Função |
+|---|---|
+| **ViaCEP** | Resolução de Endereço |
+| **IBGE** | Indicadores Socioeconômicos |
+| **OSM (Nominatim)** | Geocodificação de Coordenadas |
+| **OpenStreetMap (Overpass)** | Pontos de Interesse (POIs) |
+| **Open-Meteo** | Clima e Qualidade do Ar |
+| **Wikipedia** | Contexto Histórico e Imagens |
+| **Google Gemini Flash** | Auditoria Territorial e Narrativa |
+
+---
+
+## 📄 Documentação Técnica Completa
+Consulte o arquivo [ARCHITECTURE.md](.agent/ARCHITECTURE.md) para detalhes sobre o protocolo AACT, fluxo de dados assíncrono e estrutura de agentes.
