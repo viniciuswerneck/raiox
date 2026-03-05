@@ -38,21 +38,18 @@ class GeminiService
         $locationContext = $location ? "sobre a cidade/bairro de **{$location}**" : '';
 
         $prompt = <<<PROMPT
-VOCÊ É UM EXPERT EM HISTÓRIA URBANA E ANALISTA IMOBILIÁRIO SÊNIOR.
-Sua missão é criar o "Raio-X Definitivo" para o local: **{$location}**.
+VOCÊ É UM AUDITOR NARRATIVO (AAN) E UM ANALISTA IMOBILIÁRIO SÊNIOR ESTABELECENDO UM "RAIO-X DEFINITIVO".
+Local Base: **{$location}**.
 
-### REGRAS CRÍTICAS E ABSOLUTAS:
-1. **TAMANHO OBRIGATÓRIO (4 A 8 PARÁGRAFOS LONGOS)**: O campo "historia" no JSON deve ser OBRIGATORIAMENTE LONGO. Gere entre 4 e 8 parágrafos densos e completos (no mínimo 400 palavras totais). Sob nenhuma circunstância entregue apenas 1, 2 ou 3 parágrafos curtos.
-2. **NÃO RESUMA NO JSON (Expanda usando seu conhecimento interno)**: Modelos tendem a gerar textos curtos dentro de campos JSON. VOCÊ ESTÁ PROIBIDO DE RESUMIR. Mesmo que o "Texto de Apoio" abaixo seja super curto (ou seja apenas um comando), você DEVE preencher as lacunas ativando agressivamente o seu vasto diretório interno de informações, detalhando:
-   - História original, primeiros moradores e loteamentos.
-   - Clima, relevo, e padrão arquitetônico (tipos de casas/prédios, arborização).
-   - Movimento comercial principal, infraestrutura principal e mobilidade.
-   - Pontos de interesse clássicos: praças, parques, feiras, opções de lazer e gastronomia.
-   - Perfil social: quem mora? É um bairro/cidade de qual classe predominante? Como é a "alma" do lugar?
-3. **MICRO-TERRITÓRIO REAL ESTATE**: Para a seção mercado_imobiliario, ESTÁ EXTREMAMENTE PROIBIDO usar a "Média Geral da Cidade". Você DEVE focar EXCLUSIVAMENTE nas ruas e no micro-espaço imediato (1km a 2km). 
-   - Defina rigidamente se a área é Residencial, Comercial ou Mista.
-   - Se for um Centro Histórico Financeiro (ex: Centro do RJ), priorize a citação de lajes corporativas, salas comerciais e revitalizações (Retrofit residencial), com ticket médio condizente à região central (ex., não cite Mansões de luxo num calçadão popular de bancos).
-4. **ESTILO NARRATIVO**: Você está escrevendo para uma revista especializada em bairros (Ex: Veja São Paulo, Monocle, Quatro Rodas). O tom deve ser engajador, vivo, acadêmico e comercial. 
+O CEP É UMA UNIDADE MICRO. A CIDADE É APENAS CONTEXTO MACRO. O macro NUNCA pode sobrescrever o micro.
+
+### REGRAS CRÍTICAS DE AUDITORIA NARRATIVA P0 (AAN):
+1. **FATOR MICROTERRITORIAL ESTILOSAMENTE NARRATIVO (4+ Parágrafos)**: Gere uma "historia" descritiva densa, focada exclusivamente nas ruas do micro-espaço que compõe "{$location}". O texto deve ser informativo e não promocional. É expressamente PROIBIDA qualquer "glamourização" se o perfil for puramente popular/funcional.
+2. **PROIBIÇÕES ABSOLUTAS**: 
+   - ❌ NUNCA cite, compare ou mencione nomes de bairros alheios, famosos ou turísticos se não for o exato CEP pesquisado (ex: Não cite Copacabana se o bairro for Olaria, não cite Ponta Negra se o bairro for Pajuçara).
+   - ❌ NUNCA generalize a narrativa puxando informações macro da capital inteira. A história e as descrições devem ser locais.
+   - ❌ NUNCA assuma que a região tem edifícios verticalizados se a região indicar um padrão horizontal ou simples.
+3. **MERCADO IMOBILIÁRIO RESTRITO**: Foque DENTRO de 1km a 2km. SE a região for carente / zona de comércio simples, o "preco_m2" e os perfis devem REJEITAR cotações de alto luxo ou bairro nobre. Preço deve ser estritamente coerente com uma classe média-modesta. 
 
 ### FORMATO DE RETORNO (JSON APENAS):
 {
