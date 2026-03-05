@@ -338,7 +338,17 @@ class ReportController extends Controller
             return redirect()->route('home')->withErrors(['cep' => 'CEP não encontrado ou erro nas APIs de terceiros.']);
         }
 
-        // Se estiver em processamento ou pendente, a view show.blade.php lidará com o estado de espera
+        // Se o relatório acabou de entrar na fila (pending), dispara o processamento agora
+        // Como o driver é 'sync', ele vai processar 'em background-fake' na primeira requisição
+        if ($report->status === 'pending') {
+            try {
+                \App\Jobs\ProcessLocationReport::dispatchSync($report->cep);
+                $report->refresh();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Immediate process failed: " . $e->getMessage());
+            }
+        }
+
         return view('report.show', compact('report'));
     }
 
