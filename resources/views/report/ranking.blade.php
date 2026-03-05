@@ -205,7 +205,15 @@
                 <i class="fa-solid fa-arrow-left me-2"></i>VOLTAR PARA A BUSCA
             </a>
             <h1 class="display-4 fw-black mb-3">Ranking de Autoridade <span class="text-primary">Territorial</span></h1>
-            <p class="lead opacity-75">Os melhores lugares para morar, trabalhar e investir no Brasil.</p>
+            <p class="lead opacity-75 mb-4">Os melhores lugares para morar, trabalhar e investir no Brasil.</p>
+            
+            <div class="d-inline-block px-4 py-3 rounded-4 border border-white/10" style="background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); max-width: 600px;">
+                <p class="small text-white-50 mb-0 leading-relaxed font-semibold">
+                    <i class="fa-solid fa-circle-info text-primary me-2"></i>
+                    Este ranking é gerado dinamicamente com base nas **pesquisas realizadas por nossos usuários**. 
+                    Quer ver sua cidade ou bairro aqui? Basta <a href="{{ route('home') }}" class="text-primary text-decoration-none hover:underline">realizar uma busca por CEP</a> para processar os dados e incluí-la no sistema.
+                </p>
+            </div>
         </div>
     </header>
 
