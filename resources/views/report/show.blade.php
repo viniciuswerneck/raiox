@@ -454,8 +454,8 @@
 <body>
 
     <!-- LOADER / QUEUE OVERLAY -->
-    @if($report->status !== 'completed')
-    <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); z-index: 9999;">
+    @if($report->status !== 'completed' || $report->cidade === 'Localizando...')
+    <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); z-index: 99999;">
         <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
             <div class="absolute inset-0 orbit opacity-20">
                 <div class="absolute top-0 left-1/2 w-4 h-4 bg-indigo-500 rounded-full blur-sm"></div>
