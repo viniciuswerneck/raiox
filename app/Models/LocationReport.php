@@ -28,8 +28,9 @@ class LocationReport extends Model
         'history_extract',
         'safety_level',
         'safety_description',
-        'real_estate_json',
         'search_radius',
+        'status', // 'pending', 'processing', 'completed', 'failed'
+        'error_message',
     ];
 
     protected $casts = [
@@ -46,7 +47,8 @@ class LocationReport extends Model
 
     protected static function booted()
     {
-        static::saved(function () {
+        static::saved(function ($report) {
+            \Illuminate\Support\Facades\Cache::forget("report_status_{$report->cep}");
             \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_all');
             \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_safety');
             \Illuminate\Support\Facades\Cache::forget('ranking_results_bairro_walk');

@@ -10,8 +10,11 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::get('/sitemap.xml', [SitemapController::class, 'index']);
-Route::get('/robots.txt', [SitemapController::class, 'robots']);
+Route::get('/api/report-status/{cep}', function ($cep) {
+    $report = \App\Models\LocationReport::where('cep', $cep)->first();
+    return response()->json(['status' => $report ? $report->status : 'not_found']);
+});
+
 Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
 Route::post('/search', [ReportController::class, 'search'])->name('search');
 Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');

@@ -453,7 +453,74 @@
 </head>
 <body>
 
-    <!-- LOADER OVERLAY -->
+    <!-- LOADER / QUEUE OVERLAY -->
+    @if($report->status !== 'completed')
+    <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); z-index: 9999;">
+        <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
+            <div class="absolute inset-0 orbit opacity-20">
+                <div class="absolute top-0 left-1/2 w-4 h-4 bg-indigo-500 rounded-full blur-sm"></div>
+                <div class="absolute bottom-0 left-1/2 w-4 h-4 bg-purple-500 rounded-full blur-sm"></div>
+            </div>
+            <div class="relative w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center ai-pulse shadow-2xl shadow-indigo-500/50">
+                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.798-1.338 2.798H4.136c-1.368 0-2.338-1.798-1.338-2.798L4 15.298" />
+                </svg>
+            </div>
+        </div>
+        <div class="text-center space-y-3 px-4" style="max-width: 500px">
+            <h3 class="fw-black text-white h2 mb-1">
+                @if($report->status === 'pending')
+                    Sincronizando Território
+                @elseif($report->status === 'processing')
+                    Analisando Indicadores com IA
+                @else
+                    Ops! Algo deu errado
+                @endif
+            </h3>
+            
+            @if($report->status === 'failed')
+                <p class="text-danger small fw-bold text-uppercase mb-4">{{ $report->error_message ?? 'Erro desconhecido' }}</p>
+                <a href="{{ route('home') }}" class="btn btn-outline-light rounded-pill px-4">Tentar outro CEP</a>
+            @else
+                <p id="queue-text" class="text-white-50 small fw-bold text-uppercase" style="letter-spacing: 0.3em;">
+                    @if($report->status === 'pending')
+                        Aguardando na fila de satélites...
+                    @else
+                        Processando dados do IBGE, Clima e Wikipedia...
+                    @endif
+                </p>
+                <div class="progress rounded-pill mx-auto mb-4" style="width: 250px; height: 6px; background: rgba(255,255,255,0.1);">
+                    <div id="queue-bar" class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: {{ $report->status === 'pending' ? '20%' : '60%' }}"></div>
+                </div>
+                <div class="p-3 rounded-4 border border-white/10 bg-white/5 backdrop-blur-sm">
+                    <p class="small text-white-50 mb-0">
+                        <i class="fa-solid fa-clock me-2 text-primary"></i>
+                        Isso pode levar até 20 segundos. Não feche esta aba.
+                    </p>
+                </div>
+            @endif
+        </div>
+    </div>
+    <script>
+        // Polling para verificar status
+        const pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/api/report-status/{{ $report->cep }}');
+                const data = await response.json();
+                
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    window.location.reload();
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    window.location.reload();
+                }
+            } catch (e) {
+                console.error("Erro no polling:", e);
+            }
+        }, 3000);
+    </script>
+    @else
     <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="display: none !important;">
         <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
             <div class="absolute inset-0 orbit opacity-20">
@@ -474,6 +541,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     @php
         $wiki = $report->wiki_json ?? [];

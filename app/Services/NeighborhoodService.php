@@ -16,65 +16,44 @@ class NeighborhoodService
     {
         $cepClean = preg_replace('/\D/', '', $cep);
         
-        // 1. Check cache (max 90 days old)
+        // 1. Tenta encontrar no banco
         $report = LocationReport::where('cep', $cepClean)->first();
 
-        // Se o relatório existe, é recente (menos de 90 dias) e possui resumo base (ou longo)
-        if ($report && 
-            $report->created_at->gt(Carbon::now()->subDays(90)) && 
-            $report->history_extract !== null &&
-            strlen($report->history_extract) > 50 &&
-            !empty($report->pois_json)
-        ) {
-            // REGRA: O Clima e Ar sempre deve ser atualizado se tiver mais de 1 hora
+        // Limite de "frescor": 180 dias (6 meses)
+        $isFresh = $report && $report->updated_at && $report->updated_at->gt(Carbon::now()->subDays(180));
+
+        // Se o relatório existe, é recente e está completo
+        if ($isFresh && $report->status === 'completed' && !empty($report->history_extract)) {
+            // REGRA: O Clima e Ar sempre deve ser atualizado se tiver mais de 1 hora (sem bloquear a fila)
             if ($report->updated_at->lt(Carbon::now()->subHour())) {
-                Log::info("Refreshing fresh climate data for CEP: {$cepClean}");
-                $climate = $this->fetchClimate($report->lat, $report->lng);
-                $airQuality = $this->fetchAirQuality($report->lat, $report->lng);
-                
-                $report->climate_json = $climate;
-                $report->air_quality_index = $airQuality;
-                $report->save(); // Save update_at pra não rodar a cada refresh depois de 1 hora
+                try {
+                    $climate = $this->fetchClimate($report->lat, $report->lng);
+                    $airQuality = $this->fetchAirQuality($report->lat, $report->lng);
+                    $report->update([
+                        'climate_json' => $climate,
+                        'air_quality_index' => $airQuality
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning("Soft refresh failed for CEP {$cepClean}: " . $e->getMessage());
+                }
             }
             return $report;
         }
 
-        // 2. Fetch new data
-        $data = $this->getFullReport($cepClean);
-        if (empty($data)) return null;
-
-        // 3. Save/Update in DB
-        $reportData = [
-            'cep' => $cepClean,
-            'logradouro' => $data['logradouro'] ?? '',
-            'bairro' => $data['bairro'] ?? '',
-            'cidade' => $data['localidade'],
-            'uf' => $data['uf'],
-            'codigo_ibge' => $data['ibge_code'] ?? $data['ibge'] ?? '',
-            'populacao' => $data['population'] ?? null,
-            'idhm' => $data['idhm'] ?? null,
-            'raw_ibge_data' => $data['municipality_info'] ?? [],
-            'lat' => $data['lat'] ?? null,
-            'lng' => $data['lng'] ?? null,
-            'pois_json' => $data['pois_json'] ?? [],
-            'search_radius' => $data['search_radius'] ?? 10000,
-            'climate_json' => $data['climate_json'] ?? [],
-            'wiki_json' => $data['wiki_json'] ?? [],
-            'air_quality_index' => $data['air_quality_index'] ?? null,
-            'walkability_score' => $data['walkability_score'] ?? 'C',
-            'average_income' => $data['average_income'] ?? null,
-            'sanitation_rate' => $data['sanitation_rate'] ?? null,
-            'history_extract' => $data['history_extract'] ?? null,
-            'safety_level' => $data['safety_level'] ?? null,
-            'safety_description' => $data['safety_description'] ?? null,
-            'real_estate_json' => $data['real_estate_json'] ?? null,
-        ];
-
-        if ($report) {
-            $report->update($reportData);
-            $report->refresh();
-        } else {
-            $report = LocationReport::create($reportData);
+        // 2. Se não existe ou está expirado, entra na fila
+        if (!$report) {
+            // Cria um registro "placeholder" para o usuário ver na fila
+            $report = LocationReport::create([
+                'cep' => $cepClean,
+                'status' => 'pending',
+                'cidade' => 'Localizando...',
+                'uf' => '--'
+            ]);
+            \App\Jobs\ProcessLocationReport::dispatch($cepClean);
+        } elseif (!$isFresh || $report->status === 'failed') {
+            // Se expirou ou falhou, reinicia o processo
+            $report->update(['status' => 'pending', 'error_message' => null]);
+            \App\Jobs\ProcessLocationReport::dispatch($cepClean);
         }
 
         return $report;

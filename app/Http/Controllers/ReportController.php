@@ -332,20 +332,18 @@ class ReportController extends Controller
 
     public function show($cep)
     {
-        set_time_limit(120); // Dá 2 minutos para a análise de 10km completar
         $report = $this->neighborhoodService->getCachedReport($cep);
 
         if (!$report) {
             return redirect()->route('home')->withErrors(['cep' => 'CEP não encontrado ou erro nas APIs de terceiros.']);
         }
 
+        // Se estiver em processamento ou pendente, a view show.blade.php lidará com o estado de espera
         return view('report.show', compact('report'));
     }
 
     public function compare($cep1, $cep2)
     {
-        set_time_limit(240); // Dobro do tempo para processar dois CEPs de 10km
-        
         $report1 = $this->neighborhoodService->getCachedReport($cep1);
         $report2 = $this->neighborhoodService->getCachedReport($cep2);
 
