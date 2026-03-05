@@ -13,6 +13,9 @@
     <!-- Tailwind CSS -->
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+
     <style>
         :root {
             --primary: #6366f1;
@@ -117,13 +120,16 @@
         
         <!-- Header / Nav -->
         <nav class="container mx-auto px-6 py-8 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+            <div class="flex items-center space-x-3">
+                <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                    <div class="relative w-12 h-12 bg-slate-900 rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                        <img src="{{ asset('favicon.png') }}" alt="Raio-X Logo" class="w-full h-full object-cover">
+                    </div>
                 </div>
-                <span class="text-xl font-black tracking-tighter text-white uppercase italic">{{ config('app.name') }}<span class="text-indigo-500">.</span>territory</span>
+                <div class="flex flex-col">
+                    <span class="text-xl font-black tracking-tighter text-white uppercase italic leading-none">{{ config('app.name') }}<span class="text-indigo-500">.</span>territory</span>
+                </div>
             </div>
             <div class="hidden md:flex items-center space-x-8 text-sm font-bold uppercase tracking-widest text-slate-400">
                 <a href="#" class="hover:text-white transition-colors">Tecnologia</a>
