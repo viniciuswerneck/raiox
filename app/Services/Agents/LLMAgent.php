@@ -15,6 +15,6 @@ class LLMAgent
         Log::info("LLMAgent: Fila disparada para o CEP {$cep} -> Report ID {$reportId}.");
         
         GenerateNeighborhoodText::dispatch($cep, $reportId, $wikiSearchContext)
-            ->onQueue('NarrativeBackground');
+            ->afterResponse();
     }
 }

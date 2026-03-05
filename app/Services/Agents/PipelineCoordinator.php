@@ -82,9 +82,10 @@ class PipelineCoordinator
         $climateData = $this->climaAgent->processResults($poolResponses);
         $socioData = $this->socioAgent->processResults($poolResponses, $ibgeCode);
 
-        // Fase 4: POIs (Roda logo em seguida pq os Endpoints overpass quebram se colocar no Pool de cima e eles demoram os retries)
-        $pois = $this->poiAgent->fetchPOIs($lat, $lng);
+        // Fase 4: POIs (Reduzimos o raio para 1.0km para evitar timeout em centros densos como SP)
+        $pois = $this->poiAgent->fetchPOIs($lat, $lng, 1000); 
         $walkScore = $this->poiAgent->calculateWalkabilityScore($pois);
+        Log::info("PipelineCoordinator: POIs capturados: " . count($pois) . " | WalkScore: {$walkScore}");
 
         // Agregando tudo
         return [
@@ -96,6 +97,7 @@ class PipelineCoordinator
             'uf' => $state,
             'codigo_ibge' => $ibgeCode,
             'pois_json' => $pois,
+            'search_radius' => 1000,
             'walkability_score' => $walkScore,
             'climate_json' => $climateData['climate_json'],
             'air_quality_index' => $climateData['air_quality_index'],
@@ -143,9 +145,16 @@ class PipelineCoordinator
         elseif ($walkScore === 'B') $calibratedSanitation = max($calibratedSanitation, 85.0);
         if ($isCentro) $calibratedSanitation = max($calibratedSanitation, 98.0);
 
+        $safetyLevel = 'MODERADO';
+        if ($classification === 'Turístico Premium') $safetyLevel = 'ALTO (POLICIAMENTO)';
+        elseif ($classification === 'Comercial Central') $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
+        elseif ($classification === 'Residencial Alto Padrão') $safetyLevel = 'ZONA MONITORADA';
+        elseif ($classification === 'Residencial Popular') $safetyLevel = 'MODERADO / LOCAL';
+
         return [
             'classification' => $classification,
-            'sanitation_rate' => $calibratedSanitation
+            'sanitation_rate' => $calibratedSanitation,
+            'safety_level' => $safetyLevel
         ];
     }
 }

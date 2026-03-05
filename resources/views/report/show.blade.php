@@ -454,7 +454,7 @@
 <body>
 
     <!-- LOADER / QUEUE OVERLAY -->
-    @if($report->status !== 'completed' || $report->cidade === 'Localizando...')
+    @if(in_array($report->status, ['pending', 'processing', 'failed']) || $report->cidade === 'Localizando...')
     <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); z-index: 99999;">
         <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
             <div class="absolute inset-0 orbit opacity-20">
@@ -473,6 +473,8 @@
                     Sincronizando Território
                 @elseif($report->status === 'processing')
                     Analisando Indicadores com IA
+                @elseif($report->status === 'processing_text')
+                    Refinando Narrativa Territorial
                 @else
                     Ops! Algo deu errado
                 @endif
@@ -485,6 +487,8 @@
                 <p id="queue-text" class="text-white-50 small fw-bold text-uppercase" style="letter-spacing: 0.3em;">
                     @if($report->status === 'pending')
                         Aguardando na fila de satélites...
+                    @elseif($report->status === 'processing_text')
+                        Cruzando dados da Wikipedia e Gemini IA...
                     @else
                         Processando dados do IBGE, Clima e Wikipedia...
                     @endif
@@ -505,13 +509,10 @@
         // Polling para verificar status
         const pollInterval = setInterval(async () => {
             try {
-                // Tenta disparar a fila (Simula o Cron localmente)
-                fetch("{{ url('/api/trigger-queue') }}").catch(e => console.warn("Queue trigger skipping..."));
-
                 const response = await fetch('/api/report-status/{{ $report->cep }}');
                 const data = await response.json();
                 
-                if (data.status === 'completed') {
+                if (data.status === 'completed' || data.status === 'processing_text') {
                     clearInterval(pollInterval);
                     window.location.reload();
                 } else if (data.status === 'failed') {
@@ -577,13 +578,13 @@
         ];
 
         // Categorização Organizada
-        $health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors', 'veterinary']));
+        $health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors', 'veterinary', 'blood_donation']));
         
-        $education_faith = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university', 'kindergarten', 'childcare', 'place_of_worship']));
+        $education_faith = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university', 'kindergarten', 'childcare', 'place_of_worship', 'monastery']));
         
-        $commerce = array_filter($pois, fn($p) => isset($p['tags']['shop']) || in_array($p['tags']['amenity'] ?? '', ['fuel', 'restaurant', 'cafe', 'fast_food', 'bakery', 'bar', 'pub', 'marketplace', 'bank']));
+        $commerce = array_filter($pois, fn($p) => isset($p['tags']['shop']) || in_array($p['tags']['amenity'] ?? '', ['fuel', 'restaurant', 'cafe', 'fast_food', 'bakery', 'bar', 'pub', 'marketplace', 'bank', 'atm', 'ice_cream', 'food_court']));
         
-        $services_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['police', 'fire_station', 'post_office', 'townhall', 'public_service', 'cinema', 'theatre', 'arts_centre', 'library']) || in_array($p['tags']['leisure'] ?? '', ['park', 'gym', 'sports_centre', 'playground']) || isset($p['tags']['historic']));
+        $services_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['police', 'fire_station', 'post_office', 'townhall', 'public_service', 'cinema', 'theatre', 'arts_centre', 'library', 'courthouse', 'community_centre']) || in_array($p['tags']['leisure'] ?? '', ['park', 'gym', 'sports_centre', 'playground', 'stadium', 'marina', 'garden', 'square']) || isset($p['tags']['historic']) || isset($p['tags']['tourism']));
 
         // Theme colors for score
         $walkColor = match($report->walkability_score) {
@@ -1157,6 +1158,31 @@
                     </div>
                 </div>
             </div>
+        @elseif($report->status === 'processing_text')
+            <div class="row mb-5 reveal" id="narrative-loading-section">
+                <div class="col-12 text-center py-5">
+                    <div class="card-pro border-0 shadow-sm p-5" style="background: rgba(255,255,255,0.5); backdrop-filter: blur(10px);">
+                        <div class="ai-pulse bg-primary bg-opacity-10 text-primary mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; border-radius: 20px;">
+                            <i class="fa-solid fa-wand-magic-sparkles fa-2x"></i>
+                        </div>
+                        <h4 class="fw-black text-dark mb-2">Construindo Narrativa Territorial</h4>
+                        <p class="text-muted small mb-0">Nossa IA está cruzando dados da Wikipedia e registros históricos para gerar o contexto cultural do bairro. <br>A página atualizará automaticamente em alguns segundos.</p>
+                    </div>
+                </div>
+            </div>
+            <script>
+                // Polling específico para o texto (Narrativa)
+                const narrativeInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/report-status/{{ $report->cep }}');
+                        const data = await response.json();
+                        if (data.status === 'completed') {
+                            clearInterval(narrativeInterval);
+                            window.location.reload();
+                        }
+                    } catch (e) { console.error("Erro no polling da narrativa:", e); }
+                }, 4000);
+            </script>
         @endif
     </div>
 

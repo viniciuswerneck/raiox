@@ -83,10 +83,12 @@ class GenerateNeighborhoodText implements ShouldQueue
             $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
 
             if (!$aiSummary) {
-                // Se o Gemini falhou por completo, finaliza e muda pra status de erro
+                // Se o Gemini falhou, salvamos o que temos e marcamos como 'completed'
+                // para não quebrar a visualização dos dados técnicos (mapa, infra, etc)
                 $report->update([
-                    'status' => 'failed',
-                    'error_message' => 'O Motor Duelo Territorial não suportou a narrativa.'
+                    'status' => 'completed',
+                    'history_extract' => 'A narrativa territorial está temporariamente indisponível devido à alta demanda nos satélites de IA. Os dados técnicos abaixo permanecem precisos.',
+                    'error_message' => 'AI_TIMEOUT'
                 ]);
                 return;
             }
@@ -98,7 +100,7 @@ class GenerateNeighborhoodText implements ShouldQueue
                     'name' => $city,
                     'uf' => $state,
                     'ibge_code' => $ibgeCode,
-                    'populacao' => $report->populacao,
+                    'population' => $report->populacao,
                     'idhm' => $report->idhm,
                     'sanitation_rate' => $report->sanitation_rate,
                     'average_income' => $income,

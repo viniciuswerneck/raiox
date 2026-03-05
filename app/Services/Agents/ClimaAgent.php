@@ -29,12 +29,14 @@ class ClimaAgent
      */
     public function processResults(array $responses): array
     {
-        $weather = isset($responses['weather']) && $responses['weather']->successful() 
-                    ? $responses['weather']->json() : [];
+        $weatherRes = $responses['weather'] ?? null;
+        $weather = ($weatherRes instanceof \Illuminate\Http\Client\Response && $weatherRes->successful()) 
+                    ? $weatherRes->json() : [];
         
         $aqi = null;
-        if (isset($responses['air_quality']) && $responses['air_quality']->successful()) {
-            $aqi = $responses['air_quality']->json()['current']['european_aqi'] ?? null;
+        $aqiRes = $responses['air_quality'] ?? null;
+        if ($aqiRes instanceof \Illuminate\Http\Client\Response && $aqiRes->successful()) {
+            $aqi = $aqiRes->json()['current']['european_aqi'] ?? null;
         }
 
         return [

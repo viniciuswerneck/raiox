@@ -10,20 +10,36 @@ class POIAgent
     /**
      * Traz os POIs via Overpass usando o HttpClient do Laravel
      */
-    public function fetchPOIs(float $lat, float $lng, int $radius = 4000): array
+    public function fetchPOIs(float $lat, float $lng, int $radius = 1000): array
     {
-        $query = "[out:json][timeout:15];(
-            nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|doctors|veterinary|kindergarten|childcare|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
-            nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace|butcher|greengrocer|doityourself|pet|hairdresser|sports|shoes|toys|jewelry|car|car_repair|car_wash|laundry\"](around:{$radius},{$lat},{$lng});
-            nwr[\"leisure\"~\"park|gym|sports_centre|playground|marketplace\"](around:{$radius},{$lat},{$lng});
-            nwr[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"](around:{$radius},{$lat},{$lng});
-            nwr[\"historic\"](around:{$radius},{$lat},{$lng});
-            nwr[\"railway\"=\"station\"](around:{$radius},{$lat},{$lng});
-        );out center bb qt 500;";
+        Log::info("POIAgent: Iniciando busca de POIs em [{$lat}, {$lng}] com raio {$radius}m");
+        
+        // Conversão aproximada de metros para graus para criar uma Bounding Box (BBox)
+        // BBox é MUITO mais rápida que 'around' no servidor Overpass.
+        $margin = 0.009; // Aprox 1km
+        $lat_min = $lat - $margin;
+        $lat_max = $lat + $margin;
+        $lon_min = $lng - $margin;
+        $lon_max = $lng + $margin;
+        $bbox = "{$lat_min},{$lon_min},{$lat_max},{$lon_max}";
+
+        // Consulta de alta performance: busca por chaves principais dentro da BBox
+        // Usamos nwr para garantir que polígonos (shoppings, parques) também venham, 
+        // mas o BBox mantém a resposta instantânea.
+        $query = "[out:json][timeout:20];(
+            nwr({$bbox})[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|university|clinic|doctors|police|townhall|marketplace|courthouse\"];
+            nwr({$bbox})[\"shop\"~\"supermarket|bakery|convenience|clothes|pharmacy|beauty|department_store|books|butcher|greengrocer|laundry|mall\"];
+            nwr({$bbox})[\"leisure\"~\"park|square|gym|sports_centre|playground\"];
+            nwr({$bbox})[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"];
+            nwr({$bbox})[\"historic\"];
+            nwr({$bbox})[\"railway\"~\"station\"];
+            nwr({$bbox})[\"highway\"=\"bus_stop\"];
+        );out center qt 150;";
 
         $endpoints = [
-            'https://overpass-api.de/api/interpreter',
             'https://lz4.overpass-api.de/api/interpreter',
+            'https://overpass-api.de/api/interpreter',
+            'https://overpass.kumi.systems/api/interpreter',
             'https://z.overpass-api.de/api/interpreter'
         ];
 
@@ -32,35 +48,50 @@ class POIAgent
             'Referer' => 'https://google.com'
         ];
 
-        // Se quiser testar Pool aqui, daria, mas como os endpoints são falhos, fallback síncrono é mais seguro pros dados estruturais essenciais.
         foreach ($endpoints as $endpoint) {
             try {
+                $startTime = microtime(true);
                 $response = Http::withoutVerifying()
-                    ->timeout(12)
+                    ->timeout(25) // Timeout generoso de 25s para compensar latência de rede + 15s de processamento Overpass
                     ->withHeaders($headers)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);
 
+                $duration = round(microtime(true) - $startTime, 2);
+
                 if ($response->successful()) {
                     $elements = [];
-                    foreach ($response->json('elements') ?? [] as $element) {
-                        $item = [
-                            'type' => $element['type'],
-                            'id'   => $element['id'],
-                            'tags' => $element['tags'] ?? [],
-                            'lat'  => $element['lat'] ?? ($element['center']['lat'] ?? null),
-                            'lon'  => $element['lon'] ?? ($element['center']['lon'] ?? null),
-                        ];
-                        if ($item['lat'] && $item['lon']) {
-                            $elements[] = $item;
+                    $json = $response->json();
+                    
+                    if (isset($json['elements'])) {
+                        foreach ($json['elements'] as $element) {
+                            $item = [
+                                'type' => $element['type'],
+                                'id'   => $element['id'],
+                                'tags' => $element['tags'] ?? [],
+                                'lat'  => $element['lat'] ?? ($element['center']['lat'] ?? null),
+                                'lon'  => $element['lon'] ?? ($element['center']['lon'] ?? null),
+                            ];
+                            if ($item['lat'] && $item['lon']) {
+                                $elements[] = $item;
+                            }
                         }
                     }
-                    if (count($elements) > 0) return $elements;
+
+                    if (count($elements) > 0) {
+                        Log::info("POIAgent: Sucesso com servidor [{$endpoint}] em {$duration}s. Itens: " . count($elements));
+                        return $elements;
+                    } else {
+                        Log::warning("POIAgent: Servidor [{$endpoint}] retornou ZERO elementos em {$duration}s.");
+                    }
+                } else {
+                    Log::error("POIAgent: Servidor [{$endpoint}] falhou com status {$response->status()} em {$duration}s. Response: " . substr($response->body(), 0, 100));
                 }
             } catch (\Exception $e) {
-                Log::warning("POIAgent [{$endpoint}] exception: " . $e->getMessage());
+                Log::warning("POIAgent: Erro fatal no servidor [{$endpoint}]: " . $e->getMessage());
             }
         }
+
         return [];
     }
 

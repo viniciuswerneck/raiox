@@ -23,7 +23,7 @@ class GeoAgent
     public function resolveCep(string $cep): ?array
     {
         try {
-            $response = Http::withoutVerifying()->timeout(5)->retry(2, 200)
+            $response = Http::withoutVerifying()->timeout(3)
                 ->get("https://viacep.com.br/ws/{$cep}/json/");
             if ($response->successful() && !isset($response->json()['erro'])) {
                 return $response->json();
@@ -68,7 +68,7 @@ class GeoAgent
     private function queryNominatim($query, $headers)
     {
         try {
-            $response = Http::withoutVerifying()->timeout(8)->retry(1, 500)->withHeaders($headers)
+            $response = Http::withoutVerifying()->timeout(5)->withHeaders($headers)
                 ->get("https://nominatim.openstreetmap.org/search", [
                     'q' => $query,
                     'format' => 'json',

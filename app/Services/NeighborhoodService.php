@@ -29,6 +29,7 @@ class NeighborhoodService
     public function getCachedReport(string $cep): ?\App\Models\LocationReport
     {
         set_time_limit(100); 
+        session_write_close(); 
 
         $cepClean = preg_replace('/\D/', '', $cep);
         
@@ -37,9 +38,10 @@ class NeighborhoodService
         // ============================================
         $cachedReport = $this->cacheAgent->getCachedReport($cepClean);
 
-        if ($cachedReport && in_array($cachedReport->status, ['completed', 'processing_text', 'processing'])) {
-            Log::info("NeighborhoodService: Cache Hit para CEP {$cepClean}");
-            // Optional: Soft refresh pra clima (ignoramos pra manter resposta sempre rápida)
+        // Se o status for 'failed', permitimos o cache hit para evitar loop infinito de re-orquestração
+        // O Job de background tentará novamente e corrigirá o status se necessário.
+        if ($cachedReport && in_array($cachedReport->status, ['completed', 'processing_text', 'processing', 'failed'])) {
+            Log::info("NeighborhoodService: Cache Hit para CEP {$cepClean} (Status: {$cachedReport->status})");
             return $cachedReport;
         }
 
@@ -69,7 +71,7 @@ class NeighborhoodService
         // ============================================
         $reportData = [
             'cep' => $cepClean,
-            'logradouro' => $fastPathData['logradouro'],
+            'logradouro' => $fastPathData['logradouro'] ?? '',
             'bairro' => $fastPathData['bairro'] ?? '',
             'cidade' => $fastPathData['cidade'],
             'uf' => $fastPathData['uf'],
@@ -79,16 +81,39 @@ class NeighborhoodService
             'lat' => $fastPathData['lat'],
             'lng' => $fastPathData['lng'],
             'pois_json' => $fastPathData['pois_json'],
-            'search_radius' => 4000,
+            'search_radius' => 1000,
             'climate_json' => $fastPathData['climate_json'],
             'air_quality_index' => $fastPathData['air_quality_index'],
             'walkability_score' => $fastPathData['walkability_score'],
             'average_income' => $fastPathData['average_income'],
             'sanitation_rate' => $categorization['sanitation_rate'],
             'territorial_classification' => $categorization['classification'],
+            'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
             'status' => 'processing_text',
             'error_message' => null
         ];
+
+        // --- BLINDAGEM DE SOBREPOSIÇÃO (Preservar dados bons se a rede falhar agora) ---
+        if ($cachedReport) {
+            // Preservar POIs e Score
+            if (empty($reportData['pois_json']) && !empty($cachedReport->pois_json)) {
+                Log::warning("NeighborhoodService: OSM Falhou. Preservando POIs antigos para {$cepClean}");
+                $reportData['pois_json'] = $cachedReport->pois_json;
+                $reportData['walkability_score'] = $cachedReport->walkability_score;
+            }
+            // Preservar Dados Demográficos
+            if (empty($reportData['populacao']) && !empty($cachedReport->populacao)) {
+                $reportData['populacao'] = $cachedReport->populacao;
+            }
+            if (empty($reportData['idhm']) && !empty($cachedReport->idhm)) {
+                $reportData['idhm'] = $cachedReport->idhm;
+            }
+            if (empty($reportData['average_income']) && !empty($cachedReport->average_income)) {
+                $reportData['average_income'] = $cachedReport->average_income;
+            }
+        }
+
+        Log::info("NeighborhoodService: Salvando relatório para {$cepClean}. Income: {$reportData['average_income']}, Pop: {$reportData['populacao']}, IDHM: {$reportData['idhm']}");
 
         $report = $this->cacheAgent->upsertBasicData($cepClean, $reportData);
 
