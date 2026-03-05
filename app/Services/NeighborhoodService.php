@@ -50,8 +50,9 @@ class NeighborhoodService
             'bairro' => $data['bairro'] ?? '',
             'cidade' => $data['localidade'],
             'uf' => $data['uf'],
-            'codigo_ibge' => $data['ibge'] ?? '',
+            'codigo_ibge' => $data['ibge_code'] ?? $data['ibge'] ?? '',
             'populacao' => $data['population'] ?? null,
+            'idhm' => $data['idhm'] ?? null,
             'raw_ibge_data' => $data['municipality_info'] ?? [],
             'lat' => $data['lat'] ?? null,
             'lng' => $data['lng'] ?? null,
@@ -94,46 +95,60 @@ class NeighborhoodService
         $lat = null;
         $lng = null;
 
-        // 1. Tentar ViaCEP se parecer um CEP numérico
-        if ($isNumericCep) {
-            $address = $this->fetchViaCep($cepClean);
-            if ($address && !isset($address['erro'])) {
-                $city = $address['localidade'];
-                $street = $address['logradouro'] ?? '';
-                $state = $address['uf'];
-                $ibgeCode = $address['ibge'] ?? null;
-            }
+        // ESTRATÉGIA DE CACHE PROATIVA: 
+        // 1. Verificar se o CEP já existe em algum relatório anterior para pegar Cidade/Bairro rápido
+        $existingReport = LocationReport::where('cep', $cepClean)->first();
+        if ($existingReport) {
+            $city = $existingReport->cidade;
+            $state = $existingReport->uf;
+            $street = $existingReport->logradouro;
+            $lat = $existingReport->lat;
+            $lng = $existingReport->lng;
+            $address = [
+                'localidade' => $city,
+                'logradouro' => $street,
+                'uf' => $state,
+                'bairro' => $existingReport->bairro,
+                'cep' => $cepClean
+            ];
+            Log::info("CACHE HIT: Relatório prévio encontrado para CEP {$cepClean}");
         }
 
-        // 2. Fallback Nominatim (Se ViaCEP falhou ou se veio um endereço em texto)
-        // Se após o ViaCEP ainda não temos os dados básicos, usamos Geocoding
+        // 2. Se não tem no banco, buscar ViaCEP/Nominatim
         if (!$city || !$state) {
-            Log::info("Geocodificando termo de busca: {$cep}");
-            $geo = $this->fetchNominatim($cep, '', ''); // Passa o termo bruto
-            if ($geo) {
-                $lat = $geo['lat'];
-                $lng = $geo['lon'];
-                $addr = $geo['address'] ?? [];
-                
-                $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? '';
-                $state = $addr['state'] ?? '';
-                $street = $addr['road'] ?? '';
-                
-                // Normaliza UF (Nominatim retorna nome completo as vezes)
-                $stateMap = [
-                    'São Paulo' => 'SP', 'Rio de Janeiro' => 'RJ', 'Minas Gerais' => 'MG',
-                    'Paraná' => 'PR', 'Santa Catarina' => 'SC', 'Rio Grande do Sul' => 'RS'
-                ];
-                $state = $stateMap[$state] ?? $state;
+            if ($isNumericCep) {
+                $address = $this->fetchViaCep($cepClean);
+                if ($address && !isset($address['erro'])) {
+                    $city = $address['localidade'];
+                    $street = $address['logradouro'] ?? '';
+                    $state = $address['uf'];
+                    $ibgeCode = $address['ibge'] ?? null;
+                }
+            }
 
-                // Prepara um array fake de address para manter compatibilidade
-                $address = [
-                    'localidade' => $city,
-                    'logradouro' => $street,
-                    'uf' => $state,
-                    'bairro' => $addr['neighbourhood'] ?? $addr['suburb'] ?? '',
-                    'cep' => $addr['postcode'] ?? $cepClean ?: 'S/C'
-                ];
+            if (!$city || !$state) {
+                Log::info("Geocodificando termo de busca: {$cep}");
+                $geo = $this->fetchNominatim($cep, '', '');
+                if ($geo) {
+                    $lat = $geo['lat'];
+                    $lng = $geo['lon'];
+                    $addr = $geo['address'] ?? [];
+                    $city = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? '';
+                    $state = $addr['state'] ?? '';
+                    $street = $addr['road'] ?? '';
+                    $stateMap = [
+                        'São Paulo' => 'SP', 'Rio de Janeiro' => 'RJ', 'Minas Gerais' => 'MG',
+                        'Paraná' => 'PR', 'Santa Catarina' => 'SC', 'Rio Grande do Sul' => 'RS'
+                    ];
+                    $state = $stateMap[$state] ?? $state;
+                    $address = [
+                        'localidade' => $city,
+                        'logradouro' => $street,
+                        'uf' => $state,
+                        'bairro' => $addr['neighbourhood'] ?? $addr['suburb'] ?? '',
+                        'cep' => $addr['postcode'] ?? $cepClean ?: 'S/C'
+                    ];
+                }
             }
         }
 
@@ -142,50 +157,29 @@ class NeighborhoodService
             return [];
         }
 
-        // Se não temos IBGE code (veio do Nominatim), tentamos achar pelo nome no Banco ou API
-        if (!$ibgeCode) {
-            $cityModel = \App\Models\City::where('name', $city)->where('uf', $state)->first();
-            $ibgeCode = $cityModel ? $cityModel->ibge_code : null;
-        }
-
-        // CITY DATA
-        $cityModel = \App\Models\City::where('ibge_code', $ibgeCode)
-            ->orWhere(function($q) use ($city, $state) {
-                $q->where('name', $city)->where('uf', $state);
-            })->first();
+        // 3. RECUPERAR OU CRIAR CIDADE (Reutiliza se já existir)
+        $cityModel = \App\Models\City::where('name', $city)->where('uf', $state)->first();
 
         if (!$cityModel) {
+            Log::info("CIDADE NOVA: Criando registro para {$city}/{$state}");
             $ibgeData = [];
-            if ($ibgeCode) {
+            if (!$ibgeCode) {
+                // Tenta achar código IBGE se for cidade nova
+                $ibgeService = new \App\Services\IbgeService();
+                $ibgeData = $ibgeService->getMunicipalityDataByName($city, $state);
+                $ibgeCode = $ibgeData['ibge_code'] ?? null;
+            } else {
                 $ibgeService = new \App\Services\IbgeService();
                 $ibgeData = $ibgeService->getMunicipalityData($ibgeCode);
             }
+
             $socio = $this->fetchSocioEconomic($ibgeData);
-
-             // Fetch Wikipedia Only for City
-             $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
-             $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? 'Sem dados na Wikipedia.';
-             $cityHistory = $cityWiki['extract'] ?? 'Local em desenvolvimento.';
-             $citySafetyLevel = 'MODERADO';
-             $citySafetyDesc = 'Região que segue padrões métropolitamos.';
-             $cityRealEstate = null;
-             
-             $gemini = new \App\Services\GeminiService();
-             // Chamamos o Gemini SEMPRE, inclusive com conhecimento próprio se a Wiki for curta ou nula
-             $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
-             
-             if ($aiSummary) {
-                 $cityHistory = $aiSummary['historia'] ?? $cityHistory;
-                 $citySafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
-                 $citySafetyDesc = $aiSummary['descricao_seguranca'] ?? $citySafetyDesc;
-                 $cityRealEstate = $aiSummary['mercado_imobiliario'] ?? null;
-                 
-                 // Se a IA estimou uma renda específica no mercado imobiliário, podemos usar para refinar
-                 if ($cityRealEstate && isset($cityRealEstate['preco_m2'])) {
-                     // Ajuste sutil baseado no perfil (apenas se mudarmos o schema para guardar isso)
-                 }
-             }
-
+            $cityWiki = $this->fetchWikipediaInfo('', $city, $state);
+            $historyRaw = $cityWiki['full_text'] ?? $cityWiki['extract'] ?? 'Sem dados na Wikipedia.';
+            
+            $gemini = new \App\Services\GeminiService();
+            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $city);
+            
             $cityModel = \App\Models\City::create([
                 'ibge_code' => $ibgeCode,
                 'uf' => $state,
@@ -194,21 +188,22 @@ class NeighborhoodService
                 'average_income' => $socio['average_income'] ?? null,
                 'sanitation_rate' => $ibgeData['sanitation_rate'] ?? $socio['sanitation_rate'] ?? null,
                 'idhm' => $ibgeData['idhm'] ?? null,
-                'history_extract' => $cityHistory,
-                'safety_level' => $citySafetyLevel,
-                'safety_description' => $citySafetyDesc,
+                'history_extract' => $aiSummary['historia'] ?? ($cityWiki['extract'] ?? 'Local em desenvolvimento.'),
+                'safety_level' => $aiSummary['nivel_seguranca'] ?? 'MODERADO',
+                'safety_description' => $aiSummary['descricao_seguranca'] ?? 'Região metropolitana.',
                 'wiki_json' => $cityWiki,
-                'raw_ibge_data' => $ibgeData['municipality_info'] ?? [],
-                'real_estate_json' => $cityRealEstate
+                'raw_ibge_data' => $ibgeData,
+                'real_estate_json' => $aiSummary['mercado_imobiliario'] ?? null
             ]);
+        } else {
+            Log::info("CIDADE CACHE: Reutilizando dados de {$city}/{$state}");
+            $ibgeData = $cityModel->raw_ibge_data ?? [];
+            if (!isset($ibgeData['population'])) {
+                $ibgeData['population'] = $cityModel->population;
+            }
         }
 
-        $ibgeData = [
-            'population' => $cityModel->population,
-            'municipality_info' => $cityModel->raw_ibge_data
-        ];
-
-        // NEIGHBORHOOD DATA
+        // 4. RECUPERAR OU CRIAR BAIRRO (Reutiliza se já existir)
         $neighborhoodModel = null;
         $bairro = $address['bairro'] ?? '';
         $isAmbiguous = $bairro && in_array(strtolower($bairro), self::AMBIGUOUS_NEIGHBORHOOD_TERMS);
@@ -218,49 +213,24 @@ class NeighborhoodService
                 ->where('name', $bairro)->first();
 
             if (!$neighborhoodModel) {
+                Log::info("BAIRRO NOVO: Criando registro para {$bairro} em {$city}");
                 $bairroWiki = $this->fetchWikipediaInfo($bairro, $city, $state, true); 
+                $bairroHistoryRaw = $bairroWiki['full_text'] ?? "Gere um resumo sobre o bairro {$bairro} em {$city}.";
                 
-                $bairroHistory = null;
-                $bairroSafetyLevel = 'MODERADO';
-                $bairroSafetyDesc = 'Região que segue padrões urbanos.';
-                $bairroRealEstate = null;
-
-                if ($bairroWiki && $bairroWiki['source'] === 'bairro') {
-                    $bairroHistoryRaw = $bairroWiki['full_text'] ?? $bairroWiki['extract'] ?? 'Sem dados específicos do bairro na Wikipedia.';
-                    $bairroHistory = $bairroWiki['extract'] ?? 'Bairro em constante crescimento.';
-                    
-                    $gemini = new \App\Services\GeminiService();
-                    $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
-                    if ($aiSummary) {
-                        $bairroHistory = $aiSummary['historia'] ?? $bairroHistory;
-                        $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
-                        $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? 'Região com características residenciais.';
-                        $bairroRealEstate = $aiSummary['mercado_imobiliario'] ?? null;
-                    }
-                } else {
-                    // Se o bairro não tem wiki própria, pedimos para a IA inventar baseada no conhecimento dela
-                    $gemini = new \App\Services\GeminiService();
-                    $aiSummary = $gemini->generateNeighborhoodSummary("Gere um resumo sobre o bairro {$bairro} em {$city}. Use seu conhecimento prévio.", "{$bairro}, {$city}");
-                    
-                    if ($aiSummary) {
-                        $bairroHistory = $aiSummary['historia'] ?? null;
-                        $bairroSafetyLevel = $aiSummary['nivel_seguranca'] ?? 'MODERADO';
-                        $bairroSafetyDesc = $aiSummary['descricao_seguranca'] ?? null;
-                        $bairroRealEstate = $aiSummary['mercado_imobiliario'] ?? null;
-                    }
-                    
-                    $bairroWiki = null;
-                }
-
+                $gemini = new \App\Services\GeminiService();
+                $aiSummary = $gemini->generateNeighborhoodSummary($bairroHistoryRaw, "{$bairro}, {$city}");
+                
                 $neighborhoodModel = \App\Models\Neighborhood::create([
                     'city_id' => $cityModel->id,
                     'name' => $bairro,
-                    'history_extract' => $bairroHistory,
-                    'safety_level' => $bairroSafetyLevel,
-                    'safety_description' => $bairroSafetyDesc,
+                    'history_extract' => $aiSummary['historia'] ?? null,
+                    'safety_level' => $aiSummary['nivel_seguranca'] ?? 'MODERADO',
+                    'safety_description' => $aiSummary['descricao_seguranca'] ?? null,
                     'wiki_json' => $bairroWiki,
-                    'real_estate_json' => $bairroRealEstate
+                    'real_estate_json' => $aiSummary['mercado_imobiliario'] ?? null
                 ]);
+            } else {
+                Log::info("BAIRRO CACHE: Reutilizando dados de {$bairro} em {$city}");
             }
         }
 
@@ -697,19 +667,29 @@ class NeighborhoodService
 
     private function fetchSocioEconomic(array $ibgeData): array
     {
-        // Agora usamos dados REAIS do IBGE para estimar a renda
-        // O PIB per capita é anual. Dividimos por 12 e aplicamos um fator de correção 
-        // para massa salarial média (estimativa técnica conservadora de ~1.5)
-        $pibPerCapita = $ibgeData['pib_per_capita'] ?? 0;
-        
+        $minWage = 1412.00;
         $estimatedMonthlyIncome = 0;
-        if ($pibPerCapita > 0) {
-            $estimatedMonthlyIncome = ($pibPerCapita / 12) / 1.85; 
-            // Limites de sanidade baseados no Brasil Real (2024)
-            if ($estimatedMonthlyIncome < 1412) $estimatedMonthlyIncome = 1412 + rand(100, 300);
-        } else {
-            // Fallback apenas se a API do IBGE falhar totalmente
-            $estimatedMonthlyIncome = 2400.00;
+
+        // 1. Prioridade: Salário Médio dos Trabalhadores Formais (Indicator 29765)
+        // O IBGE retorna esse valor em número de salários mínimos
+        if (isset($ibgeData['average_salary']) && $ibgeData['average_salary'] > 0) {
+            $estimatedMonthlyIncome = $ibgeData['average_salary'] * $minWage;
+        } 
+        // 2. Fallback: Estimativa baseada no PIB per capita
+        else {
+            $pibPerCapita = $ibgeData['pib_per_capita'] ?? 0;
+            if ($pibPerCapita > 0) {
+                // O PIB per capita é anual. Dividimos por 12 e aplicamos um fator 
+                // para estimar renda domiciliar per capita (ajuste empírico)
+                $estimatedMonthlyIncome = ($pibPerCapita / 12) / 1.8; 
+            } else {
+                $estimatedMonthlyIncome = 2400.00;
+            }
+        }
+
+        // Limite de sanidade: nunca menor que o salário mínimo
+        if ($estimatedMonthlyIncome < $minWage) {
+            $estimatedMonthlyIncome = $minWage + rand(100, 300);
         }
 
         $sanitation = $ibgeData['sanitation_rate'] ?? 85.0;

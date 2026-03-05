@@ -341,4 +341,18 @@ class ReportController extends Controller
 
         return view('report.show', compact('report'));
     }
+
+    public function compare($cep1, $cep2)
+    {
+        set_time_limit(240); // Dobro do tempo para processar dois CEPs de 10km
+        
+        $report1 = $this->neighborhoodService->getCachedReport($cep1);
+        $report2 = $this->neighborhoodService->getCachedReport($cep2);
+
+        if (!$report1 || !$report2) {
+            return redirect()->route('home')->withErrors(['cep' => 'Um ou ambos os CEPs não foram localizados para comparação.']);
+        }
+
+        return view('report.compare', compact('report1', 'report2'));
+    }
 }

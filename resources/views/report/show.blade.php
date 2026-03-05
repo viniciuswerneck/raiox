@@ -268,31 +268,201 @@
             }
         }
 
-        /* Print Adjustments */
-        @media print {
-            .no-print, .btn, .cep-badge, .breadcrumb, footer, .map-category-btn, #map-container .leaflet-control-container {
-                display: none !important;
-            }
-            .hero-section {
-                padding: 40px 0 !important;
-                min-height: auto !important;
-                background-color: #0f172a !important;
-                -webkit-print-color-adjust: exact;
-            }
-            .card-pro {
-                break-inside: avoid;
-                box-shadow: none !important;
-                border: 1px solid #e2e8f0 !important;
-                background: white !important;
-            }
-            body { background: white !important; }
-            .dashboard-container { margin-top: 20px !important; }
-            .hero-bg-img { display: none !important; }
-            .hero-bg-overlay { background: #0f172a !important; }
+        /* ==================== GAMIFICATION & SCORES ==================== */
+        .score-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(25px);
+            border-radius: var(--card-radius);
+            padding: 32px 42px;
+            color: #1e293b;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+            margin-top: 15px;
+            margin-bottom: 10px;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s;
+        }
+
+        .score-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.12);
+        }
+
+        .score-circle-container {
+            position: relative;
+            width: 170px;
+            height: 170px;
+            margin: 0 auto;
+        }
+
+        .score-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 100%;
+        }
+
+        .score-val {
+            font-size: 4rem;
+            font-weight: 900;
+            line-height: 0.8;
+            letter-spacing: -2px;
+            margin-bottom: 2px;
+        }
+
+        .neon-progress {
+            height: 10px;
+            background: #f1f5f9;
+            border-radius: 99px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .neon-bar {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 1.8s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .badge-medal {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 12px 20px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-bottom: 10px;
+        }
+
+        .badge-medal:hover {
+            transform: translateX(8px);
+            background: white;
+            border-color: var(--primary);
+            box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.05);
+        }
+
+        .badge-icon {
+            font-size: 18px;
+            width: 36px;
+            height: 36px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        /* Float Comparison UI */
+        .compare-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            background: var(--primary);
+            color: white;
+            width: 65px;
+            height: 65px;
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 15px 30px -10px rgba(99, 102, 241, 0.5);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid white;
+        }
+
+        .compare-fab:hover {
+            transform: scale(1.15) rotate(10deg);
+            background: var(--primary-dark);
+        }
+
+        .compare-panel {
+            position: fixed;
+            bottom: 110px;
+            right: 30px;
+            width: 380px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 28px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.15);
+            z-index: 999;
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .compare-panel.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* PREMIUM LOADER */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(25px);
+            z-index: 9999;
+        }
+
+        .ai-pulse {
+            animation: ai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes ai-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            50% { transform: scale(1.05); opacity: 0.9; box-shadow: 0 0 40px 10px rgba(99, 102, 241, 0.4); }
+        }
+
+        .orbit {
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body id="pdf-content">
+
+    <!-- LOADER OVERLAY -->
+    <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="display: none !important;">
+        <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
+            <div class="absolute inset-0 orbit opacity-20">
+                <div class="absolute top-0 left-1/2 w-4 h-4 bg-indigo-500 rounded-full blur-sm"></div>
+                <div class="absolute bottom-0 left-1/2 w-4 h-4 bg-purple-500 rounded-full blur-sm"></div>
+            </div>
+            <div class="relative w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center ai-pulse shadow-2xl shadow-indigo-500/50">
+                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.798-1.338 2.798H4.136c-1.368 0-2.338-1.798-1.338-2.798L4 15.298" />
+                </svg>
+            </div>
+        </div>
+        <div class="text-center space-y-3">
+            <h3 class="fw-black text-white h4 mb-1">Iniciando Duelo Territorial</h3>
+            <p id="loader-text" class="text-white-50 small fw-bold text-uppercase" style="letter-spacing: 0.3em;">Cruzando indicadores...</p>
+            <div class="progress rounded-pill mx-auto" style="width: 150px; height: 4px; background: rgba(255,255,255,0.1);">
+                <div id="progress-bar" class="progress-bar bg-primary" style="width: 10%"></div>
+            </div>
+        </div>
+    </div>
 
     @php
         $wiki = $report->wiki_json ?? [];
@@ -398,6 +568,7 @@
     <div class="container dashboard-container">
         <!-- TOP METRICS GRID -->
         <div class="row g-4 mb-5">
+
             <!-- Caminhabilidade -->
             <div class="col-lg-4 col-md-12 reveal" style="animation-delay: 0.1s">
                 <div class="card-pro d-flex flex-column justify-content-between overflow-hidden position-relative h-100">
@@ -472,6 +643,119 @@
                     </div>
                 </div>
             </div>
+
+        <!-- SCORE SECTION (GLASS DESIGN) -->
+        <div class="row mb-3 reveal">
+            <div class="col-12">
+                @php
+                    // Lógica de Gamificação do Score (0-100)
+                    $poisCount = count($pois);
+                    $safetyVal = match(true) {
+                        str_contains($safetyRaw, 'ALT') => 92,
+                        str_contains($safetyRaw, 'MODERAD') || str_contains($safetyRaw, 'MEDI') => 70,
+                        str_contains($safetyRaw, 'BAIX') => 45,
+                        default => 55
+                    };
+                    $commerceScore = min(100, (int)($poisCount * 1.5)); 
+                    $infraScore = $report->sanitation_rate ?: 50;
+                    $cultureScore = $report->history_extract ? min(100, (int)(strlen($report->history_extract) / 20)) : 35;
+
+                    $finalScore = round(($safetyVal * 0.4) + ($commerceScore * 0.3) + ($infraScore * 0.2) + ($cultureScore * 0.1));
+                    
+                    $tierLabel = match(true) {
+                        $finalScore >= 90 => 'Distrito de Elite',
+                        $finalScore >= 75 => 'Alto Padrão',
+                        $finalScore >= 60 => 'Conforto Urbano',
+                        default => 'Região em Ascensão'
+                    };
+                    $tierColor = match(true) {
+                        $finalScore >= 90 => '#10b981',
+                        $finalScore >= 75 => '#6366f1',
+                        $finalScore >= 60 => '#f59e0b',
+                        default => '#64748b'
+                    };
+                @endphp
+                <div class="score-card">
+                    <div class="row align-items-center">
+                        <div class="col-lg-4 text-center mb-5 mb-lg-0 border-end border-light border-opacity-50">
+                            <div class="score-circle-container mb-3">
+                                <svg width="170" height="170" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" stroke-width="7"></circle>
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="{{ $tierColor }}" stroke-width="7" stroke-dasharray="{{ ($finalScore/100) * 283 }} 283" stroke-linecap="round" transform="rotate(-90 50 50)" style="filter: drop-shadow(0 0 10px {{ $tierColor }}40)"></circle>
+                                </svg>
+                                <div class="score-number">
+                                    <div class="score-val" style="color: {{ $tierColor }}">{{ $finalScore }}</div>
+                                    <div class="text-muted small fw-black text-uppercase tracking-widest">Score Real</div>
+                                </div>
+                            </div>
+                            <span class="status-pill px-4 py-2" style="background: {{ $tierColor }}10; color: {{ $tierColor }}; font-size: 11px; border: 1px solid {{ $tierColor }}20;">
+                                <i class="fa-solid fa-medal me-2"></i>{{ $tierLabel }}
+                            </span>
+                        </div>
+                        
+                        <div class="col-lg-8 ps-lg-5 text-start">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <h6 class="text-secondary small fw-black mb-4 text-uppercase tracking-widest" style="opacity: 0.8;">Análise de Performance</h6>
+                                    
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between mb-2 small fw-bold">
+                                            <span class="text-dark">Segurança & Proteção</span>
+                                            <span style="color: #059669">{{ $safetyVal }}%</span>
+                                        </div>
+                                        <div class="neon-progress">
+                                            <div class="neon-bar" style="width: {{ $safetyVal }}%; background: #10b981;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-0">
+                                        <div class="d-flex justify-content-between mb-2 small fw-bold">
+                                            <span class="text-dark">Capacidade Comercial</span>
+                                            <span style="color: #4f46e5">{{ $commerceScore }}%</span>
+                                        </div>
+                                        <div class="neon-progress">
+                                            <div class="neon-bar" style="width: {{ $commerceScore }}%; background: #6366f1;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6 class="text-secondary small fw-black mb-4 text-uppercase tracking-widest" style="opacity: 0.8;">Destaques da Região</h6>
+                                    <div class="d-flex flex-column gap-2">
+                                        @if($safetyVal >= 80)
+                                            <div class="badge-medal">
+                                                <div class="badge-icon" style="color: #10b981;"><i class="fa-solid fa-shield-halved"></i></div>
+                                                <div>
+                                                    <div class="fw-black small text-dark">Zoneamento Seguro</div>
+                                                    <div class="text-muted" style="font-size: 10px;">Baixíssima reatividade criminal.</div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                        @if($commerceScore >= 70)
+                                            <div class="badge-medal">
+                                                <div class="badge-icon" style="color: #6366f1;"><i class="fa-solid fa-store"></i></div>
+                                                <div>
+                                                    <div class="fw-black small text-dark">Dinamismo Urbano</div>
+                                                    <div class="text-muted" style="font-size: 10px;">Conveniência absoluta em 10km.</div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                        @if($infraScore >= 80)
+                                            <div class="badge-medal">
+                                                <div class="badge-icon" style="color: #f59e0b;"><i class="fa-solid fa-gem"></i></div>
+                                                <div>
+                                                    <div class="fw-black small text-dark">Infraestrutura Gold</div>
+                                                    <div class="text-muted" style="font-size: 10px;">Saneamento e serviços de ponta.</div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- MIDDLE SECTION: MAP & INFRASTRUCTURE -->
         <div class="row g-4 mb-5">
@@ -743,6 +1027,31 @@
         </div>
     </div>
 
+    <!-- COMPARISON MODAL-LIKE UI -->
+    <div class="compare-fab no-print" onclick="toggleCompare()" title="Comparar CEPs">
+        <i class="fa-solid fa-right-left"></i>
+    </div>
+
+    <div id="compare-panel" class="compare-panel no-print">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="mb-0 fw-black text-dark">⚔️ Iniciar Comparativo</h5>
+            <button class="btn btn-link text-muted p-0" onclick="toggleCompare()"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <p class="small text-muted mb-4 text-justify">Coloque dois bairros lado a lado. Digite o novo CEP para gerar o confronto de scores.</p>
+        
+        <div class="position-relative mb-4">
+            <input type="text" id="v-compare-input" class="form-control rounded-4 border-light bg-light py-3 ps-4 shadow-none" placeholder="Digite o novo CEP..." maxlength="9">
+            <button class="btn btn-primary position-absolute end-0 top-0 mt-1 me-1 h-75 rounded-4 px-4 fw-bold" onclick="startComparison()">
+                CONFRONTAR
+            </button>
+        </div>
+        
+        <div class="d-flex align-items-center gap-2 p-3 bg-indigo-50 rounded-4 border border-indigo-100">
+            <div class="bg-white p-2 rounded-circle shadow-sm">💡</div>
+            <div class="small text-indigo-900 leading-tight">Compare Segurança, Comércio e IDH de forma instantânea.</div>
+        </div>
+    </div>
+
     <!-- FOOTER -->
     <footer class="bg-dark text-white-50 py-5 mt-5">
         <div class="container">
@@ -986,6 +1295,66 @@
                         btn.disabled = false;
                     });
                 }, 500); // Delay sutil para garantir render final
+            });
+
+            // ================== NOVO MODO COMPARATIVO ==================
+            window.toggleCompare = function() {
+                const panel = document.getElementById('compare-panel');
+                panel.classList.toggle('active');
+                if (panel.classList.contains('active')) {
+                    document.getElementById('v-compare-input').focus();
+                }
+            };
+
+            window.startComparison = function() {
+                const newCepRaw = document.getElementById('v-compare-input').value;
+                const newCep = newCepRaw.replace(/\D/g, '');
+                
+                if (newCep.length === 8) {
+                    const currentCep = '{{ $report->cep }}';
+                    const loader = document.getElementById('loader');
+                    
+                    // Show loader
+                    loader.setAttribute('style', 'display: flex !important');
+                    
+                    // Loader Animation Logic
+                    const loaderSteps = [
+                        { text: "Acessando satélites...", progress: 30 },
+                        { text: "Calculando IDHM comparativo...", progress: 60 },
+                        { text: "Sincronizando Gemini AI...", progress: 85 },
+                        { text: "Quase pronto...", progress: 95 }
+                    ];
+                    
+                    let step = 0;
+                    const textEl = document.getElementById('loader-text');
+                    const barEl = document.getElementById('progress-bar');
+                    
+                    setInterval(() => {
+                        if (step < loaderSteps.length) {
+                            textEl.innerText = loaderSteps[step].text;
+                            barEl.style.width = loaderSteps[step].progress + '%';
+                            step++;
+                        }
+                    }, 2500);
+
+                    window.location.href = `/compare/${currentCep}/${newCep}`;
+                } else {
+                    alert("Por favor, digite um CEP válido com 8 dígitos.");
+                }
+            };
+            
+            document.getElementById('v-compare-input').addEventListener('input', function(e) {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v.length > 5) v = v.substring(0, 5) + '-' + v.substring(5, 8);
+                e.target.value = v;
+            });
+            
+            // Fechar painel com a tecla ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const panel = document.getElementById('compare-panel');
+                    if (panel && panel.classList.contains('active')) toggleCompare();
+                }
             });
         });
     </script>

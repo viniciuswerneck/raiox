@@ -18,7 +18,8 @@ class IbgeService
             'population' => '96385',
             'pib' => '29171',
             'sanitation' => '60037', // Esgotamento sanitário adequado
-            'idhm' => '29168'         // IDH Municipal
+            'idhm' => '29168',         // IDH Municipal
+            'worker_salary' => '29765' // Salário médio mensal (em salários mínimos)
         ];
 
         $results = [];
@@ -38,7 +39,22 @@ class IbgeService
             'pib_per_capita' => isset($results['pib']) ? (float)$results['pib'] : null,
             'sanitation_rate' => isset($results['sanitation']) ? (float)$results['sanitation'] : null,
             'idhm' => isset($results['idhm']) ? (float)$results['idhm'] : null,
+            'average_salary' => isset($results['worker_salary']) ? (float)$results['worker_salary'] : null,
             'raw_data' => $municipality->json()
         ];
+    }
+
+    public function getMunicipalityDataByName(string $name, string $uf): array
+    {
+        $response = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/localidades/estados/{$uf}/municipios");
+        if ($response->successful()) {
+            foreach ($response->json() as $municipality) {
+                if (mb_strtolower($municipality['nome']) === mb_strtolower($name)) {
+                    $code = $municipality['id'];
+                    return array_merge(['ibge_code' => $code], $this->getMunicipalityData($code));
+                }
+            }
+        }
+        return [];
     }
 }
