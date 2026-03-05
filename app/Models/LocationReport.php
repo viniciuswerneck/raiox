@@ -31,6 +31,7 @@ class LocationReport extends Model
         'search_radius',
         'status', // 'pending', 'processing', 'completed', 'failed'
         'error_message',
+        'real_estate_json',
     ];
 
     protected $casts = [

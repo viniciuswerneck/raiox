@@ -12,23 +12,28 @@ class IbgeService
     public function getMunicipalityData(string $ibgeCode): array
     {
         // Info básica
-        $municipality = Http::withoutVerifying()->get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{$ibgeCode}");
+        $municipality = Http::withoutVerifying()->retry(3, 100)->timeout(20)->get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{$ibgeCode}");
         
         $indicators = [
-            'population' => '96385',
-            'pib' => '29171',
-            'sanitation' => '60037', // Esgotamento sanitário adequado
-            'idhm' => '29168',         // IDH Municipal
-            'worker_salary' => '29765' // Salário médio mensal (em salários mínimos)
+            '29765' => 'worker_salary',
+            '29168' => 'idhm',
+            '60037' => 'sanitation',
+            '96385' => 'population',
+            '29171' => 'pib'
         ];
-
+ 
         $results = [];
-        foreach ($indicators as $key => $id) {
-            $response = Http::withoutVerifying()->timeout(10)->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/{$id}/resultados/{$ibgeCode}");
-            if ($response->successful()) {
-                $data = $response->json();
-                if (!empty($data) && isset($data[0]['res'][0]['res'])) {
-                    $results[$key] = end($data[0]['res'][0]['res']);
+        $ids = implode('|', array_keys($indicators));
+        
+        $response = Http::withoutVerifying()->retry(2, 200)->timeout(20)->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/{$ids}/resultados/{$ibgeCode}");
+        
+        if ($response->successful()) {
+            foreach ($response->json() as $ind) {
+                if (!empty($ind['res'][0]['res'])) {
+                    $key = $indicators[$ind['id']] ?? null;
+                    if ($key) {
+                        $results[$key] = end($ind['res'][0]['res']);
+                    }
                 }
             }
         }

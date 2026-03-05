@@ -309,7 +309,7 @@
                         </svg>
                     </button>
                     
-                    <p class="text-center mt-6 text-slate-600 text-[10px] font-bold uppercase tracking-widest">A análise levará aproximadamente 15 segundos</p>
+                    <p class="text-center mt-6 text-slate-600 text-[10px] font-bold uppercase tracking-widest">A análise levará aproximadamente 60 segundos</p>
                 </div>
 
                 @error('cep')

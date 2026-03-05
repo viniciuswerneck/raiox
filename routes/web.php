@@ -20,6 +20,9 @@ Route::get('/api/report-status/{cep}', function ($cep) {
 
 // Rota para disparar a fila manualmente no local (Simulando o Cron)
 Route::get('/api/trigger-queue', function () {
+    // Aumenta o tempo para o worker web não morrer prematuramente
+    set_time_limit(180);
+
     // Evita múltiplos disparos simultâneos (lock simples de 60s)
     $lockKey = 'queue_trigger_lock';
     if (\Illuminate\Support\Facades\Cache::has($lockKey)) {
@@ -27,12 +30,12 @@ Route::get('/api/trigger-queue', function () {
     }
 
     try {
-        \Illuminate\Support\Facades\Cache::put($lockKey, true, 60);
+        \Illuminate\Support\Facades\Cache::put($lockKey, true, 90);
         
         \Illuminate\Support\Facades\Artisan::call('queue:work', [
             '--once' => true,
             '--stop-when-empty' => true,
-            '--timeout' => 120
+            '--timeout' => 170
         ]);
         
         \Illuminate\Support\Facades\Cache::forget($lockKey);

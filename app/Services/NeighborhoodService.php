@@ -243,11 +243,11 @@ class NeighborhoodService
             return []; // Retorna vazio para o Job marcar como Falha
         }
 
-        // 4. Overpass (POIs & Mobility) - BUSCA GRANULAR PROGRESSIVA
-        // Escalas: 1km -> 3km -> 5km -> 7km -> 10km
-        $radii = [1000, 3000, 5000, 7000, 10000];
+        // 4. Overpass (POIs & Mobility) - BUSCA GRANULAR REDUZIDA PARA VELOCIDADE
+        // Escalas: 1.5km -> 4km
+        $radii = [1500, 4000];
         $pois = [];
-        $finalRadius = 10000;
+        $finalRadius = 4000;
 
         foreach ($radii as $r) {
             Log::info("Attempting Overpass search with radius: {$r}m for {$lat},{$lng}");
@@ -360,16 +360,16 @@ class NeighborhoodService
         }
     }
 
-    private function fetchOverpass($lat, $lng, $radius = 10000)
+    private function fetchOverpass($lat, $lng, $radius = 4000)
     {
-        $query = "[out:json][timeout:30];(
+        $query = "[out:json][timeout:15];(
             nwr[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|bar|fast_food|pub|university|clinic|dentist|doctors|veterinary|kindergarten|childcare|place_of_worship|cinema|theatre|library|post_office|fuel|bicycle_parking|police|fire_station|townhall|public_service|marketplace|courthouse\"](around:{$radius},{$lat},{$lng});
             nwr[\"shop\"~\"supermarket|bakery|convenience|clothes|mall|pharmacy|beauty|department_store|hardware|electronics|furniture|optician|books|marketplace|butcher|greengrocer|doityourself|pet|hairdresser|sports|shoes|toys|jewelry|car|car_repair|car_wash|laundry\"](around:{$radius},{$lat},{$lng});
             nwr[\"leisure\"~\"park|gym|sports_centre|playground|marketplace\"](around:{$radius},{$lat},{$lng});
             nwr[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"](around:{$radius},{$lat},{$lng});
             nwr[\"historic\"](around:{$radius},{$lat},{$lng});
             nwr[\"railway\"=\"station\"](around:{$radius},{$lat},{$lng});
-        );out center bb qt 800;";
+        );out center bb qt 500;";
 
         // Múltiplos endpoints públicos do Overpass para fallback
         $endpoints = [
@@ -389,7 +389,8 @@ class NeighborhoodService
             try {
                 Log::info("Overpass: tentando endpoint {$endpoint}");
                 $response = Http::withoutVerifying()
-                    ->timeout(30)
+                    ->timeout(15)
+                    ->retry(2, 500)
                     ->withHeaders($headers)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);

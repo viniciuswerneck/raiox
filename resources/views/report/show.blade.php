@@ -495,7 +495,7 @@
                 <div class="p-3 rounded-4 border border-white/10 bg-white/5 backdrop-blur-sm">
                     <p class="small text-white-50 mb-0">
                         <i class="fa-solid fa-clock me-2 text-primary"></i>
-                        Isso pode levar até 20 segundos. Não feche esta aba.
+                        Isso pode levar até 60 segundos porque estamos gerando os dados em tempo real. Não feche esta aba.
                     </p>
                 </div>
             @endif
