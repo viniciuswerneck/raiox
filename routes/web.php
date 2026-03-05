@@ -20,14 +20,25 @@ Route::get('/api/report-status/{cep}', function ($cep) {
 
 // Rota para disparar a fila manualmente no local (Simulando o Cron)
 Route::get('/api/trigger-queue', function () {
+    // Evita múltiplos disparos simultâneos (lock simples de 60s)
+    $lockKey = 'queue_trigger_lock';
+    if (\Illuminate\Support\Facades\Cache::has($lockKey)) {
+        return response()->json(['message' => 'Fila já está sendo processada por outro gatilho.']);
+    }
+
     try {
+        \Illuminate\Support\Facades\Cache::put($lockKey, true, 60);
+        
         \Illuminate\Support\Facades\Artisan::call('queue:work', [
             '--once' => true,
             '--stop-when-empty' => true,
             '--timeout' => 120
         ]);
+        
+        \Illuminate\Support\Facades\Cache::forget($lockKey);
         return response()->json(['message' => 'Fila processada com sucesso (1 item).']);
     } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Cache::forget($lockKey);
         return response()->json(['error' => $e->getMessage()], 500);
     }
 });
