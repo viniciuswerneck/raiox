@@ -1,10 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\ReportController;
+use App\Http\Controllers\CompareController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\ReportController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
@@ -50,4 +52,4 @@ Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.inde
 Route::post('/search', [ReportController::class, 'search'])->name('search');
 Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
 Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
-Route::get('/compare/{cep1}/{cep2}', [ReportController::class, 'compare'])->name('report.compare');
+Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');

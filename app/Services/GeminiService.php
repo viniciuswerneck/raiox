@@ -177,4 +177,54 @@ PROMPT;
         Log::error("Gemini: Todas as chaves (" . count($this->apiKeys) . ") falharam totalmente.");
         return null;
     }
+    public function generateComparisonAnalysis(array $dataA, array $dataB): ?string
+    {
+        if (empty($this->apiKeys)) return null;
+
+        $prompt = <<<PROMPT
+VOCÊ É UM ANALISTA ESTRATÉGICO TERRITORIAL.
+Sua tarefa é comparar dois microterritórios brasileiros e gerar uma análise sucinta (2 a 3 parágrafos).
+
+DADOS DA REGIÃO A ({$dataA['cep']} - {$dataA['bairro']}, {$dataA['cidade']}):
+- Categoria: {$dataA['class']}
+- Renda Média: R$ {$dataA['income']}
+- Infraestrutura: {$dataA['infra']} POIs
+- Mobilidade: {$dataA['mobility']} POIs
+- Lazer: {$dataA['leisure']} POIs
+
+DADOS DA REGIÃO B ({$dataB['cep']} - {$dataB['bairro']}, {$dataB['cidade']}):
+- Categoria: {$dataB['class']}
+- Renda Média: R$ {$dataB['income']}
+- Infraestrutura: {$dataB['infra']} POIs
+- Mobilidade: {$dataB['mobility']} POIs
+- Lazer: {$dataB['leisure']} POIs
+
+REGRAS:
+1. Compare os números e categorias de forma técnica e direta.
+2. Identifique qual região é mais "completa" em termos de serviços.
+3. Use um tom executivo e imparcial.
+4. Responda APENAS com o texto da análise, sem saudações ou títulos.
+
+FORMATO ESPERADO:
+Texto corrido com parágrafos.
+PROMPT;
+
+        foreach ($this->apiKeys as $apiKey) {
+            try {
+                $response = Http::withoutVerifying()->timeout(30)
+                    ->post("{$this->baseUrl}?key={$apiKey}", [
+                        'contents' => [['parts' => [['text' => $prompt]]]]
+                    ]);
+
+                if ($response->successful()) {
+                    $res = $response->json();
+                    return $res['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Gemini Comparison Error: ' . $e->getMessage());
+            }
+        }
+
+        return "As regiões apresentam perfis distintos. A Região A foca em {$dataA['class']} enquanto a Região B se destaca como {$dataB['class']}.";
+    }
 }
