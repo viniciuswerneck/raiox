@@ -49,7 +49,10 @@ Sua missão é criar o "Raio-X Definitivo" para o local: **{$location}**.
    - Movimento comercial principal, infraestrutura principal e mobilidade.
    - Pontos de interesse clássicos: praças, parques, feiras, opções de lazer e gastronomia.
    - Perfil social: quem mora? É um bairro/cidade de qual classe predominante? Como é a "alma" do lugar?
-3. **ESTILO NARRATIVO**: Você está escrevendo para uma revista especializada em bairros (Ex: Veja São Paulo, Monocle, Quatro Rodas). O tom deve ser engajador, vivo, acadêmico e comercial. 
+3. **MICRO-TERRITÓRIO REAL ESTATE**: Para a seção mercado_imobiliario, ESTÁ EXTREMAMENTE PROIBIDO usar a "Média Geral da Cidade". Você DEVE focar EXCLUSIVAMENTE nas ruas e no micro-espaço imediato (1km a 2km). 
+   - Defina rigidamente se a área é Residencial, Comercial ou Mista.
+   - Se for um Centro Histórico Financeiro (ex: Centro do RJ), priorize a citação de lajes corporativas, salas comerciais e revitalizações (Retrofit residencial), com ticket médio condizente à região central (ex., não cite Mansões de luxo num calçadão popular de bancos).
+4. **ESTILO NARRATIVO**: Você está escrevendo para uma revista especializada em bairros (Ex: Veja São Paulo, Monocle, Quatro Rodas). O tom deve ser engajador, vivo, acadêmico e comercial. 
 
 ### FORMATO DE RETORNO (JSON APENAS):
 {
@@ -57,8 +60,8 @@ Sua missão é criar o "Raio-X Definitivo" para o local: **{$location}**.
   "nivel_seguranca": "ALTO", "MODERADO" ou "BAIXO" (Classifique de forma imparcial via índices criminais reais),
   "descricao_seguranca": "Análise técnica em texto corrido (pelo menos 3 ou 4 frases extensas) sobre policiamento, iluminação e a percepção real de medo ao andar na rua de noite.",
   "mercado_imobiliario": {
-    "preco_m2": "Estimativa real em reais do Preço/m² na região ex: R$ 5.000 a R$ 8.000",
-    "perfil_imoveis": "Breve frase descrevendo o que domina. Ex: Maioria de Apartamentos compactos, ou Condomínios Fechados de Alto Padrão",
+    "preco_m2": "Estimativa MICROTERRITORIAL real em reais do Preço/m² na exata região informada (ex: R$ 6.000 a R$ 12.000). NUNCA use a média de toda a cidade.",
+    "perfil_imoveis": "Classificação rígida do micro-terrotório (Comercial, Estudantil, Misto, Lajes Corporativas, Condomínios Fechados). Descreva as tipologias.",
     "tendencia_valorizacao": "ALTA", "ESTAVEL" ou "BAIXA"
   }
 }
