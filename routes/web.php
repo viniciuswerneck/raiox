@@ -15,18 +15,6 @@ Route::get('/robots.txt', [SitemapController::class, 'robots']);
 
 Route::get('/api/report-status/{cep}', function ($cep) {
     $report = \App\Models\LocationReport::where('cep', $cep)->first();
-    
-    // Se o serviço ou um usuário anterior marcou como pending mas ninguém processou,
-    // o primeiro polling que chegar vai disparar o "Pseudo-Worker"
-    if ($report && ($report->status === 'pending' || $report->status === 'failed')) {
-        try {
-            \App\Jobs\ProcessLocationReport::dispatchSync($cep);
-            $report->refresh();
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Web-Worker Failed: " . $e->getMessage());
-        }
-    }
-
     return response()->json(['status' => $report ? $report->status : 'not_found']);
 });
 
