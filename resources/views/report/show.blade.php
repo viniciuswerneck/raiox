@@ -632,10 +632,18 @@
         <div class="container hero-content">
             <div class="row align-items-center">
                 <div class="col-lg-8 reveal">
-                    <div class="cep-badge no-print">
-                        <i class="fa-solid fa-location-crosshairs text-primary"></i>
-                        @php $fCep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep); @endphp
-                        <span>REGIÃO DO CEP {{ $fCep }}</span>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <div class="cep-badge no-print">
+                            <i class="fa-solid fa-location-crosshairs text-primary"></i>
+                            @php $fCep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep); @endphp
+                            <span>REGIÃO DO CEP {{ $fCep }}</span>
+                        </div>
+                        @if($report->territorial_classification)
+                        <div class="cep-badge no-print" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4);">
+                            <i class="fa-solid fa-robot text-primary"></i>
+                            <span class="text-white">TURMA AACT: <span class="text-primary fw-black">{{ mb_strtoupper($report->territorial_classification) }}</span></span>
+                        </div>
+                        @endif
                     </div>
                     <h1 class="display-1 text-white mb-2">
                         {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
@@ -861,6 +869,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- AACT LOG SECION -->
+        @if(!empty($report->aact_log) && is_array($report->aact_log))
+        <div class="row mb-5 reveal no-print" style="animation-delay: 0.15s;">
+            <div class="col-12">
+                <div class="card-pro border-0" style="background: rgba(99, 102, 241, 0.04); border-left: 4px solid var(--primary) !important;">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; border-radius: 12px;">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-black text-dark">Agente de Auditoria (AACT)</h5>
+                            <p class="small text-muted mb-0 fw-bold">Validação territorial inteligente concluída.</p>
+                        </div>
+                    </div>
+                    <ul class="list-unstyled mb-0 ms-1 space-y-2">
+                        @foreach($report->aact_log as $log)
+                            <li class="small text-secondary fw-medium d-flex align-items-start gap-2">
+                                <i class="fa-solid fa-check text-primary mt-1" style="font-size: 10px;"></i>
+                                <span>{{ $log }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- MIDDLE SECTION: MAP & INFRASTRUCTURE -->
         <div class="row g-4 mb-5">

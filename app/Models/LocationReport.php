@@ -32,6 +32,8 @@ class LocationReport extends Model
         'status', // 'pending', 'processing', 'completed', 'failed'
         'error_message',
         'real_estate_json',
+        'territorial_classification',
+        'aact_log',
     ];
 
     protected $casts = [
@@ -40,6 +42,7 @@ class LocationReport extends Model
         'climate_json' => 'array',
         'wiki_json' => 'array',
         'real_estate_json' => 'array',
+        'aact_log' => 'array',
         'populacao' => 'integer',
         'idhm' => 'float',
         'lat' => 'float',

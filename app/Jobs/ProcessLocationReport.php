@@ -79,6 +79,8 @@ class ProcessLocationReport implements ShouldQueue
                 'safety_level' => $data['safety_level'] ?? null,
                 'safety_description' => $data['safety_description'] ?? null,
                 'real_estate_json' => $data['real_estate_json'] ?? null,
+                'territorial_classification' => $data['territorial_classification'] ?? null,
+                'aact_log' => $data['aact_log'] ?? null,
                 'status' => 'completed',
                 'error_message' => null,
             ];

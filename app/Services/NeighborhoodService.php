@@ -308,7 +308,7 @@ class NeighborhoodService
             $calibratedSanitation = max($calibratedSanitation, 98.0);
         }
 
-        return array_merge($address, $ibgeData, [
+        $reportData = array_merge($address, $ibgeData, [
             'lat' => $lat,
             'lng' => $lng,
             'pois_json' => $pois,
@@ -324,6 +324,10 @@ class NeighborhoodService
             'safety_description' => $safetyDesc,
             'real_estate_json' => $realEstate,
         ]);
+
+        // ETAPA OBRIGATÓRIA: Auditoria Territorial
+        $aactService = new \App\Services\AactService();
+        return $aactService->auditAndRecalibrate($reportData);
     }
 
     private function fetchViaCep($cep)
