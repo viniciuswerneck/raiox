@@ -18,6 +18,20 @@ Route::get('/api/report-status/{cep}', function ($cep) {
     return response()->json(['status' => $report ? $report->status : 'not_found']);
 });
 
+// Rota para disparar a fila manualmente no local (Simulando o Cron)
+Route::get('/api/trigger-queue', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('queue:work', [
+            '--once' => true,
+            '--stop-when-empty' => true,
+            '--timeout' => 120
+        ]);
+        return response()->json(['message' => 'Fila processada com sucesso (1 item).']);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
 Route::post('/search', [ReportController::class, 'search'])->name('search');
 Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');

@@ -505,6 +505,9 @@
         // Polling para verificar status
         const pollInterval = setInterval(async () => {
             try {
+                // Tenta disparar a fila (Simula o Cron localmente)
+                fetch('/api/trigger-queue').catch(e => console.warn("Queue trigger skipping..."));
+
                 const response = await fetch('/api/report-status/{{ $report->cep }}');
                 const data = await response.json();
                 
@@ -518,7 +521,7 @@
             } catch (e) {
                 console.error("Erro no polling:", e);
             }
-        }, 3000);
+        }, 4000); // Aumentado para 4s para dar tempo ao processamento manual
     </script>
     @else
     <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="display: none !important;">
