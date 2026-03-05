@@ -76,7 +76,11 @@ class NeighborhoodService
 
         // ESTRATÉGIA DE CACHE PROATIVA: 
         // 1. Verificar se o CEP já existe em algum relatório anterior para pegar Cidade/Bairro rápido
-        $existingReport = LocationReport::where('cep', $cepClean)->first();
+        // IGNORA se for apenas o placeholder "Localizando..."
+        $existingReport = LocationReport::where('cep', $cepClean)
+            ->where('cidade', '!=', 'Localizando...')
+            ->first();
+
         if ($existingReport) {
             $city = $existingReport->cidade;
             $state = $existingReport->uf;
@@ -236,7 +240,7 @@ class NeighborhoodService
 
         if (!$lat || !$lng) {
             Log::error("Impossível geolocalizar o endereço mesmo após fallback: {$cep}");
-            return array_merge($address ?? [], $ibgeData ?? []);
+            return []; // Retorna vazio para o Job marcar como Falha
         }
 
         // 4. Overpass (POIs & Mobility) - BUSCA GRANULAR PROGRESSIVA
