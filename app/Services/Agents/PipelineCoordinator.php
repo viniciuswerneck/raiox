@@ -66,19 +66,15 @@ class PipelineCoordinator
             $ibgeCode = $this->socioAgent->fetchIbgeCodeByName($city, $state);
         }
 
-        // Fase 3: MASTER POOL ASSINCRONO (Clima, Ar e SocioEconomico)
+        // Fase 3: MASTER POOL ASSÍNCRONO (Clima, Ar e SocioEconomico)
         Log::info("PipelineCoordinator: Lançando Master Pool Assíncrono [{$lat}, {$lng}] - IBGE: {$ibgeCode}");
         
-        // Aqui o Pool Assíncrono da API do Laravel é acionado
-        $poolResponses = Http::withoutVerifying()->pool(function ($pool) use ($lat, $lng, $ibgeCode) {
-            $requests = array_merge(
-                $this->climaAgent->getPoolRequests($pool, $lat, $lng),
-                $this->socioAgent->getPoolRequests($pool, $ibgeCode)
-            );
-            return $requests;
-        });
+        $poolResponses = Http::withoutVerifying()->pool(fn ($pool) => array_merge(
+            $this->climaAgent->getPoolRequests($pool, $lat, $lng),
+            $this->socioAgent->getPoolRequests($pool, $ibgeCode)
+        ));
 
-        // Extraimos a magia de cada um...
+        // Extraimos os dados de cada agente
         $climateData = $this->climaAgent->processResults($poolResponses);
         $socioData = $this->socioAgent->processResults($poolResponses, $ibgeCode);
 

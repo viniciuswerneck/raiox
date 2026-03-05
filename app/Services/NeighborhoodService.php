@@ -89,6 +89,7 @@ class NeighborhoodService
             'sanitation_rate' => $categorization['sanitation_rate'],
             'territorial_classification' => $categorization['classification'],
             'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
+            'raw_ibge_data' => $fastPathData['raw_ibge_data'] ?? null,
             'status' => 'processing_text',
             'error_message' => null
         ];

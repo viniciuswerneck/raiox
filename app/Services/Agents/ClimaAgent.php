@@ -3,6 +3,7 @@
 namespace App\Services\Agents;
 
 use Illuminate\Http\Client\Pool;
+use Illuminate\Support\Facades\Log;
 
 class ClimaAgent
 {
@@ -12,14 +13,14 @@ class ClimaAgent
     public function getPoolRequests(Pool $pool, float $lat, float $lng): array
     {
         return [
-            'weather' => $pool->as('weather')->timeout(8)
+            'weather' => $pool->as('weather')->withoutVerifying()->timeout(8)
                 ->get("https://api.open-meteo.com/v1/forecast", [
                     'latitude' => $lat, 'longitude' => $lng, 'current_weather' => 'true'
                 ]),
                 
-            'air_quality' => $pool->as('air_quality')->timeout(8)
+            'air_quality' => $pool->as('air_quality')->withoutVerifying()->timeout(8)
                 ->get("https://air-quality-api.open-meteo.com/v1/air-quality", [
-                    'latitude' => $lat, 'longitude' => $lng, 'current' => 'european_aqi'
+                    'latitude' => $lat, 'longitude' => $lng, 'current' => 'european_aqi,us_aqi'
                 ])
         ];
     }
@@ -36,7 +37,12 @@ class ClimaAgent
         $aqi = null;
         $aqiRes = $responses['air_quality'] ?? null;
         if ($aqiRes instanceof \Illuminate\Http\Client\Response && $aqiRes->successful()) {
-            $aqi = $aqiRes->json()['current']['european_aqi'] ?? null;
+            $data = $aqiRes->json();
+            $aqi = $data['current']['european_aqi'] ?? $data['current']['us_aqi'] ?? null;
+        }
+
+        if (empty($weather)) {
+            Log::warning("ClimaAgent: Dados meteorológicos de [weather] falharam no master pool.");
         }
 
         return [

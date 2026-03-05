@@ -136,6 +136,7 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'safety_description' => $aiSummary['descricao_seguranca'] ?? null,
                 'real_estate_json' => $aiSummary['mercado_imobiliario'] ?? null,
                 'wiki_json' => $wikiResult,
+                'aact_log' => $aactContext,
                 'status' => 'completed',
                 'error_message' => null
             ]);
