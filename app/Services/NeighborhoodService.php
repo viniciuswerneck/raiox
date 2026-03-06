@@ -55,6 +55,9 @@ class NeighborhoodService
         if (!$fastPathData || ($fastPathData['error'] ?? false)) {
             $errData = [
                 'cep' => $cepClean,
+                'cidade' => $fastPathData['city'] ?? 'Não Localizado',
+                'uf' => $fastPathData['state'] ?? '??',
+                'codigo_ibge' => $fastPathData['ibge_code'] ?? '0',
                 'status' => 'failed',
                 'error_message' => $fastPathData['error_message'] ?? 'CEP inválido ou sem cobertura geográfica inicial.'
             ];

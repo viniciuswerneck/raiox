@@ -348,7 +348,7 @@ class ReportController extends Controller
     private function ensureDataIsFresh(\App\Models\LocationReport $report)
     {
         $needsUpdate = false;
-        if ($report->data_version < 3) {
+        if ($report->data_version < 3 && $report->lat && $report->lng) {
             \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
             try {
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);

@@ -144,9 +144,11 @@ class PipelineCoordinator
 
         $classification = 'Residencial Médio';
         $isCentro = (str_contains(strtolower($bairro), 'centro') || str_contains(strtolower($bairro), 'central'));
+        
         if ($poiCounts['turistico'] >= 5) $classification = 'Turístico Premium';
-        elseif ($isCentro || $poiCounts['central'] >= 5) $classification = 'Comercial Central';
-        elseif ($income > 5000 || $poiCounts['lazer_alto'] > 3) $classification = 'Residencial Alto Padrão';
+        elseif ($isCentro || $poiCounts['central'] >= 8) $classification = 'Comercial Central';
+        elseif ($income > 7500 || $poiCounts['lazer_alto'] > 4) $classification = 'Residencial Alto Padrão';
+        elseif ($income > 3800 || $poiCounts['lazer_alto'] >= 2) $classification = 'Residencial Nobre';
         elseif (!$isCentro && $income < 2000 && $poiCounts['central'] < 2) $classification = 'Residencial Popular';
         else if (count($pois) < 5) $classification = 'Zona de Expansão / Rural';
 
@@ -158,8 +160,10 @@ class PipelineCoordinator
         $safetyLevel = 'MODERADO';
         if ($classification === 'Turístico Premium') $safetyLevel = 'ALTO (POLICIAMENTO)';
         elseif ($classification === 'Comercial Central') $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
-        elseif ($classification === 'Residencial Alto Padrão') $safetyLevel = 'ZONA MONITORADA';
+        elseif ($classification === 'Residencial Alto Padrão') $safetyLevel = 'ZONA PROTEGIDA';
+        elseif ($classification === 'Residencial Nobre') $safetyLevel = 'ALTA SEGURANÇA';
         elseif ($classification === 'Residencial Popular') $safetyLevel = 'MODERADO / LOCAL';
+        elseif ($classification === 'Residencial Médio') $safetyLevel = 'ZONA MONITORADA';
 
         return [
             'classification' => $classification,

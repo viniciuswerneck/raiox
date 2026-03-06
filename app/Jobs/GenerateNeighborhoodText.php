@@ -49,6 +49,7 @@ class GenerateNeighborhoodText implements ShouldQueue
      */
     public function handle(GeminiService $gemini): void
     {
+        set_time_limit(180);
         $report = LocationReport::find($this->reportId);
         if (!$report) {
             Log::error("TextGenerator Job Failed: Report {$this->reportId} not found.");
@@ -74,7 +75,8 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'categoria' => $classification,
                 'pois_count' => $poisCount,
                 'renda' => $income,
-                'populacao' => $report->populacao ?? 0
+                'populacao' => $report->populacao ?? 0,
+                'safety_level' => $report->safety_level ?? 'MODERADO'
             ];
 
             // 3. Gemini Generation
