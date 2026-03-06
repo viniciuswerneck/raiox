@@ -229,6 +229,9 @@ class GenerateNeighborhoodText implements ShouldQueue
                         continue;
                     }
                     
+                    // Busca imagem oficial via API de PageImages (Thumbnail 960px)
+                    $officialImage = $this->fetchWikipediaImageViaAPI($term, $headers);
+
                     // Busca conteúdo completo 
                     $fullText = $this->fetchWikipediaFullContent($term, $headers);
                     return [
@@ -236,7 +239,7 @@ class GenerateNeighborhoodText implements ShouldQueue
                         'term'        => $term,
                         'extract'     => $data['extract'],
                         'full_text'   => $fullText ?: $data['extract'],
-                        'image'       => $data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null,
+                        'image'       => $officialImage ?: ($data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null),
                         'desktop_url' => $data['content_urls']['desktop']['page'] ?? null,
                     ];
                 }
@@ -245,6 +248,33 @@ class GenerateNeighborhoodText implements ShouldQueue
             }
         }
         return [];
+    }
+
+    private function fetchWikipediaImageViaAPI(string $term, array $headers): ?string
+    {
+        try {
+            $title = str_replace('_', ' ', $term);
+            $response = Http::withoutVerifying()->timeout(10)->withHeaders($headers)
+                ->get('https://pt.wikipedia.org/w/api.php', [
+                    'action' => 'query',
+                    'prop' => 'pageimages',
+                    'format' => 'json',
+                    'piprop' => 'thumbnail',
+                    'pithumbsize' => 960,
+                    'titles' => $title
+                ]);
+
+            if (!$response->successful()) return null;
+
+            $data = $response->json();
+            $pages = $data['query']['pages'] ?? [];
+            if (empty($pages)) return null;
+
+            $page = reset($pages);
+            return $page['thumbnail']['source'] ?? null;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     private function fetchWikipediaFullContent(string $term, array $headers): ?string

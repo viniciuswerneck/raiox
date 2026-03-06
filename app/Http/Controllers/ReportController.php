@@ -341,20 +341,7 @@ class ReportController extends Controller
         // Lazy Update para novos POIs (V1 -> V2) e Scores
         $this->ensureDataIsFresh($report);
 
-        // Ajuste de Proxy/Cache de Imagem da Wikipedia para Produção
         $wiki = $report->wiki_json ?? [];
-        if (!empty($wiki['image']) && str_contains($wiki['image'], 'upload.wikimedia.org')) {
-            // Normalizar qualquer thumbnail (ex: /3456px- ou /320px-) para /640px-
-            // Usamos '#' como delimitador para não precisar escapar a barra da URL
-            if (str_contains($wiki['image'], '/thumb/')) {
-                $wiki['image'] = preg_replace('#/\d+px-#', '/640px-', $wiki['image']);
-            } elseif (str_contains($wiki['image'], '/commons/')) {
-                // Se for original, converter para miniatura de 640px
-                $filename = basename($wiki['image']);
-                $wiki['image'] = str_replace('/commons/', '/commons/thumb/', $wiki['image']) . "/640px-" . $filename;
-            }
-        }
-
         return view('report.show', compact('report', 'wiki'));
     }
 

@@ -1357,23 +1357,11 @@
                         </div>
                         
                         <div class="position-relative">
-                            @php
-                                $wiki = $report->wiki_json ?? [];
-                                $wikiImage = $wiki['image'] ?? null;
-                                if ($wikiImage && str_contains($wikiImage, 'upload.wikimedia.org')) {
-                                    if (str_contains($wikiImage, '/thumb/')) {
-                                        $wikiImage = preg_replace('#/\d+px-#', '/640px-', $wikiImage);
-                                    } elseif (str_contains($wikiImage, '/commons/')) {
-                                        $filename = basename($wikiImage);
-                                        $wikiImage = str_replace('/commons/', '/commons/thumb/', $wikiImage) . "/640px-" . $filename;
-                                    }
-                                }
-                            @endphp
                             <!-- Imagem History (Newspaper Style Float) -->
-                            @if($wikiImage)
+                            @if($wiki['image'] ?? null)
                                 <div class="float-md-start me-md-4 mb-4 text-center text-md-start" style="max-width: 450px;">
                                     <div class="position-relative">
-                                        <img src="{{ $wikiImage }}" class="img-fluid rounded-4 shadow-lg mb-2" style="max-height: 400px; object-fit: cover;" alt="História Local">
+                                        <img src="{{ $wiki['image'] }}" class="img-fluid rounded-4 shadow-lg mb-2" style="max-height: 400px; object-fit: cover;" alt="História Local">
                                         <div class="position-absolute bottom-0 start-0 w-100 p-2 bg-dark bg-opacity-50 text-white rounded-bottom-4 d-md-none" style="backdrop-filter: blur(5px); font-size: 10px;">
                                             {{ $report->cidade }}
                                         </div>
