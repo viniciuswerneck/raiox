@@ -114,9 +114,9 @@ class CompareController extends Controller
     {
         $needsUpdate = false;
 
-        // 1. Se o relatório for de versão antiga (sem novos POIs como transporte/lazer expandido)
-        if ($report->data_version < 2) {
-            Log::info("CompareController: Reidratando POIs (V1 -> V2) para o CEP {$report->cep}");
+        // 1. Se o relatório for de versão antiga (sem busca adaptativa 5km)
+        if ($report->data_version < 3) {
+            Log::info("CompareController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
             try {
                 // Injetamos o POIAgent via Service Container se possível, ou usamos o coordenador
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
@@ -126,7 +126,7 @@ class CompareController extends Controller
                 if (!empty($newPois)) {
                     $report->pois_json = $newPois;
                     $report->search_radius = $adaptiveData['radius'];
-                    $report->data_version = 2;
+                    $report->data_version = 3;
                     $needsUpdate = true;
                 }
             } catch (\Exception $e) {

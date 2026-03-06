@@ -95,7 +95,7 @@ class NeighborhoodService
             'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
             'raw_ibge_data' => $fastPathData['raw_ibge_data'] ?? null,
             'status' => 'processing_text',
-            'data_version' => 2,
+            'data_version' => 3,
             'error_message' => null
         ];
 

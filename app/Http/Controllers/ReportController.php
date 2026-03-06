@@ -347,8 +347,8 @@ class ReportController extends Controller
     private function ensureDataIsFresh(\App\Models\LocationReport $report)
     {
         $needsUpdate = false;
-        if ($report->data_version < 2) {
-            \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V1 -> V2) para o CEP {$report->cep}");
+        if ($report->data_version < 3) {
+            \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
             try {
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
                 $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
@@ -357,7 +357,7 @@ class ReportController extends Controller
                 if (!empty($newPois)) {
                     $report->pois_json = $newPois;
                     $report->search_radius = $adaptiveData['radius'];
-                    $report->data_version = 2;
+                    $report->data_version = 3;
                     
                     // Recalcular scores com os novos dados
                     $compareAgent = app(\App\Services\Agents\CompareAgent::class);
