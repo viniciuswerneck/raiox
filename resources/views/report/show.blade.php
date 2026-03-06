@@ -485,6 +485,12 @@
             transform: scale(1.2) rotate(5deg);
         }
 
+        .map-style-btn.active, .explorer-style-btn.active {
+            background-color: var(--primary) !important;
+            color: white !important;
+            border-color: var(--primary) !important;
+        }
+
         .radius-tooltip {
             background: var(--dark);
             color: white;
@@ -538,6 +544,114 @@
         .poi-popup .fw-black { font-size: 14px; }
         .poi-popup { min-width: 150px; }
 
+        .map-controls-premium {
+            position: absolute;
+            top: 15px;
+            left: 55px; /* Evita o botão de zoom default */
+            right: 15px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 768px) {
+            .map-controls-premium {
+                left: 10px;
+                top: 50px;
+                justify-content: center;
+            }
+        }
+
+        /* --- EXPLORER MODE OVERLAY --- */
+        #explorer-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #fff;
+            z-index: 100000;
+            display: none;
+            flex-direction: column;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .explorer-header {
+            height: 70px;
+            background: white;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            gap: 20px;
+        }
+
+        .explorer-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #explorer-map {
+            flex: 1;
+            height: 100%;
+        }
+
+        .explorer-list-side {
+            width: 420px;
+            background: #f8fafc;
+            border-left: 1px solid #e2e8f0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .explorer-poi-card {
+            background: white;
+            border: 1px solid #f1f5f9;
+            border-radius: 16px;
+            padding: 15px;
+            margin: 10px 20px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .explorer-poi-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .explorer-category-header {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-weight: 800;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .explorer-category-header i { width: 15px; }
+
+        .explorer-poi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        body.explorer-active {
+            overflow: hidden !important;
+        }
     </style>
 </head>
 <body>
@@ -1013,13 +1127,17 @@
                     </div>
                     <div id="map-container" style="height: 500px; position: relative;">
                         <!-- Custom Map Style Controls -->
-                        <div class="position-absolute d-flex gap-2 no-print" style="top: 15px; right: 15px; z-index: 1000;">
-                            <button class="btn btn-warning btn-sm fw-bold shadow-sm border" onclick="toggleHeatmap()"><i class="fa-solid fa-fire me-1"></i>Calor</button>
-                            <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="suave"><i class="fa-solid fa-feather text-primary me-1"></i>Suave</button>
-                            <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="padrao"><i class="fa-solid fa-map text-success me-1"></i>Padrão</button>
-                            <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="clara"><i class="fa-regular fa-sun text-warning me-1"></i>Clara</button>
-                            <button class="btn btn-dark btn-sm fw-bold shadow-sm border map-style-btn" data-style="escura"><i class="fa-solid fa-moon text-light me-1"></i>Escura</button>
-                            <button class="btn btn-primary btn-sm fw-bold shadow-sm border map-style-btn" data-style="satelite"><i class="fa-solid fa-satellite text-white me-1"></i>Satélite</button>
+                        <div class="map-controls-premium no-print">
+                            <button class="btn btn-light btn-sm fw-bold shadow-sm border" onclick="toggleHeatmap(this)"><i class="fa-solid fa-fire me-1"></i>Calor</button>
+                            <button class="btn btn-primary btn-sm fw-bold shadow-sm border" onclick="toggleExplorer()"><i class="fa-solid fa-expand-arrows-alt me-1"></i>Explorar Vizinhança</button>
+                            
+                            <div class="btn-group shadow-sm border rounded-pill overflow-hidden bg-white">
+                                <button class="btn btn-light btn-sm fw-bold map-style-btn" data-style="suave">Suave</button>
+                                <button class="btn btn-light btn-sm fw-bold map-style-btn" data-style="padrao">Padrão</button>
+                                <button class="btn btn-light btn-sm fw-bold map-style-btn" data-style="clara">Clara</button>
+                                <button class="btn btn-light btn-sm fw-bold map-style-btn" data-style="escura">Escura</button>
+                                <button class="btn btn-light btn-sm fw-bold map-style-btn" data-style="satelite">Satélite</button>
+                            </div>
                         </div>
                         
                         <div id="map" style="height: 100%;"></div>
@@ -1312,9 +1430,104 @@
         </div>
     </div>
 
-    <!-- COMPARISON MODAL-LIKE UI -->
-    <div class="compare-fab no-print" onclick="toggleCompare()" title="Comparar CEPs">
-        <i class="fa-solid fa-right-left"></i>
+    <!-- EXPLORER MODE OVERLAY -->
+    <div id="explorer-overlay">
+        <div class="explorer-header">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                </div>
+                <div>
+                    <h5 class="mb-0 fw-black text-dark">Modo Explorador</h5>
+                    <p class="small text-muted mb-0">{{ $report->bairro ?: $report->cidade }} • Raio de {{ ($report->search_radius / 1000) }}km</p>
+                </div>
+            </div>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <button class="btn btn-light btn-sm rounded-pill px-3 fw-bold" onclick="toggleExplorerHeatmap(this)">
+                    <i class="fa-solid fa-fire me-1"></i>Calor
+                </button>
+                <div class="btn-group border rounded-pill overflow-hidden shadow-sm">
+                    <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="suave">Suave</button>
+                    <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="padrao">Padrão</button>
+                    <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="clara">Clara</button>
+                    <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="escura">Escura</button>
+                    <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="satelite">Satélite</button>
+                </div>
+                <div class="vr mx-2"></div>
+                <button class="btn btn-outline-dark rounded-pill px-4 fw-bold" onclick="toggleExplorer()">
+                    <i class="fa-solid fa-times me-2"></i>Fechar
+                </button>
+            </div>
+        </div>
+        <div class="explorer-content">
+            <div id="explorer-map"></div>
+            <div class="explorer-list-side">
+                @php
+                    $categories = [
+                        'food' => ['label' => 'Alimentação', 'icon' => 'utensils', 'color' => '#ef4444'],
+                        'health' => ['label' => 'Saúde', 'icon' => 'hospital', 'color' => '#10b981'],
+                        'education' => ['label' => 'Educação', 'icon' => 'graduation-cap', 'color' => '#6366f1'],
+                        'transport' => ['label' => 'Transporte', 'icon' => 'bus', 'color' => '#0ea5e9'],
+                        'shopping' => ['label' => 'Compras', 'icon' => 'cart-shopping', 'color' => '#f59e0b'],
+                        'leisure' => ['label' => 'Lazer', 'icon' => 'palette', 'color' => '#15803d'],
+                        'services' => ['label' => 'Serviços', 'icon' => 'location-dot', 'color' => '#64748b'],
+                    ];
+                @endphp
+
+                <div class="p-4 bg-white border-bottom">
+                    <h6 class="fw-bold mb-1">Guia de Proximidade</h6>
+                    <p class="small text-muted mb-0">Explore os {{ count($report->pois_json ?? []) }} locais identificados nesta região.</p>
+                </div>
+
+                @foreach($categories as $key => $cat)
+                    @php
+                        $filtered = array_filter($report->pois_json ?? [], function($p) use ($key) {
+                            $tags = $p['tags'] ?? [];
+                            $type = $tags['amenity'] ?? $tags['shop'] ?? $tags['leisure'] ?? $tags['tourism'] ?? '';
+                            
+                            if ($key === 'food' && preg_match('/restaurant|cafe|fast_food|bakery|bar|pub/i', $type)) return true;
+                            if ($key === 'health' && preg_match('/pharmacy|hospital|clinic|dentist/i', $type)) return true;
+                            if ($key === 'education' && preg_match('/school|university|kindergarten|library/i', $type)) return true;
+                            if ($key === 'transport' && preg_match('/bus_stop|bus_station|subway/i', $type)) return true;
+                            if ($key === 'shopping' && ($tags['shop'] ?? false)) return true;
+                            if ($key === 'leisure' && preg_match('/park|gym|sports|playground|cinema/i', $type)) return true;
+                            if ($key === 'services' && !empty($type)) return true;
+                            return false;
+                        });
+                        usort($filtered, function($a, $b) use ($report) {
+                            return 0; // Or proximity if calculated
+                        });
+                    @endphp
+
+                    @if(count($filtered) > 0)
+                        <div class="explorer-category-header">
+                            <i class="fa-solid fa-{{ $cat['icon'] }}" style="color: {{ $cat['color'] }}"></i>
+                            {{ $cat['label'] }} ({{ count($filtered) }})
+                        </div>
+                        @foreach(array_slice($filtered, 0, 30) as $poi)
+                            <div class="explorer-poi-card d-flex align-items-center gap-3" onclick="focusExplorerPoi('{{ $poi['id'] }}')">
+                                <div class="explorer-poi-icon" style="background: {{ $cat['color'] }}">
+                                    <i class="fa-solid fa-{{ $cat['icon'] }}"></i>
+                                </div>
+                                <div class="overflow-hidden">
+                                    <h6 class="mb-0 fw-bold text-truncate" style="font-size: 13px;">{{ $poi['tags']['name'] ?? 'Local sem nome' }}</h6>
+                                    <p class="small text-muted mb-0 text-truncate" style="font-size: 11px;">
+                                        {{ $translations[$poi['tags']['amenity'] ?? $poi['tags']['shop'] ?? ''] ?? 'Ponto de Interesse' }}
+                                    </p>
+                                </div>
+                                <div class="ms-auto text-end">
+                                    <i class="fa-solid fa-chevron-right text-light" style="font-size: 10px;"></i>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endif
+                @endforeach
+                <div class="py-5 text-center opacity-30">
+                    <i class="fa-solid fa-map-marked-alt fa-3x mb-2"></i>
+                    <p class="small fw-bold">Fim da lista</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="compare-panel" class="compare-panel no-print">
@@ -1394,10 +1607,16 @@
             baseLayers["padrao"].addTo(map);
 
             document.querySelectorAll('.map-style-btn').forEach(btn => {
+                // Initial active state
+                if (btn.getAttribute('data-style') === currentMapStyle) btn.classList.add('active');
+
                 btn.addEventListener('click', function() {
                     const style = this.getAttribute('data-style');
                     if (style === currentMapStyle || !baseLayers[style]) return;
                     
+                    document.querySelectorAll('.map-style-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
                     map.removeLayer(baseLayers[currentMapStyle]);
                     baseLayers[style].addTo(map);
                     currentMapStyle = style;
@@ -1533,9 +1752,20 @@
             const heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17, opacity: 0.4 });
             
             // Toggle Heatmap (Expansão Futura)
-            window.toggleHeatmap = function() {
-                if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
-                else heatLayer.addTo(map);
+            window.toggleHeatmap = function(btn) {
+                if (map.hasLayer(heatLayer)) {
+                    map.removeLayer(heatLayer);
+                    if(btn) {
+                        btn.classList.remove('active', 'btn-warning');
+                        btn.classList.add('btn-light');
+                    }
+                } else {
+                    heatLayer.addTo(map);
+                    if(btn) {
+                        btn.classList.add('active', 'btn-warning');
+                        btn.classList.remove('btn-light');
+                    }
+                }
             };
 
             // 6. Filtros e Controle
@@ -1557,6 +1787,161 @@
                 if (ref) {
                     markerClusters.zoomToShowLayer(ref.marker, function() {
                         ref.marker.openPopup();
+                    });
+                }
+            };
+
+            // ================== MODO EXPLORADOR (FULLSCREEN) ==================
+            let explorerMap = null;
+            let explorerClusters = null;
+            let explorerPois = [];
+            let explorerHeatLayer = null;
+            let currentExplorerStyle = null;
+
+            window.toggleExplorer = function() {
+                const overlay = document.getElementById('explorer-overlay');
+                const isActive = overlay.style.display === 'flex';
+                
+                if (isActive) {
+                    overlay.style.display = 'none';
+                    document.body.classList.remove('explorer-active');
+                } else {
+                    overlay.style.display = 'flex';
+                    document.body.classList.add('explorer-active');
+                    if (!explorerMap) {
+                        initExplorerMap();
+                    } else {
+                        // Sincronizar estilo com o mapa principal
+                        if (currentMapStyle !== currentExplorerStyle) {
+                            switchExplorerStyle(currentMapStyle);
+                        }
+                        setTimeout(() => explorerMap.invalidateSize(), 100);
+                    }
+                }
+            };
+
+            function switchExplorerStyle(style) {
+                if (!explorerMap || !baseLayers[style]) return;
+                if (currentExplorerStyle) {
+                    explorerMap.removeLayer(baseLayers[currentExplorerStyle]);
+                }
+                baseLayers[style].addTo(explorerMap);
+                currentExplorerStyle = style;
+                
+                // Update UI active state
+                document.querySelectorAll('.explorer-style-btn').forEach(b => {
+                    b.classList.toggle('active', b.getAttribute('data-style') === style);
+                    b.classList.toggle('btn-primary', b.getAttribute('data-style') === style);
+                    b.classList.toggle('btn-light', b.getAttribute('data-style') !== style);
+                });
+            }
+
+            function initExplorerMap() {
+                explorerMap = L.map('explorer-map', {
+                    scrollWheelZoom: true,
+                    attributionControl: false
+                }).setView([centerLat, centerLng], 15);
+
+                // Inicializar com o mesmo estilo do mapa principal
+                switchExplorerStyle(currentMapStyle);
+
+                // Listeners para troca de estilo no explorador
+                document.querySelectorAll('.explorer-style-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const style = this.getAttribute('data-style');
+                        switchExplorerStyle(style);
+                        // Opcional: sincronizar de volta para o mapa principal
+                        if (currentMapStyle !== style) {
+                            map.removeLayer(baseLayers[currentMapStyle]);
+                            baseLayers[style].addTo(map);
+                            currentMapStyle = style;
+                            // Atualizar botões do mapa principal
+                            document.querySelectorAll('.map-style-btn').forEach(b => {
+                                b.classList.toggle('active', b.getAttribute('data-style') === style);
+                            });
+                        }
+                    });
+                });
+
+                // Reutilizamos a lógica de clusters
+                explorerClusters = L.markerClusterGroup({
+                    showCoverageOnHover: false,
+                    maxClusterRadius: 40,
+                    spiderfyOnMaxZoom: true,
+                    iconCreateFunction: function(cluster) {
+                        return L.divIcon({
+                            html: `<div><span>${cluster.getChildCount()}</span></div>`,
+                            className: 'm-cluster',
+                            iconSize: [35, 35]
+                        });
+                    }
+                });
+
+                // Heatmap no explorador
+                explorerHeatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17, opacity: 0.4 });
+                window.toggleExplorerHeatmap = function(btn) {
+                    if (explorerMap.hasLayer(explorerHeatLayer)) {
+                        explorerMap.removeLayer(explorerHeatLayer);
+                        if(btn) {
+                            btn.classList.remove('active', 'btn-warning');
+                            btn.classList.add('btn-light');
+                        }
+                    } else {
+                        explorerHeatLayer.addTo(explorerMap);
+                        if(btn) {
+                            btn.classList.add('active', 'btn-warning');
+                            btn.classList.remove('btn-light');
+                        }
+                    }
+                };
+
+                // Raios no explorador
+                radii.forEach(conf => {
+                    L.circle([centerLat, centerLng], {
+                        radius: conf.r,
+                        color: conf.color,
+                        fillOpacity: 0.01,
+                        weight: 1,
+                        dashArray: '5, 8'
+                    }).addTo(explorerMap);
+                });
+
+                // Central
+                L.marker([centerLat, centerLng], { icon: mainIcon }).addTo(explorerMap);
+
+                // POIs
+                pois.forEach(poi => {
+                    if (!poi.lat || !poi.lon) return;
+                    const conf = getPoiConfig(poi);
+                    const dist = getDistance(centerLat, centerLng, poi.lat, poi.lon);
+                    
+                    const customIcon = L.divIcon({
+                        className: 'custom-poi-marker',
+                        html: `<div style="background:${conf.color};" class="poi-pin"><i class="fa-solid fa-${conf.icon}"></i></div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+
+                    const marker = L.marker([poi.lat, poi.lon], { icon: customIcon }).bindPopup(`
+                        <div class="poi-popup">
+                            <div class="fw-black text-dark mb-1">${poi.tags.name || 'Ponto de Interesse'}</div>
+                            <div class="badge bg-light text-dark border mb-2">${translations[poi.tags.amenity || poi.tags.shop || ''] || 'Local'}</div>
+                            <div class="small text-muted"><i class="fa-solid fa-person-walking me-1"></i>${dist}m</div>
+                        </div>
+                    `);
+
+                    explorerClusters.addLayer(marker);
+                    explorerPois.push({ marker, id: poi.id });
+                });
+
+                explorerMap.addLayer(explorerClusters);
+            }
+
+            window.focusExplorerPoi = function(id) {
+                const item = explorerPois.find(p => p.id == id);
+                if (item && explorerMap) {
+                    explorerClusters.zoomToShowLayer(item.marker, function() {
+                        item.marker.openPopup();
                     });
                 }
             };
