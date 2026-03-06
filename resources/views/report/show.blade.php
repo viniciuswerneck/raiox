@@ -1390,8 +1390,8 @@
             }).setView([centerLat, centerLng], 15);
 
             // 2. Estilos e Controles de Mapa
-            let currentMapStyle = 'suave'; 
-            baseLayers["suave"].addTo(map);
+            let currentMapStyle = 'padrao'; 
+            baseLayers["padrao"].addTo(map);
 
             document.querySelectorAll('.map-style-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
