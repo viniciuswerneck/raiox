@@ -22,9 +22,13 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     
-    <!-- Leaflet Map -->
+    <!-- Leaflet Map & Plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     
 
     
@@ -449,6 +453,91 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* --- MAP EVOLUTION STYLES --- */
+        .m-cluster {
+            background: white;
+            border-radius: 50%;
+            border: 3px solid var(--primary);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: var(--primary);
+            font-size: 14px;
+        }
+
+        .poi-pin {
+            width: 30px;
+            height: 30px;
+            border-radius: 10px;
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        .poi-pin:hover {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        .radius-tooltip {
+            background: var(--dark);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 10px;
+            padding: 4px 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .main-center-marker .pulse-container {
+            width: 40px;
+            height: 40px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .main-center-marker .dot {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border: 3px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 2;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .main-center-marker .pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: var(--primary);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: main-pulse 2s infinite;
+            z-index: 1;
+        }
+
+        @keyframes main-pulse {
+            0% { transform: scale(1); opacity: 0.4; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        .poi-popup .fw-black { font-size: 14px; }
+        .poi-popup { min-width: 150px; }
+
     </style>
 </head>
 <body>
@@ -557,10 +646,10 @@
         $translations = [
             'supermarket' => 'Supermercado', 'restaurant' => 'Restaurante', 'pharmacy' => 'Farmácia', 'cafe' => 'Café/Padaria',
             'bakery' => 'Padaria', 'school' => 'Escola', 'bank' => 'Banco', 'hospital' => 'Hospital',
-            'bus_stop' => 'Parada de Ônibus', 'bicycle_parking' => 'Estac. Bicicletas', 'convenience' => 'Conveniência',
-            'clothes' => 'Loja de Roupas', 'mall' => 'Shopping', 'fuel' => 'Posto Combustível', 'bar' => 'Bar/Pub',
-            'fast_food' => 'Fast Food', 'university' => 'Universidade', 'clinic' => 'Clínica', 'dentist' => 'Dentista',
-            'pub' => 'Pub/Bar', 'beauty' => 'Salão de Beleza', 'department_store' => 'Loja de Depto',
+            'bus_stop' => 'Parada de Ônibus', 'bus_station' => 'Terminal de Ônibus', 'bicycle_parking' => 'Estac. Bicicletas', 
+            'convenience' => 'Conveniência', 'clothes' => 'Loja de Roupas', 'mall' => 'Shopping', 'fuel' => 'Posto Combustível', 
+            'bar' => 'Bar/Pub', 'fast_food' => 'Fast Food', 'university' => 'Universidade', 'clinic' => 'Clínica', 
+            'dentist' => 'Dentista', 'pub' => 'Pub/Bar', 'beauty' => 'Salão de Beleza', 'department_store' => 'Loja de Depto',
             'place_of_worship' => 'Igreja/Templo', 'cinema' => 'Cinema', 'theatre' => 'Teatro',
             'library' => 'Biblioteca', 'post_office' => 'Correios', 'park' => 'Parque/Lazer',
             'gym' => 'Academia', 'sports_centre' => 'Centro Esportivo', 'playground' => 'Playground',
@@ -568,23 +657,27 @@
             'electronics' => 'Eletrônicos', 'furniture' => 'Móveis', 'optician' => 'Ótica', 'books' => 'Livraria',
             'car_repair' => 'Oficina Mecânica', 'car_wash' => 'Lava Rápido', 'pet_shop' => 'Pet Shop',
             'veterinary' => 'Veterinária', 'hairdresser' => 'Cabeleireiro', 'laundry' => 'Lavanderia',
-            'police' => 'Polícia / Delegacia', 'fire_station' => 'Bombeiros', 'townhall' => 'Prefeitura / Poupatempo',
-            'public_service' => 'Serviço Público', 'marketplace' => 'Feira Livre / Mercado', 'monument' => 'Monumento Histórico',
-            'memorial' => 'Memorial', 'museum' => 'Museu', 'arts_centre' => 'Centro Cultural', 'theatre' => 'Teatro',
-            'attraction' => 'Atração Turística', 'artwork' => 'Obra de Arte / Estátua', 'gallery' => 'Galeria de Arte',
-            'station' => 'Estação de Trem / Metrô', 'kindergarten' => 'Creche / Instituição Infantil',
-            'childcare' => 'Espaço Infantil', 'doctors' => 'Unidade Básica (UBS) / Médicos',
-            'doityourself' => 'Ferramentas/Construção', 'shoes' => 'Sapatos'
+            'police' => 'Polícia / Delegacia', 'fire_station' => 'Bombeiros', 'townhall' => 'Prefeitura',
+            'public_service' => 'Serviço Público', 'marketplace' => 'Feira Livre / Mercado', 'monument' => 'Monumento',
+            'museum' => 'Museu', 'arts_centre' => 'Centro Cultural', 'attraction' => 'Atração Turística', 
+            'artwork' => 'Arte / Estátua', 'station' => 'Estação de Trem/Metrô', 'kindergarten' => 'Creche',
+            'doctors' => 'Médico/UBS', 'subway_entrance' => 'Entrada do Metrô'
         ];
 
-        // Categorização Organizada
-        $health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors', 'veterinary', 'blood_donation']));
+        // 7 Categorias Oficiais
+        $poi_food = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['restaurant', 'cafe', 'fast_food', 'bakery', 'bar', 'pub', 'ice_cream', 'food_court']));
         
-        $education_faith = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university', 'kindergarten', 'childcare', 'place_of_worship', 'monastery']));
+        $poi_health = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['pharmacy', 'hospital', 'clinic', 'dentist', 'doctors', 'veterinary']));
         
-        $commerce = array_filter($pois, fn($p) => isset($p['tags']['shop']) || in_array($p['tags']['amenity'] ?? '', ['fuel', 'restaurant', 'cafe', 'fast_food', 'bakery', 'bar', 'pub', 'marketplace', 'bank', 'atm', 'ice_cream', 'food_court']));
+        $poi_education = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['school', 'university', 'kindergarten', 'childcare', 'library']));
         
-        $services_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['police', 'fire_station', 'post_office', 'townhall', 'public_service', 'cinema', 'theatre', 'arts_centre', 'library', 'courthouse', 'community_centre']) || in_array($p['tags']['leisure'] ?? '', ['park', 'gym', 'sports_centre', 'playground', 'stadium', 'marina', 'garden', 'square']) || isset($p['tags']['historic']) || isset($p['tags']['tourism']));
+        $poi_transport = array_filter($pois, fn($p) => ($p['tags']['highway'] ?? '') === 'bus_stop' || ($p['tags']['amenity'] ?? '') === 'bus_station' || ($p['tags']['railway'] ?? '') === 'station' || ($p['tags']['amenity'] ?? '') === 'subway_entrance');
+        
+        $poi_shopping = array_filter($pois, fn($p) => isset($p['tags']['shop']) || in_array($p['tags']['amenity'] ?? '', ['marketplace', 'fuel']));
+        
+        $poi_leisure = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['cinema', 'theatre', 'arts_centre']) || in_array($p['tags']['leisure'] ?? '', ['park', 'gym', 'sports_centre', 'playground', 'stadium', 'garden', 'square']) || isset($p['tags']['tourism']) || isset($p['tags']['historic']));
+        
+        $poi_services = array_filter($pois, fn($p) => in_array($p['tags']['amenity'] ?? '', ['bank', 'atm', 'police', 'fire_station', 'post_office', 'townhall', 'courthouse', 'community_centre', 'place_of_worship']));
 
         // Theme colors for score
         $walkColor = match($report->walkability_score) {
@@ -909,15 +1002,19 @@
                         </div>
                         <div class="d-flex flex-wrap gap-2">
                             <span class="map-category-btn active" data-filter="all"><i class="fa-solid fa-layer-group"></i>Tudo</span>
-                            <span class="map-category-btn" data-filter="saude"><i class="fa-solid fa-house-medical text-success"></i>Saúde/Farmácias</span>
-                            <span class="map-category-btn" data-filter="ensino"><i class="fa-solid fa-graduation-cap text-primary"></i>Educação/Templos</span>
-                            <span class="map-category-btn" data-filter="comercio"><i class="fa-solid fa-store text-amber-600"></i>Comércio</span>
-                            <span class="map-category-btn" data-filter="servicos"><i class="fa-solid fa-landmark-flag text-dark"></i>Serviços/Lazer</span>
+                            <span class="map-category-btn" data-filter="food"><i class="fa-solid fa-utensils text-danger"></i>Alimentação</span>
+                            <span class="map-category-btn" data-filter="health"><i class="fa-solid fa-house-medical text-success"></i>Saúde</span>
+                            <span class="map-category-btn" data-filter="education"><i class="fa-solid fa-graduation-cap text-primary"></i>Educação</span>
+                            <span class="map-category-btn" data-filter="transport"><i class="fa-solid fa-bus text-info"></i>Transporte</span>
+                            <span class="map-category-btn" data-filter="shopping"><i class="fa-solid fa-cart-shopping text-warning"></i>Compras</span>
+                            <span class="map-category-btn" data-filter="leisure"><i class="fa-solid fa-tree text-success"></i>Lazer</span>
+                            <span class="map-category-btn" data-filter="services"><i class="fa-solid fa-building-columns text-dark"></i>Serviços</span>
                         </div>
                     </div>
-                    <div id="map-container" style="height: 400px; position: relative;">
+                    <div id="map-container" style="height: 500px; position: relative;">
                         <!-- Custom Map Style Controls -->
                         <div class="position-absolute d-flex gap-2 no-print" style="top: 15px; right: 15px; z-index: 1000;">
+                            <button class="btn btn-warning btn-sm fw-bold shadow-sm border" onclick="toggleHeatmap()"><i class="fa-solid fa-fire me-1"></i>Calor</button>
                             <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="clara"><i class="fa-regular fa-sun text-warning me-1"></i>Clara</button>
                             <button class="btn btn-dark btn-sm fw-bold shadow-sm border map-style-btn" data-style="escura"><i class="fa-solid fa-moon text-light me-1"></i>Escura</button>
                             <button class="btn btn-primary btn-sm fw-bold shadow-sm border map-style-btn" data-style="satelite"><i class="fa-solid fa-satellite text-white me-1"></i>Satélite</button>
@@ -931,108 +1028,120 @@
             <div class="col-xl-4">
                 <div class="card-pro h-100 d-flex flex-column">
                     <div class="mb-4 d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0 fw-black">Infraestrutura</h5>
-                        <div class="text-primary fw-bold small">RAIO {{ ($report->search_radius ?? 10000) / 1000 }}KM</div>
+                        <h5 class="mb-0 fw-black">Análise de Bairro</h5>
+                        <div class="text-primary fw-bold small">RAIO 1KM</div>
                     </div>
                     
                     <!-- Quick Stats Grid -->
                     <div class="row g-2 mb-4">
-                        <div class="col-6">
+                        <div class="col-4">
+                            <div class="card p-2 border-0 bg-danger bg-opacity-10 text-center rounded-4">
+                                <div class="h6 fw-black text-danger mb-0">{{ count($poi_food) }}</div>
+                                <div class="text-danger opacity-75" style="font-size: 8px; font-weight: 800; text-transform: uppercase;">Alimentação</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
                             <div class="card p-2 border-0 bg-success bg-opacity-10 text-center rounded-4">
-                                <div class="h5 fw-black text-success mb-0">{{ count($health) }}</div>
-                                <div class="text-success opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Saúde & Fármacias</div>
+                                <div class="h6 fw-black text-success mb-0">{{ count($poi_health) }}</div>
+                                <div class="text-success opacity-75" style="font-size: 8px; font-weight: 800; text-transform: uppercase;">Saúde</div>
                             </div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <div class="card p-2 border-0 bg-primary bg-opacity-10 text-center rounded-4">
-                                <div class="h5 fw-black text-primary mb-0">{{ count($education_faith) }}</div>
-                                <div class="text-primary opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Educação/Apoio</div>
+                                <div class="h6 fw-black text-primary mb-0">{{ count($poi_education) }}</div>
+                                <div class="text-primary opacity-75" style="font-size: 8px; font-weight: 800; text-transform: uppercase;">Educação</div>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <div class="card p-2 border-0 bg-amber-100 text-center rounded-4">
-                                <div class="h5 fw-black text-amber-600 mb-0">{{ count($commerce) }}</div>
-                                <div class="text-amber-600 opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Comércio Local</div>
+                        <div class="col-4">
+                            <div class="card p-2 border-0 bg-info bg-opacity-10 text-center rounded-4">
+                                <div class="h6 fw-black text-info mb-0">{{ count($poi_transport) }}</div>
+                                <div class="text-info opacity-75" style="font-size: 8px; font-weight: 800; text-transform: uppercase;">Transporte</div>
                             </div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
+                            <div class="card p-2 border-0 bg-warning bg-opacity-10 text-center rounded-4">
+                                <div class="h6 fw-black text-warning mb-0">{{ count($poi_shopping) }}</div>
+                                <div class="text-warning opacity-75" style="font-size: 8px; font-weight: 800; text-transform: uppercase;">Compras</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
                             <div class="card p-2 border-0 bg-dark bg-opacity-10 text-center rounded-4">
-                                <div class="h5 fw-black text-dark mb-0">{{ count($services_leisure) }}</div>
-                                <div class="text-dark opacity-75" style="font-size: 9px; font-weight: 800; text-transform: uppercase;">Lazer & Serviços</div>
+                                <div class="h6 fw-black text-dark mb-0">{{ count($poi_services) }}</div>
+                                <div class="text-dark opacity-75" style="font-size: 8px; font-weight: 800; text-transform: uppercase;">Serviços</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="poi-drawer flex-grow-1" style="max-height: 320px;">
-                        <!-- Escolas e Apoio Comunitário -->
-                        @if(count($education_faith) > 0)
-                            <div class="mb-3">
-                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Ensino & Templos</h6>
-                                @foreach(array_slice($education_faith, 0, 8) as $p)
-                                    @php 
-                                        $tag = $p['tags']['amenity'] ?? '';
-                                        $icon = match(true) {
-                                            in_array($tag, ['school', 'university', 'kindergarten', 'childcare']) => 'graduation-cap',
-                                            $tag === 'place_of_worship' => 'church',
-                                            default => 'landmark'
-                                        };
-                                    @endphp
-                                    <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white; cursor: pointer; border-radius: 12px;" onclick="focusPoi('{{ $p['id'] }}')">
-                                        <div class="bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; border-radius: 8px;">
-                                            <i class="fa-solid fa-{{ $icon }} small"></i>
-                                        </div>
-                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Instituição' }}</div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
+                    <div class="poi-drawer flex-grow-1" style="max-height: 400px; overflow-y: auto;">
+                        @php
+                            $cat_list = [
+                                ['label' => 'Alimentação', 'data' => $poi_food, 'icon' => 'utensils', 'color' => 'danger'],
+                                ['label' => 'Saúde', 'data' => $poi_health, 'icon' => 'house-medical', 'color' => 'success'],
+                                ['label' => 'Educação', 'data' => $poi_education, 'icon' => 'graduation-cap', 'color' => 'primary'],
+                                ['label' => 'Transporte', 'data' => $poi_transport, 'icon' => 'bus', 'color' => 'info'],
+                                ['label' => 'Compras', 'data' => $poi_shopping, 'icon' => 'cart-shopping', 'color' => 'warning'],
+                                ['label' => 'Lazer', 'data' => $poi_leisure, 'icon' => 'palette', 'color' => 'success'],
+                                ['label' => 'Serviços', 'data' => $poi_services, 'icon' => 'building-columns', 'color' => 'dark'],
+                            ];
+                        @endphp
 
-                        <!-- Comércio e Lazer -->
-                        @if(count($commerce) > 0)
-                            <div class="mb-3">
-                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Comércio & Conveniência</h6>
-                                @foreach(array_slice($commerce, 0, 8) as $p)
-                                    @php 
-                                        $tag = $p['tags']['amenity'] ?? $p['tags']['shop'] ?? '';
-                                        $icon = match(true) {
-                                            in_array($tag, ['restaurant', 'cafe', 'fast_food', 'bakery']) => 'utensils',
-                                            $tag === 'fuel' => 'gas-pump',
-                                            in_array($tag, ['supermarket', 'convenience', 'mall']) => 'cart-shopping',
-                                            default => 'store'
-                                        };
-                                    @endphp
-                                    <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white; cursor: pointer; border-radius: 12px;" onclick="focusPoi('{{ $p['id'] }}')">
-                                        <div class="bg-amber-100 text-amber-600 d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; border-radius: 8px;">
-                                            <i class="fa-solid fa-{{ $icon }} small"></i>
-                                        </div>
-                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Comércio' }}</div>
+                        @foreach($cat_list as $cat)
+                            @if(count($cat['data']) > 0)
+                                <div class="mb-4">
+                                    <h6 class="text-muted fw-black mb-2 small text-uppercase tracking-widest" style="font-size: 10px;">{{ $cat['label'] }} ({{ count($cat['data']) }})</h6>
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach(array_slice($cat['data'], 0, 10) as $p)
+                                            <div class="poi-item d-flex align-items-center px-3 py-2 border-0 shadow-sm" style="background: white; cursor: pointer; border-radius: 12px;" onclick="focusPoi('{{ $p['id'] }}')">
+                                                <div class="bg-{{ $cat['color'] }} bg-opacity-10 text-{{ $cat['color'] }} d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; border-radius: 8px;">
+                                                    @php
+                                                        $tag = $p['tags']['amenity'] ?? $p['tags']['shop'] ?? $p['tags']['leisure'] ?? $p['tags']['highway'] ?? '';
+                                                        $p_icon = $cat['icon'];
+                                                        if($tag === 'pharmacy') $p_icon = 'pills';
+                                                        if($tag === 'restaurant') $p_icon = 'utensils';
+                                                    @endphp
+                                                    <i class="fa-solid fa-{{ $p_icon }} small"></i>
+                                                </div>
+                                                <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? ($translations[$tag] ?? 'Local') }}</div>
+                                            </div>
+                                        @endforeach
                                     </div>
-                                @endforeach
-                            </div>
-                        @endif
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
 
-                        <!-- Saúde -->
-                        @if(count($health) > 0)
-                            <div class="mb-3">
-                                <h6 class="text-muted fw-bold mb-2 small uppercase tracking-tighter">Saúde & Farmácias</h6>
-                                @foreach(array_slice($health, 0, 8) as $p)
-                                    @php 
-                                        $tag = $p['tags']['amenity'] ?? '';
-                                        $icon = match(true) {
-                                            $tag === 'hospital' => 'hospital',
-                                            $tag === 'pharmacy' => 'pills',
-                                            default => 'house-medical'
-                                        };
-                                    @endphp
-                                    <div class="poi-item d-flex align-items-center mb-2 px-3 py-2 border-0 shadow-sm" style="background: white; cursor: pointer; border-radius: 12px;" onclick="focusPoi('{{ $p['id'] }}')">
-                                        <div class="bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; border-radius: 8px;">
-                                            <i class="fa-solid fa-{{ $icon }} small"></i>
-                                        </div>
-                                        <div class="text-truncate small fw-bold text-dark">{{ $p['tags']['name'] ?? 'Saúde' }}</div>
-                                    </div>
-                                @endforeach
+                    <!-- Insights Automáticos -->
+                    <div class="mt-4 p-4 rounded-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; border-radius: 10px;">
+                                <i class="fa-solid fa-lightbulb"></i>
                             </div>
-                        @endif
+                            <h6 class="mb-0 fw-black text-dark">Insights do Bairro</h6>
+                        </div>
+                        <div class="row g-2">
+                            @php
+                                $insights = [];
+                                if(count($poi_food) > 15) $insights[] = ['icon' => 'utensils', 'text' => 'Polo Gastronômico: Alta densidade de restaurantes e bares.', 'color' => 'danger'];
+                                if(count($poi_transport) > 5) $insights[] = ['icon' => 'bus', 'text' => 'Mobilidade Fluida: Excelente acesso ao transporte público.', 'color' => 'info'];
+                                if(count($poi_leisure) < 3) $insights[] = ['icon' => 'tree', 'text' => 'Déficit de Lazer: Poucas áreas verdes ou parques próximos.', 'color' => 'success'];
+                                if(count($poi_health) > 8) $insights[] = ['icon' => 'house-medical', 'text' => 'Hub de Saúde: Grande oferta de clínicas e farmácias.', 'color' => 'success'];
+                                if(count($poi_education) > 5) $insights[] = ['icon' => 'graduation-cap', 'text' => 'Região Educacional: Boa presença de escolas e apoio.', 'color' => 'primary'];
+                                if(count($poi_shopping) > 20) $insights[] = ['icon' => 'cart-shopping', 'text' => 'Comércio Vibrante: Grande variedade de lojas locais.', 'color' => 'warning'];
+                            @endphp
+
+                            @forelse(array_slice($insights, 0, 3) as $ins)
+                                <div class="col-12">
+                                    <div class="d-flex align-items-center gap-2 p-2 bg-white rounded-3 small fw-bold text-dark border border-light shadow-sm">
+                                        <i class="fa-solid fa-{{ $ins['icon'] }} text-{{ $ins['color'] }}" style="width: 15px;"></i>
+                                        {{ $ins['text'] }}
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="col-12">
+                                    <div class="text-muted small fw-bold">Analise os pontos no mapa para tirar suas conclusões.</div>
+                                </div>
+                            @endforelse
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1258,12 +1367,12 @@
     <!-- Scripts -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const lat = {{ $report->lat }};
-            const lng = {{ $report->lng }};
+            const centerLat = {{ $report->lat }};
+            const centerLng = {{ $report->lng }};
             const pois = @json($report->pois_json ?? []);
             const translations = @json($translations);
 
-            // Base Map Layers
+            // 1. Configuração do Mapa
             const baseLayers = {
                 "Clara": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
                 "Escura": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
@@ -1273,166 +1382,173 @@
             const map = L.map('map', { 
                 scrollWheelZoom: false,
                 attributionControl: false,
-                zoomControl: true,
                 layers: [baseLayers["Clara"]]
-            }).setView([lat, lng], 15);
+            }).setView([centerLat, centerLng], 15);
 
-            // Custom Map Style Controls
+            // 2. Estilos e Controles de Mapa
             let currentMapStyle = 'clara';
             document.querySelectorAll('.map-style-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
+                btn.addEventListener('click', function() {
                     const style = this.getAttribute('data-style');
                     if (style === currentMapStyle) return;
-
-                    // Remove current layer
-                    if (currentMapStyle === 'clara') map.removeLayer(baseLayers["Clara"]);
-                    if (currentMapStyle === 'escura') map.removeLayer(baseLayers["Escura"]);
-                    if (currentMapStyle === 'satelite') map.removeLayer(baseLayers["Satélite"]);
-
-                    // Add new layer
+                    map.removeLayer(baseLayers[Object.keys(baseLayers).find(key => key.toLowerCase() === currentMapStyle)]);
                     if (style === 'clara') baseLayers["Clara"].addTo(map);
                     if (style === 'escura') baseLayers["Escura"].addTo(map);
                     if (style === 'satelite') baseLayers["Satélite"].addTo(map);
-                    
                     currentMapStyle = style;
                 });
             });
 
-            // Custom Main Marker (CEP Point) - Premium Pin
-            const pulseIcon = L.divIcon({
-                className: 'main-dest-pin',
-                html: `<div style="position:relative; width:50px; height:50px; display:flex; align-items:center; justify-content:center;">
-                    <div style="position:absolute; width:100%; height:100%; background:rgba(79, 70, 229, 0.25); border-radius:50%; animation:pulse 2s infinite;"></div>
-                    <div style="position:absolute; width:60%; height:60%; background:rgba(79, 70, 229, 0.15); border-radius:50%; animation:pulse 2s infinite 0.5s;"></div>
-                    <div style="position:relative; width:28px; height:28px; background:#4F46E5; border:3px solid white; border-radius:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 15px rgba(79, 70, 229, 0.4); transform: rotate(-45deg) translateY(-2px);">
-                        <i class="fa-solid fa-house text-white" style="transform: rotate(45deg); font-size: 12px;"></i>
-                    </div>
-                </div>`,
-                iconSize: [50, 50],
-                iconAnchor: [25, 25]
+            // 3. Raios de Acessibilidade (Zonas Urbanas)
+            const radii = [
+                { r: 300, color: '#10b981', label: '300m • 4 min' },
+                { r: 800, color: '#6366f1', label: '800m • 10 min' },
+                { r: 1500, color: '#f59e0b', label: '1.5km • Bairro' }
+            ];
+
+            radii.forEach(conf => {
+                L.circle([centerLat, centerLng], {
+                    radius: conf.r,
+                    color: conf.color,
+                    fillOpacity: 0.02,
+                    weight: 1,
+                    dashArray: '5, 10'
+                }).addTo(map).bindTooltip(conf.label, { sticky: true, className: 'radius-tooltip' });
             });
 
-            L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
+            // Marcador Central
+            const mainIcon = L.divIcon({
+                className: 'main-center-marker',
+                html: `<div class="pulse-container"><div class="pulse"></div><div class="dot"><i class="fa-solid fa-house"></i></div></div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+            L.marker([centerLat, centerLng], { icon: mainIcon }).addTo(map);
 
-            const poiLayers = L.layerGroup().addTo(map);
-            const poiData = [];
+            // 4. Engine de Marcadores e Clusters
+            const markerClusters = L.markerClusterGroup({
+                showCoverageOnHover: false,
+                maxClusterRadius: 40,
+                spiderfyOnMaxZoom: true,
+                iconCreateFunction: function(cluster) {
+                    const childCount = cluster.getChildCount();
+                    return L.divIcon({
+                        html: `<div><span>${childCount}</span></div>`,
+                        className: 'm-cluster',
+                        iconSize: [35, 35]
+                    });
+                }
+            });
 
-            // Icon Mapping for POIs
-            function getPoiStyle(poi) {
-                const tag = poi.tags.amenity || poi.tags.shop || poi.tags.highway || '';
+            // Camada de Calor (Heatmap)
+            const heatData = [];
+            const poiRefs = [];
+
+            // Mapeador Profissional de Estilos
+            function getPoiConfig(poi) {
+                const tag = poi.tags;
+                const type = tag.amenity || tag.shop || tag.leisure || tag.tourism || tag.highway || '';
                 
-                let icon = 'location-dot';
-                let color = '#64748b';
-                let category = 'comercio';
+                let icon = 'location-dot', color = '#64748b', category = 'services';
 
-                // Saúde
-                if (['hospital', 'clinic', 'doctors'].includes(tag)) {
-                    icon = 'hospital'; color = '#10b981'; category = 'saude';
-                } else if (tag === 'pharmacy') {
-                    icon = 'pills'; color = '#10b981'; category = 'saude';
-                }
-                // Ensino & Templos
-                else if (['school', 'university', 'kindergarten'].includes(tag)) {
-                    icon = 'graduation-cap'; color = '#6366f1'; category = 'ensino';
-                } else if (tag === 'place_of_worship') {
-                    icon = 'church'; color = '#6366f1'; category = 'ensino';
-                }
-                // Comércio & Alimentação
-                else if (['restaurant', 'cafe', 'fast_food', 'bakery'].includes(tag)) {
-                    icon = 'utensils'; color = '#d97706'; category = 'comercio';
-                } else if (['supermarket', 'convenience', 'mall'].includes(tag)) {
-                    icon = 'cart-shopping'; color = '#d97706'; category = 'comercio';
-                } else if (tag === 'fuel') {
-                    icon = 'gas-pump'; color = '#0f172a'; category = 'comercio';
-                }
-                // Serviços & Lazer
-                else if (['police', 'fire_station'].includes(tag)) {
-                    icon = 'shield-halved'; color = '#ef4444'; category = 'servicos';
-                } else if (['park', 'playground', 'sports_centre'].includes(tag)) {
-                    icon = 'tree'; color = '#15803d'; category = 'servicos';
-                } else if (['bank', 'post_office'].includes(tag)) {
-                    icon = 'building-columns'; color = '#0f172a'; category = 'servicos';
+                if (/restaurant|cafe|fast_food|bakery|bar|pub|ice_cream|food_court/i.test(type)) {
+                    icon = 'utensils'; color = '#ef4444'; category = 'food';
+                } else if (/pharmacy|hospital|clinic|dentist|doctors|veterinary/i.test(type)) {
+                    icon = 'hospital'; color = '#10b981'; category = 'health';
+                } else if (/school|university|kindergarten|childcare|library/i.test(type)) {
+                    icon = 'graduation-cap'; color = '#6366f1'; category = 'education';
+                } else if (/bus_stop|bus_station/i.test(type) || poi.tags.railway === 'station' || type === 'subway_entrance') {
+                    icon = 'bus'; color = '#0ea5e9'; category = 'transport';
+                } else if (tag.shop || /marketplace|fuel/i.test(type)) {
+                    icon = 'cart-shopping'; color = '#f59e0b'; category = 'shopping';
+                } else if (/park|gym|sports_centre|playground|stadium|garden|square|cinema|museum|attraction/i.test(type)) {
+                    icon = 'palette'; color = '#15803d'; category = 'leisure';
                 }
 
                 return { icon, color, category };
             }
 
-            // Filterable POIs
+            // Cálculo de Distância Haversine no Frontend
+            function getDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371e3; // metros
+                const φ1 = lat1 * Math.PI/180;
+                const φ2 = lat2 * Math.PI/180;
+                const Δφ = (lat2-lat1) * Math.PI/180;
+                const Δλ = (lon2-lon1) * Math.PI/180;
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return Math.round(R * c);
+            }
+
+            // Gerar Marcadores
             pois.forEach(poi => {
                 if (!poi.lat || !poi.lon) return;
                 
-                const style = getPoiStyle(poi);
-                const rawType = poi.tags.amenity || poi.tags.shop || poi.tags.highway || poi.tags.historic || 'Comércio';
-                const type = translations[rawType] || rawType;
+                const conf = getPoiConfig(poi);
+                const dist = getDistance(centerLat, centerLng, poi.lat, poi.lon);
+                const walkTime = Math.ceil(dist / 80); // 80m por minuto
 
-                const poiIcon = L.divIcon({
+                // Heatmap Data
+                heatData.push([poi.lat, poi.lon, 0.5]);
+
+                const customIcon = L.divIcon({
                     className: 'custom-poi-marker',
-                    html: `<div style="background:${style.color}; width:30px; height:30px; border-radius:10px; border:2px solid white; display:flex; align-items:center; justify-content:center; color:white; box-shadow:0 3px 6px rgba(0,0,0,0.2); transform:rotate(45deg);">
-                        <i class="fa-solid fa-${style.icon}" style="transform:rotate(-45deg); font-size:12px;"></i>
-                    </div>`,
+                    html: `<div style="background:${conf.color};" class="poi-pin"><i class="fa-solid fa-${conf.icon}"></i></div>`,
                     iconSize: [30, 30],
                     iconAnchor: [15, 15]
                 });
 
-                const marker = L.marker([poi.lat, poi.lon], { icon: poiIcon }).bindPopup(`
-                    <div class="p-2">
-                        <div class="fw-bold mb-1 text-dark">${poi.tags.name || 'Local Estabelecido'}</div>
-                        <div class="badge bg-light text-primary text-uppercase" style="font-size: 10px">${type}</div>
+                const marker = L.marker([poi.lat, poi.lon], { icon: customIcon }).bindPopup(`
+                    <div class="poi-popup">
+                        <div class="fw-black text-dark mb-1">${poi.tags.name || 'Ponto de Interesse'}</div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-light text-dark border">${translations[poi.tags.amenity || poi.tags.shop || ''] || 'Local'}</span>
+                        </div>
+                        <div class="d-flex gap-3 small text-muted bg-light p-2 rounded-3">
+                            <span><i class="fa-solid fa-person-walking me-1"></i>${dist}m</span>
+                            <span><i class="fa-regular fa-clock me-1"></i>${walkTime} min</span>
+                        </div>
                     </div>
                 `);
 
-                poiLayers.addLayer(marker);
-                poiData.push({ marker, category: style.category, id: poi.id });
+                markerClusters.addLayer(marker);
+                poiRefs.push({ marker, category: conf.category, id: poi.id });
             });
 
-            // Global Focus POI Function
-            window.focusPoi = function(id) {
-                const item = poiData.find(p => p.id == id);
-                if (item) {
-                    // Se o item estiver visível e com popup aberto, fecha. Caso contrário, abre.
-                    if (map.hasLayer(item.marker) && item.marker.isPopupOpen()) {
-                        item.marker.closePopup();
-                        // Volta para o ponto central original
-                        map.flyTo([lat, lng], 15);
-                    } else {
-                        // Garante que o item esteja na camada de filtros atual
-                        item.marker.addTo(map);
-                        
-                        // Cria os limites (bounds) incluindo o CEP e o Ponto clicado
-                        const bounds = L.latLngBounds([lat, lng], item.marker.getLatLng());
-                        
-                        // Ajusta o mapa para mostrar AMBOS na tela simultaneamente
-                        map.fitBounds(bounds, { 
-                            padding: [80, 80], 
-                            maxZoom: 17, 
-                            animate: true, 
-                            duration: 1.2 
-                        });
-                        
-                        item.marker.openPopup();
-                    }
-                }
+            map.addLayer(markerClusters);
+
+            // 5. Heatmap (Opcional - Ativado via Console ou Botão se existisse)
+            const heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17, opacity: 0.4 });
+            
+            // Toggle Heatmap (Expansão Futura)
+            window.toggleHeatmap = function() {
+                if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+                else heatLayer.addTo(map);
             };
 
-            // Filter Logic
+            // 6. Filtros e Controle
             document.querySelectorAll('.map-category-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const filter = this.getAttribute('data-filter');
-                    
                     document.querySelectorAll('.map-category-btn').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
 
-                    poiLayers.clearLayers();
-                    poiData.forEach(item => {
-                        if (filter === 'all' || item.category === filter) {
-                            item.marker.addTo(poiLayers);
-                        }
+                    markerClusters.clearLayers();
+                    poiRefs.forEach(ref => {
+                        if (filter === 'all' || ref.category === filter) markerClusters.addLayer(ref.marker);
                     });
                 });
             });
+
+            window.focusPoi = function(id) {
+                const ref = poiRefs.find(r => r.id == id);
+                if (ref) {
+                    markerClusters.zoomToShowLayer(ref.marker, function() {
+                        ref.marker.openPopup();
+                    });
+                }
+            };
+        });
 
 
 

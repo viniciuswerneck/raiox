@@ -26,15 +26,16 @@ class POIAgent
         // Consulta de alta performance: busca por chaves principais dentro da BBox
         // Usamos nwr para garantir que polígonos (shoppings, parques) também venham, 
         // mas o BBox mantém a resposta instantânea.
-        $query = "[out:json][timeout:20];(
-            nwr({$bbox})[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|cafe|university|clinic|doctors|police|townhall|marketplace|courthouse\"];
-            nwr({$bbox})[\"shop\"~\"supermarket|bakery|convenience|clothes|pharmacy|beauty|department_store|books|butcher|greengrocer|laundry|mall\"];
-            nwr({$bbox})[\"leisure\"~\"park|square|gym|sports_centre|playground\"];
-            nwr({$bbox})[\"tourism\"~\"museum|monument|attraction|artwork|gallery\"];
+        $query = "[out:json][timeout:25];(
+            nwr({$bbox})[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|university|clinic|doctors|police|fire_station|post_office|marketplace|cinema|theatre|library|community_centre\"];
+            nwr({$bbox})[\"shop\"~\"supermarket|bakery|convenience|clothes|beauty|department_store|books|butcher|greengrocer|laundry|mall|pharmacy|hardware\"];
+            nwr({$bbox})[\"leisure\"~\"park|square|gym|sports_centre|playground|garden|beach|stadium\"];
+            nwr({$bbox})[\"tourism\"~\"museum|monument|attraction|artwork|gallery|viewpoint|hotel\"];
             nwr({$bbox})[\"historic\"];
-            nwr({$bbox})[\"railway\"~\"station\"];
-            nwr({$bbox})[\"highway\"=\"bus_stop\"];
-        );out center qt 150;";
+            nwr({$bbox})[\"railway\"~\"station|stop\"];
+            nwr({$bbox})[\"highway\"~\"bus_stop|bus_station\"];
+            nwr({$bbox})[\"amenity\"=\"subway_entrance\"];
+        );out center qt 300;";
 
         $endpoints = [
             'https://lz4.overpass-api.de/api/interpreter',

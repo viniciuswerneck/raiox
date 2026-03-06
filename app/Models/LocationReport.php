@@ -27,6 +27,7 @@ class LocationReport extends Model
         'mobility_score',
         'leisure_score',
         'general_score',
+        'data_version',
         'average_income',
         'sanitation_rate',
         'history_extract',

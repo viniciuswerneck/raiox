@@ -49,8 +49,8 @@ class CompareController extends Controller
             if (!$reportA || !$reportB) return null;
 
             // --- LAZY UPDATE: Se os relatórios existem mas não têm scores calculados (Legados) ---
-            $this->ensureScoresExist($reportA);
-            $this->ensureScoresExist($reportB);
+            $this->ensureDataIsFresh($reportA);
+            $this->ensureDataIsFresh($reportB);
 
             // 4. Verificar se já existe uma comparação salva no Banco de Dados
             $dbComparison = RegionComparison::findPair($cepA, $cepB);
@@ -108,26 +108,45 @@ class CompareController extends Controller
     }
 
     /**
-     * Garante que o relatório tenha os scores populados (Lazy Update)
+     * Garante que o relatório tenha os scores e POIs atualizados (Lazy Update)
      */
-    private function ensureScoresExist(LocationReport $report)
+    private function ensureDataIsFresh(LocationReport $report)
     {
-        // Se já tem general_score > 0, assumimos que já foi processado
-        // (Ou se não tem POIs, não há o que calcular)
-        if ($report->general_score > 0 || empty($report->pois_json)) {
-            return;
+        $needsUpdate = false;
+
+        // 1. Se o relatório for de versão antiga (sem novos POIs como transporte/lazer expandido)
+        if ($report->data_version < 2) {
+            Log::info("CompareController: Reidratando POIs (V1 -> V2) para o CEP {$report->cep}");
+            try {
+                // Injetamos o POIAgent via Service Container se possível, ou usamos o coordenador
+                $poiAgent = app(\App\Services\Agents\POIAgent::class);
+                $newPois = $poiAgent->fetchPOIs($report->lat, $report->lng);
+                
+                if (!empty($newPois)) {
+                    $report->pois_json = $newPois;
+                    $report->data_version = 2;
+                    $needsUpdate = true;
+                }
+            } catch (\Exception $e) {
+                Log::error("CompareController: Erro ao reidratar POIs para {$report->cep}: " . $e->getMessage());
+            }
         }
 
-        Log::info("CompareController: Lazy Update de scores para o CEP {$report->cep}");
-        
-        $metrics = $this->compareAgent->getRegionMetrics($report->pois_json);
-        
-        $report->update([
-            'infra_score' => $metrics['infra'],
-            'mobility_score' => $metrics['mobility'],
-            'leisure_score' => $metrics['leisure'],
-            'general_score' => $metrics['total_score']
-        ]);
+        // 2. Se não tem scores calculados, calcula agora
+        if ($report->general_score == 0 && !empty($report->pois_json)) {
+            Log::info("CompareController: Calculando scores ausentes para o CEP {$report->cep}");
+            $metrics = $this->compareAgent->getRegionMetrics($report->pois_json);
+            
+            $report->infra_score = $metrics['infra'];
+            $report->mobility_score = $metrics['mobility'];
+            $report->leisure_score = $metrics['leisure'];
+            $report->general_score = $metrics['total_score'];
+            $needsUpdate = true;
+        }
+
+        if ($needsUpdate) {
+            $report->save();
+        }
     }
 
     private function mapReportToAnalysis(LocationReport $report): array

@@ -338,7 +338,40 @@ class ReportController extends Controller
             return redirect()->route('home')->withErrors(['cep' => 'CEP não encontrado ou erro nas APIs de terceiros.']);
         }
 
+        // Lazy Update para novos POIs (V1 -> V2) e Scores
+        $this->ensureDataIsFresh($report);
+
         return view('report.show', compact('report'));
+    }
+
+    private function ensureDataIsFresh(\App\Models\LocationReport $report)
+    {
+        $needsUpdate = false;
+        if ($report->data_version < 2) {
+            \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V1 -> V2) para o CEP {$report->cep}");
+            try {
+                $poiAgent = app(\App\Services\Agents\POIAgent::class);
+                $newPois = $poiAgent->fetchPOIs($report->lat, $report->lng);
+                
+                if (!empty($newPois)) {
+                    $report->pois_json = $newPois;
+                    $report->data_version = 2;
+                    
+                    // Recalcular scores com os novos dados
+                    $compareAgent = app(\App\Services\Agents\CompareAgent::class);
+                    $metrics = $compareAgent->getRegionMetrics($newPois);
+                    $report->infra_score = $metrics['infra'];
+                    $report->mobility_score = $metrics['mobility'];
+                    $report->leisure_score = $metrics['leisure'];
+                    $report->general_score = $metrics['total_score'];
+                    
+                    $needsUpdate = true;
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("ReportController: Erro no Lazy Update para {$report->cep}: " . $e->getMessage());
+            }
+        }
+        if ($needsUpdate) $report->save();
     }
 
     public function compare($cep1, $cep2)
