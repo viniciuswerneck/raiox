@@ -344,16 +344,18 @@ class ReportController extends Controller
         // Ajuste de Proxy/Cache de Imagem da Wikipedia para Produção
         $wiki = $report->wiki_json ?? [];
         if (!empty($wiki['image']) && str_contains($wiki['image'], 'upload.wikimedia.org')) {
+            // Normalizar qualquer thumbnail (ex: /3456px- ou /320px-) para /640px-
+            // Usamos '#' como delimitador para não precisar escapar a barra da URL
             if (str_contains($wiki['image'], '/thumb/')) {
-                // Se for uma thumbnail (especialmente se for gigante ex: 3456px), força para o padrão 640px
-                // Isso evita o erro "Use thumbnail steps" do Wikimedia
-                $wiki['image'] = preg_replace('/\/(\d+)px-/', '/640px-', $wiki['image']);
+                $wiki['image'] = preg_replace('#/\d+px-#', '/640px-', $wiki['image']);
             } elseif (str_contains($wiki['image'], '/commons/')) {
-                // Se for a imagem original no commons, converte para thumbnail de 640px
+                // Se for original, converter para miniatura de 640px
                 $filename = basename($wiki['image']);
                 $wiki['image'] = str_replace('/commons/', '/commons/thumb/', $wiki['image']) . "/640px-" . $filename;
             }
         }
+        
+        \Illuminate\Support\Facades\Log::info("WIKI IMAGE: Final target URL is: " . ($wiki['image'] ?? 'none'));
 
         return view('report.show', compact('report', 'wiki'));
     }
