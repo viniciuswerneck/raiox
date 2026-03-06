@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raio-X de {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }} | {{ config('app.name') }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="description" content="Relatório detalhado sobre o bairro {{ $report->bairro }} em {{ $report->cidade }}. Veja índices de segurança, caminhabilidade, qualidade do ar e infraestrutura urbana.">
     <meta name="keywords" content="viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, qualidade do ar {{ $report->cidade }}">
     
@@ -1374,11 +1375,25 @@
                             <div class="editorial-text drop-cap" style="text-align: justify;">
                                 {!! nl2br(e($report->history_extract)) !!}
                                 
-                                <div class="mt-4 no-print">
                                     @if($wiki['desktop_url'] ?? null)
                                         <a href="{{ $wiki['desktop_url'] }}" target="_blank" class="btn btn-outline-dark rounded-pill px-4 py-2 fw-bold text-uppercase" style="font-size: 11px; letter-spacing: 0.1em;">
                                             <i class="fa-brands fa-wikipedia-w me-2"></i>Consultar Fonte Wikipedia
                                         </a>
+                                    @endif
+
+                                    @if(str_contains($report->history_extract, 'temporariamente indisponível'))
+                                        <div class="mt-4 p-4 rounded-4 bg-primary bg-opacity-5 border border-primary border-opacity-10 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="bg-primary text-white p-2 rounded-3 shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                                                <div>
+                                                    <h6 class="mb-0 fw-black text-dark">Tentar Novamente?</h6>
+                                                    <p class="small text-muted mb-0">Podemos tentar gerar esta narrativa agora que a demanda pode ter baixado.</p>
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-primary rounded-pill px-4 fw-black shadow-sm" onclick="reprocessNarrative(this)">
+                                                REPROCESSAR COM IA
+                                            </button>
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -1399,20 +1414,7 @@
                     </div>
                 </div>
             </div>
-            <script>
-                // Polling específico para o texto (Narrativa)
-                const narrativeInterval = setInterval(async () => {
-                    try {
-                        const response = await fetch('/api/report-status/{{ $report->cep }}');
-                        const data = await response.json();
-                        if (data.status === 'completed') {
-                            clearInterval(narrativeInterval);
-                            window.location.reload();
-                        }
-                    } catch (e) { console.error("Erro no polling da narrativa:", e); }
-                }, 4000);
-            </script>
-        @endif
+@endif
     </div>
 
     <!-- LEGAL DISCLAIMER -->
@@ -1586,6 +1588,7 @@
             const centerLng = {{ $report->lng }};
             const pois = @json($report->pois_json ?? []);
             const translations = @json($translations);
+            const wiki = @json($wiki);
 
             // 1. Configuração do Mapa
             const baseLayers = {
@@ -1945,6 +1948,53 @@
                     });
                 }
             };
+
+            // ================== REPROCESSAR NARRATIVA ==================
+            window.reprocessNarrative = async function(btn) {
+                if(!confirm('Deseja solicitar uma nova geração desta narrativa via IA?')) return;
+                
+                const originalContent = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Solicitando...';
+
+                try {
+                    const response = await fetch('{{ route('report.reprocess', $report->cep) }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        // Recarregar a página para ativar o estado 'processing_text' e o polling
+                        window.location.reload();
+                    } else {
+                        alert('Erro ao solicitar reprocessamento. Tente novamente mais tarde.');
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('Erro na conexão. Verifique sua internet.');
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                }
+            };
+
+            // Polling para narrativa se estiver processando
+            @if($report->status === 'processing_text')
+                const narrativeInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/report-status/{{ $report->cep }}');
+                        const data = await response.json();
+                        if (data.status === 'completed') {
+                            clearInterval(narrativeInterval);
+                            window.location.reload();
+                        }
+                    } catch (e) { console.error("Erro no polling da narrativa:", e); }
+                }, 4000);
+            @endif
 
             // ================== NOVO MODO COMPARATIVO ==================
             window.toggleCompare = function() {

@@ -51,5 +51,6 @@ Route::get('/api/trigger-queue', function () {
 Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
 Route::post('/search', [ReportController::class, 'search'])->name('search');
 Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
+Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
 Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
 Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');

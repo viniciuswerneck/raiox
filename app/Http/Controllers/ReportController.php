@@ -341,7 +341,18 @@ class ReportController extends Controller
         // Lazy Update para novos POIs (V1 -> V2) e Scores
         $this->ensureDataIsFresh($report);
 
-        return view('report.show', compact('report'));
+        // Ajuste de Proxy/Cache de Imagem da Wikipedia para Produção
+        $wiki = $report->wiki_json ?? [];
+        if (!empty($wiki['image'])) {
+            // Se a imagem for muito grande (original de 3000px+), forçar uma versão thumb de 640px
+            // Isso geralmente resolve bloqueios de 'User-Agent' ou Timeouts no Hostinger
+            if (str_contains($wiki['image'], '/commons/') && !str_contains($wiki['image'], '/thumb/')) {
+                $filename = basename($wiki['image']);
+                $wiki['image'] = str_replace('/commons/', '/commons/thumb/', $wiki['image']) . "/640px-" . $filename;
+            }
+        }
+
+        return view('report.show', compact('report', 'wiki'));
     }
 
     private function ensureDataIsFresh(\App\Models\LocationReport $report)
@@ -386,5 +397,27 @@ class ReportController extends Controller
         }
 
         return view('report.compare', compact('report1', 'report2'));
+    }
+    public function reprocessNarrative($cep)
+    {
+        $report = \App\Models\LocationReport::where('cep', $cep)->firstOrFail();
+        
+        // Resetar para 'processing_text' para que o polling do frontend funcione
+        $report->status = 'processing_text';
+        $report->history_extract = null;
+        $report->save();
+
+        // Disparar o Job de Narrativa
+        $wikiContext = [
+            'bairro' => $report->bairro,
+            'city' => $report->cidade,
+            'state' => $report->uf
+        ];
+        
+        // Usamos o LLMAgent para manter o padrão
+        $llmAgent = app(\App\Services\Agents\LLMAgent::class);
+        $llmAgent->dispatchTextGeneration($report->cep, $report->id, $wikiContext);
+
+        return response()->json(['success' => true]);
     }
 }
