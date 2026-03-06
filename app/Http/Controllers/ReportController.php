@@ -343,10 +343,13 @@ class ReportController extends Controller
 
         // Ajuste de Proxy/Cache de Imagem da Wikipedia para Produção
         $wiki = $report->wiki_json ?? [];
-        if (!empty($wiki['image'])) {
-            // Se a imagem for muito grande (original de 3000px+), forçar uma versão thumb de 640px
-            // Isso geralmente resolve bloqueios de 'User-Agent' ou Timeouts no Hostinger
-            if (str_contains($wiki['image'], '/commons/') && !str_contains($wiki['image'], '/thumb/')) {
+        if (!empty($wiki['image']) && str_contains($wiki['image'], 'upload.wikimedia.org')) {
+            if (str_contains($wiki['image'], '/thumb/')) {
+                // Se for uma thumbnail (especialmente se for gigante ex: 3456px), força para o padrão 640px
+                // Isso evita o erro "Use thumbnail steps" do Wikimedia
+                $wiki['image'] = preg_replace('/\/(\d+)px-/', '/640px-', $wiki['image']);
+            } elseif (str_contains($wiki['image'], '/commons/')) {
+                // Se for a imagem original no commons, converte para thumbnail de 640px
                 $filename = basename($wiki['image']);
                 $wiki['image'] = str_replace('/commons/', '/commons/thumb/', $wiki['image']) . "/640px-" . $filename;
             }
