@@ -1593,37 +1593,41 @@
             const wiki = @json($wiki);
 
             // 1. Configuração do Mapa
-            const baseLayers = {
-                "suave": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
-                "padrao": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
-                "clara": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
-                "escura": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
-                "satelite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+            const layerConfigs = {
+                "suave": ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }],
+                "padrao": ['https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }],
+                "clara": ['https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }],
+                "escura": ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }],
+                "satelite": ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }]
             };
+
+            const mainLayers = {};
+            Object.keys(layerConfigs).forEach(k => {
+                mainLayers[k] = L.tileLayer(layerConfigs[k][0], layerConfigs[k][1]);
+            });
 
             const map = L.map('map', { 
                 scrollWheelZoom: false,
                 attributionControl: false,
-                layers: [] // Started via currentMapStyle logic
+                layers: [] 
             }).setView([centerLat, centerLng], 15);
 
-            // 2. Estilos e Controles de Mapa
             let currentMapStyle = 'padrao'; 
-            baseLayers["padrao"].addTo(map);
+            mainLayers["padrao"].addTo(map);
 
+            // 2. Estilos e Controles de Mapa
             document.querySelectorAll('.map-style-btn').forEach(btn => {
-                // Initial active state
                 if (btn.getAttribute('data-style') === currentMapStyle) btn.classList.add('active');
 
                 btn.addEventListener('click', function() {
                     const style = this.getAttribute('data-style');
-                    if (style === currentMapStyle || !baseLayers[style]) return;
+                    if (style === currentMapStyle || !mainLayers[style]) return;
                     
                     document.querySelectorAll('.map-style-btn').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
 
-                    map.removeLayer(baseLayers[currentMapStyle]);
-                    baseLayers[style].addTo(map);
+                    map.removeLayer(mainLayers[currentMapStyle]);
+                    mainLayers[style].addTo(map);
                     currentMapStyle = style;
                 });
             });
@@ -1810,6 +1814,8 @@
                 if (isActive) {
                     overlay.style.display = 'none';
                     document.body.classList.remove('explorer-active');
+                    // IMPORTANTE: Recalcular o mapa original ao fechar o explorador
+                    setTimeout(() => map.invalidateSize(), 300);
                 } else {
                     overlay.style.display = 'flex';
                     document.body.classList.add('explorer-active');
@@ -1820,17 +1826,23 @@
                         if (currentMapStyle !== currentExplorerStyle) {
                             switchExplorerStyle(currentMapStyle);
                         }
-                        setTimeout(() => explorerMap.invalidateSize(), 100);
+                        // Recalcular o mapa do explorador ao abrir
+                        setTimeout(() => explorerMap.invalidateSize(), 300);
                     }
                 }
             };
 
+            const explorerLayers = {};
+            Object.keys(layerConfigs).forEach(k => {
+                explorerLayers[k] = L.tileLayer(layerConfigs[k][0], layerConfigs[k][1]);
+            });
+
             function switchExplorerStyle(style) {
-                if (!explorerMap || !baseLayers[style]) return;
+                if (!explorerMap || !explorerLayers[style]) return;
                 if (currentExplorerStyle) {
-                    explorerMap.removeLayer(baseLayers[currentExplorerStyle]);
+                    explorerMap.removeLayer(explorerLayers[currentExplorerStyle]);
                 }
-                baseLayers[style].addTo(explorerMap);
+                explorerLayers[style].addTo(explorerMap);
                 currentExplorerStyle = style;
                 
                 // Update UI active state
@@ -1847,6 +1859,9 @@
                     attributionControl: false
                 }).setView([centerLat, centerLng], 15);
 
+                // Forçar renderização inicial
+                setTimeout(() => explorerMap.invalidateSize(), 300);
+
                 // Inicializar com o mesmo estilo do mapa principal
                 switchExplorerStyle(currentMapStyle);
 
@@ -1857,8 +1872,8 @@
                         switchExplorerStyle(style);
                         // Opcional: sincronizar de volta para o mapa principal
                         if (currentMapStyle !== style) {
-                            map.removeLayer(baseLayers[currentMapStyle]);
-                            baseLayers[style].addTo(map);
+                            map.removeLayer(mainLayers[currentMapStyle]);
+                            mainLayers[style].addTo(map);
                             currentMapStyle = style;
                             // Atualizar botões do mapa principal
                             document.querySelectorAll('.map-style-btn').forEach(b => {
