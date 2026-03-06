@@ -1375,11 +1375,13 @@
                             <div class="editorial-text drop-cap" style="text-align: justify;">
                                 {!! nl2br(e($report->history_extract)) !!}
                                 
+                                <div class="mt-4 no-print">
                                     @if($wiki['desktop_url'] ?? null)
                                         <a href="{{ $wiki['desktop_url'] }}" target="_blank" class="btn btn-outline-dark rounded-pill px-4 py-2 fw-bold text-uppercase" style="font-size: 11px; letter-spacing: 0.1em;">
                                             <i class="fa-brands fa-wikipedia-w me-2"></i>Consultar Fonte Wikipedia
                                         </a>
                                     @endif
+                                </div>
 
                                     @if(str_contains($report->history_extract, 'temporariamente indisponível'))
                                         <div class="mt-4 p-4 rounded-4 bg-primary bg-opacity-5 border border-primary border-opacity-10 d-flex align-items-center justify-content-between flex-wrap gap-3">
