@@ -197,6 +197,17 @@ class GenerateNeighborhoodText implements ShouldQueue
         $headers = ['User-Agent' => 'RaioXNeighborhood/1.0'];
         $base    = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
 
+        $stateMap = [
+            'AC' => 'Acre', 'AL' => 'Alagoas', 'AP' => 'Amapá', 'AM' => 'Amazonas', 'BA' => 'Bahia',
+            'CE' => 'Ceará', 'DF' => 'Distrito Federal', 'ES' => 'Espírito Santo', 'GO' => 'Goiás',
+            'MA' => 'Maranhão', 'MT' => 'Mato Grosso', 'MS' => 'Mato Grosso do Sul', 'MG' => 'Minas Gerais',
+            'PA' => 'Pará', 'PB' => 'Paraíba', 'PR' => 'Paraná', 'PE' => 'Pernambuco', 'PI' => 'Piauí',
+            'RJ' => 'Rio de Janeiro', 'RN' => 'Rio Grande do Norte', 'RS' => 'Rio Grande do Sul',
+            'RO' => 'Rondônia', 'RR' => 'Roraima', 'SC' => 'Santa Catarina', 'SP' => 'São Paulo',
+            'SE' => 'Sergipe', 'TO' => 'Tocantins'
+        ];
+        $stateFullName = $stateMap[strtoupper($state)] ?? $state;
+
         $bairroLower = strtolower($bairro);
         $bairroIsAmbiguous = false;
         foreach (self::AMBIGUOUS_TERMS as $term) {
@@ -213,18 +224,23 @@ class GenerateNeighborhoodText implements ShouldQueue
                 $candidates[] = [str_replace(' ', '_', $bairro), 'bairro', true];
             }
         }
-        $candidates[] = [str_replace(' ', '_', "{$city} ({$state})"), 'cidade', false];
+        // Fallbacks por Cidade (Mais robustos agora com nome completo do estado)
+        $candidates[] = [str_replace(' ', '_', "{$city} ({$stateFullName})"), 'cidade', false];
         $candidates[] = [str_replace(' ', '_', $city), 'cidade', true];
 
         foreach ($candidates as [$term, $source, $shouldValidate]) {
             try {
-                $response = Http::withoutVerifying()->timeout(10)->withHeaders($headers)
-                    ->get($base . urlencode($term));
+                // urlencode padrão UTF-8
+                $url = $base . str_replace('%2F', '/', urlencode($term));
+                $response = Http::withoutVerifying()->timeout(10)->withHeaders($headers)->get($url);
 
                 if ($response->successful()) {
                     $data = $response->json();
+                    
+                    // Para candidatos de cidade, relaxamos a validação (confiamos no título exato se necessário)
                     $vCity = $shouldValidate ? $city : '';
-                    $vState = $shouldValidate ? $state : '';
+                    $vState = $shouldValidate ? ($source === 'cidade' ? '' : $stateFullName) : '';
+                    
                     if (!$this->isValidWikipediaPlace($data, $vCity, $vState)) {
                         continue;
                     }
