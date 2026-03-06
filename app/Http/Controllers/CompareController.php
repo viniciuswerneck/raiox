@@ -120,10 +120,12 @@ class CompareController extends Controller
             try {
                 // Injetamos o POIAgent via Service Container se possível, ou usamos o coordenador
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
-                $newPois = $poiAgent->fetchPOIs($report->lat, $report->lng);
+                $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
+                $newPois = $adaptiveData['pois'];
                 
                 if (!empty($newPois)) {
                     $report->pois_json = $newPois;
+                    $report->search_radius = $adaptiveData['radius'];
                     $report->data_version = 2;
                     $needsUpdate = true;
                 }

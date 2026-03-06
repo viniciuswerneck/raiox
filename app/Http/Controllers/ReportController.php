@@ -351,10 +351,12 @@ class ReportController extends Controller
             \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V1 -> V2) para o CEP {$report->cep}");
             try {
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
-                $newPois = $poiAgent->fetchPOIs($report->lat, $report->lng);
+                $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
+                $newPois = $adaptiveData['pois'];
                 
                 if (!empty($newPois)) {
                     $report->pois_json = $newPois;
+                    $report->search_radius = $adaptiveData['radius'];
                     $report->data_version = 2;
                     
                     // Recalcular scores com os novos dados

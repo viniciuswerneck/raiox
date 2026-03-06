@@ -15,8 +15,9 @@ class POIAgent
         Log::info("POIAgent: Iniciando busca de POIs em [{$lat}, {$lng}] com raio {$radius}m");
         
         // Conversão aproximada de metros para graus para criar uma Bounding Box (BBox)
-        // BBox é MUITO mais rápida que 'around' no servidor Overpass.
-        $margin = 0.009; // Aprox 1km
+        // 0.009 graus é aproximadamente 1km.
+        $margin = ($radius / 1000) * 0.009;
+        
         $lat_min = $lat - $margin;
         $lat_max = $lat + $margin;
         $lon_min = $lng - $margin;
@@ -94,6 +95,32 @@ class POIAgent
         }
 
         return [];
+    }
+
+    /**
+     * Traz os POIs com raio adaptativo. Se encontrar poucos itens, escala o raio.
+     */
+    public function fetchPOIsAdaptive(float $lat, float $lng): array
+    {
+        $radius = 1000;
+        $pois = $this->fetchPOIs($lat, $lng, $radius);
+
+        if (count($pois) < 15) {
+            Log::info("POIAgent: Poucos resultados em 1km. Escalando para 2.5km");
+            $radius = 2500;
+            $pois = $this->fetchPOIs($lat, $lng, $radius);
+
+            if (count($pois) < 10) {
+                Log::info("POIAgent: Ainda poucos resultados. Escalando final para 5km");
+                $radius = 5000;
+                $pois = $this->fetchPOIs($lat, $lng, $radius);
+            }
+        }
+
+        return [
+            'pois' => $pois,
+            'radius' => $radius
+        ];
     }
 
     public function calculateWalkabilityScore(array $pois): string

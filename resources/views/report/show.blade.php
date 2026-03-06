@@ -1015,6 +1015,8 @@
                         <!-- Custom Map Style Controls -->
                         <div class="position-absolute d-flex gap-2 no-print" style="top: 15px; right: 15px; z-index: 1000;">
                             <button class="btn btn-warning btn-sm fw-bold shadow-sm border" onclick="toggleHeatmap()"><i class="fa-solid fa-fire me-1"></i>Calor</button>
+                            <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="suave"><i class="fa-solid fa-feather text-primary me-1"></i>Suave</button>
+                            <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="padrao"><i class="fa-solid fa-map text-success me-1"></i>Padrão</button>
                             <button class="btn btn-light btn-sm fw-bold shadow-sm border map-style-btn" data-style="clara"><i class="fa-regular fa-sun text-warning me-1"></i>Clara</button>
                             <button class="btn btn-dark btn-sm fw-bold shadow-sm border map-style-btn" data-style="escura"><i class="fa-solid fa-moon text-light me-1"></i>Escura</button>
                             <button class="btn btn-primary btn-sm fw-bold shadow-sm border map-style-btn" data-style="satelite"><i class="fa-solid fa-satellite text-white me-1"></i>Satélite</button>
@@ -1028,9 +1030,9 @@
             <div class="col-xl-4">
                 <div class="card-pro h-100 d-flex flex-column">
                     <div class="mb-4 d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0 fw-black">Análise de Bairro</h5>
-                        <div class="text-primary fw-bold small">RAIO 1KM</div>
-                    </div>
+                         <h5 class="mb-0 fw-black">Análise de Bairro</h5>
+                         <div class="text-primary fw-bold small">RAIO {{ ($report->search_radius >= 1000) ? ($report->search_radius / 1000) . 'KM' : $report->search_radius . 'M' }}</div>
+                     </div>
                     
                     <!-- Quick Stats Grid -->
                     <div class="row g-2 mb-4">
@@ -1374,37 +1376,47 @@
 
             // 1. Configuração do Mapa
             const baseLayers = {
-                "Clara": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
-                "Escura": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
-                "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+                "suave": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
+                "padrao": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }),
+                "clara": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
+                "escura": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }),
+                "satelite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
             };
 
             const map = L.map('map', { 
                 scrollWheelZoom: false,
                 attributionControl: false,
-                layers: [baseLayers["Clara"]]
+                layers: [] // Started via currentMapStyle logic
             }).setView([centerLat, centerLng], 15);
 
             // 2. Estilos e Controles de Mapa
-            let currentMapStyle = 'clara';
+            let currentMapStyle = 'suave'; 
+            baseLayers["suave"].addTo(map);
+
             document.querySelectorAll('.map-style-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const style = this.getAttribute('data-style');
-                    if (style === currentMapStyle) return;
-                    map.removeLayer(baseLayers[Object.keys(baseLayers).find(key => key.toLowerCase() === currentMapStyle)]);
-                    if (style === 'clara') baseLayers["Clara"].addTo(map);
-                    if (style === 'escura') baseLayers["Escura"].addTo(map);
-                    if (style === 'satelite') baseLayers["Satélite"].addTo(map);
+                    if (style === currentMapStyle || !baseLayers[style]) return;
+                    
+                    map.removeLayer(baseLayers[currentMapStyle]);
+                    baseLayers[style].addTo(map);
                     currentMapStyle = style;
                 });
             });
 
             // 3. Raios de Acessibilidade (Zonas Urbanas)
+            const searchRadius = {{ $report->search_radius ?? 1000 }};
             const radii = [
                 { r: 300, color: '#10b981', label: '300m • 4 min' },
-                { r: 800, color: '#6366f1', label: '800m • 10 min' },
-                { r: 1500, color: '#f59e0b', label: '1.5km • Bairro' }
+                { r: 800, color: '#6366f1', label: '800m • 10 min' }
             ];
+
+            if (searchRadius <= 1500) {
+                radii.push({ r: 1500, color: '#f59e0b', label: '1.5km • Bairro' });
+            } else {
+                radii.push({ r: Math.round(searchRadius / 2), color: '#f59e0b', label: (searchRadius/2000).toFixed(1) + 'km' });
+                radii.push({ r: searchRadius, color: '#ef4444', label: (searchRadius/1000) + 'km • Busca' });
+            }
 
             radii.forEach(conf => {
                 L.circle([centerLat, centerLng], {
@@ -1548,9 +1560,6 @@
                     });
                 }
             };
-        });
-
-
 
             // ================== NOVO MODO COMPARATIVO ==================
             window.toggleCompare = function() {

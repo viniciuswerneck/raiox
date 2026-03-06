@@ -81,8 +81,11 @@ class PipelineCoordinator
         $climateData = $this->climaAgent->processResults($poolResponses);
         $socioData = $this->socioAgent->processResults($poolResponses, $ibgeCode);
 
-        // Fase 4: POIs (Reduzimos o raio para 1.0km para evitar timeout em centros densos como SP)
-        $pois = $this->poiAgent->fetchPOIs($lat, $lng, 1000); 
+        // Fase 4: POIs (Busca Adaptativa)
+        $adaptiveData = $this->poiAgent->fetchPOIsAdaptive($lat, $lng);
+        $pois = $adaptiveData['pois'];
+        $currentRadius = $adaptiveData['radius'];
+
         $walkScore = $this->poiAgent->calculateWalkabilityScore($pois);
         
         // Novo: Cálculo de Scores para o Banco
@@ -100,7 +103,7 @@ class PipelineCoordinator
             'uf' => $state,
             'codigo_ibge' => $ibgeCode,
             'pois_json' => $pois,
-            'search_radius' => 1000,
+            'search_radius' => $currentRadius,
             'walkability_score' => $walkScore,
             'infra_score' => $metrics['infra'],
             'mobility_score' => $metrics['mobility'],
