@@ -410,4 +410,19 @@ class ReportController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function reprocessFull($cep)
+    {
+        $cepClean = preg_replace('/\D/', '', $cep);
+        
+        // Deletar o registro para forçar criação do zero
+        \App\Models\LocationReport::where('cep', $cepClean)->delete();
+        
+        // Limpar Cache de Status e do Relatório
+        \Illuminate\Support\Facades\Cache::forget("report_status_{$cepClean}");
+        \Illuminate\Support\Facades\Cache::forget("report_cache_{$cepClean}");
+
+        // Redireciona para o show, que vai disparar o PipelineCoordinator novamente
+        return redirect()->route('report.show', $cepClean);
+    }
 }
