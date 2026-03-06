@@ -354,8 +354,6 @@ class ReportController extends Controller
                 $wiki['image'] = str_replace('/commons/', '/commons/thumb/', $wiki['image']) . "/640px-" . $filename;
             }
         }
-        
-        \Illuminate\Support\Facades\Log::info("WIKI IMAGE: Final target URL is: " . ($wiki['image'] ?? 'none'));
 
         return view('report.show', compact('report', 'wiki'));
     }
