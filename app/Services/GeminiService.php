@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     protected $apiKeys = [];
-    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
     public function __construct()
     {
@@ -162,7 +162,7 @@ PROMPT;
                 }
 
                 $errorBody = $response->body();
-                Log::warning("Gemini API Falhou na Key #" . ($index + 1) . ". Status: " . $response->status());
+                Log::warning("Gemini API Falhou na Key #" . ($index + 1) . ". Status: " . $response->status() . " | Error: " . $errorBody);
 
             } catch (\Exception $e) {
                 Log::warning('Gemini API Exception na Key #' . ($index + 1) . ': ' . $e->getMessage());
