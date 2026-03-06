@@ -228,6 +228,8 @@ class GenerateNeighborhoodText implements ShouldQueue
         $candidates[] = [str_replace(' ', '_', "{$city} ({$stateFullName})"), 'cidade', false];
         $candidates[] = [str_replace(' ', '_', $city), 'cidade', true];
 
+        $bestResult = null;
+
         foreach ($candidates as [$term, $source, $shouldValidate]) {
             try {
                 // urlencode padrão UTF-8
@@ -247,23 +249,41 @@ class GenerateNeighborhoodText implements ShouldQueue
                     
                     // Busca imagem oficial via API de PageImages (Thumbnail 960px)
                     $officialImage = $this->fetchWikipediaImageViaAPI($term, $headers);
+                    $imageUrl = $officialImage ?: ($data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null);
 
-                    // Busca conteúdo completo 
+                    // Busca conteúdo completo para o resumo
                     $fullText = $this->fetchWikipediaFullContent($term, $headers);
-                    return [
+                    
+                    $currentResult = [
                         'source'      => $source,
                         'term'        => $term,
                         'extract'     => $data['extract'],
                         'full_text'   => $fullText ?: $data['extract'],
-                        'image'       => $officialImage ?: ($data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null),
+                        'image'       => $imageUrl,
                         'desktop_url' => $data['content_urls']['desktop']['page'] ?? null,
                     ];
+
+                    // Se for o primeiro resultado válido de texto, salvamos
+                    if (!$bestResult) {
+                        $bestResult = $currentResult;
+                    }
+
+                    // ESTRATÉGIA: Se já temos texto E agora encontramos um resultado com IMAGEM,
+                    // priorizamos o texto original do bairro mas usamos a imagem da cidade
+                    if ($bestResult && !$bestResult['image'] && $currentResult['image']) {
+                        $bestResult['image'] = $currentResult['image'];
+                    }
+
+                    // Se o melhor resultado já tem imagem, podemos parar
+                    if ($bestResult && $bestResult['image']) {
+                        break;
+                    }
                 }
             } catch (\Exception $e) {
                 Log::warning("Wikipedia timeout/error for [{$term}]: " . $e->getMessage());
             }
         }
-        return [];
+        return $bestResult ?: [];
     }
 
     private function fetchWikipediaImageViaAPI(string $term, array $headers): ?string
