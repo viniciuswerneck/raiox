@@ -135,8 +135,6 @@
                 <a href="{{ route('ranking.index') }}" class="text-white bg-indigo-600/20 px-4 py-2 rounded-lg border border-indigo-500/20 hover:bg-indigo-600/40 transition-all flex items-center gap-2">
                     <i class="fa-solid fa-ranking-star text-indigo-400"></i> Explorar Rankings
                 </a>
-                <a href="#" class="hover:text-white transition-colors">Tecnologia</a>
-                <a href="https://github.com/viniciuswerneck/raiox" target="_blank" class="hover:text-white transition-colors">GitHub</a>
             </div>
         </nav>
 
@@ -146,9 +144,6 @@
             <div class="max-w-4xl space-y-10 py-12">
                 
                 <div class="space-y-4">
-                    <span class="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] mb-4">
-                        Powered by Gemini 2.5 AI
-                    </span>
                     <h1 class="text-5xl md:text-7xl font-black text-white leading-[1.1] tracking-tight text-glow">
                         Inteligência Territorial <br>
                         <span class="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">em Tempo Real.</span>
@@ -408,11 +403,11 @@
         <footer class="container mx-auto px-6 py-10 flex flex-col md:flex-row justify-between items-center text-slate-500 text-xs font-bold uppercase tracking-widest gap-6">
             <div class="flex items-center space-x-6">
                 <span class="flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span> Sistema Online</span>
-                <span>V1.4 Panthera</span>
+                <span class="text-indigo-400">V1.4 Territory Engine™</span>
             </div>
             <div class="flex items-center space-x-8">
                 <span>© {{ date('Y') }} Raio-X Territory</span>
-                <span class="text-indigo-500">Desenvolvido com Paixão</span>
+                <span class="text-indigo-500">Powered by Werneck</span>
             </div>
         </footer>
     </div>
@@ -464,7 +459,7 @@
             { text: "Minerando artigos na Wikipedia...", badge: "wikipedia", progress: 45 },
             { text: "Triangulando coordenadas OSM...", badge: "osm", progress: 65 },
             { text: "Gerando Insights com Gemini 2.5...", badge: "gemini", progress: 85 },
-            { text: "Finalizando Relatório Premium...", badge: null, progress: 95 },
+            { text: "Finalizando Territory Engine Neural Protocol...", badge: null, progress: 95 },
         ];
 
         const searchForm = document.getElementById('search-form');

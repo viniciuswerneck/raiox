@@ -1418,33 +1418,6 @@
 @endif
     </div>
 
-    <!-- LEGAL DISCLAIMER & AUDIT -->
-    <div class="container mt-0 mb-4 no-print">
-        <div class="p-4 rounded-4 border border-light" style="background: rgba(248, 250, 252, 0.4); border-style: dashed !important;">
-            <div class="d-flex align-items-start gap-3 mb-3">
-                <i class="fa-solid fa-circle-info text-muted mt-1"></i>
-                <div>
-                    <h6 class="fw-bold text-dark small mb-1">Aviso de Isenção de Responsabilidade</h6>
-                    <p class="text-muted mb-0" style="font-size: 0.75rem; line-height: 1.5; text-align: justify; opacity: 0.8;">
-                        As informações apresentadas neste relatório são consolidadas automaticamente a partir de fontes públicas da internet (Wikipedia, OpenStreetMap, Open-Meteo e IBGE) e processadas através de inteligência artificial. Devido à natureza dinâmica e colaborativa destas fontes, os dados podem conter imprecisões ou estar desatualizados. A plataforma não se responsabiliza pela veracidade absoluta das informações ou por decisões tomadas com base nestes dados. Recomendamos sempre a verificação presencial e a consulta a órgãos oficiais.
-                    </p>
-                </div>
-            </div>
-
-            <!-- AACT LOG (Integrated) -->
-            @if(!empty($report->aact_log) && is_array($report->aact_log))
-            <div class="pt-3 border-top border-light d-flex align-items-center gap-2" style="opacity: 0.4;">
-                <i class="fa-solid fa-robot small"></i>
-                <span class="fw-bold" style="font-size: 8px; letter-spacing: 0.05em;">AUDITORIA AACT:</span>
-                <div class="d-flex gap-2 flex-wrap">
-                    @foreach(array_slice($report->aact_log, 0, 6) as $log)
-                        <span class="fw-medium" style="font-size: 8px;">• {{ $log }}</span>
-                    @endforeach
-                </div>
-            </div>
-            @endif
-        </div>
-    </div>
 
     <!-- EXPLORER MODE OVERLAY -->
     <div id="explorer-overlay">
@@ -1566,35 +1539,6 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
-    <footer class="bg-dark text-white-50 py-5 mt-4">
-        <div class="container">
-            <div class="row align-items-center g-4">
-                <div class="col-md-4 text-center text-md-start">
-                    <div class="d-flex align-items-center gap-3 justify-content-center justify-content-md-start">
-                        <div class="rounded-3 overflow-hidden" style="width: 38px; height: 38px;">
-                            <img src="{{ asset('favicon.png') }}" class="w-100 h-100 object-fit-cover" style="filter: grayscale(1) brightness(1.5);" alt="Footer Logo">
-                        </div>
-                        <div>
-                            <h3 class="text-white mb-0 h6 fw-black text-uppercase tracking-tighter">{{ config('app.name') }}</h3>
-                            <p class="small mb-0 opacity-50" style="font-size: 10px;">Data Intelligence</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-center">
-                    <div class="d-flex flex-wrap justify-content-center gap-3">
-                        <span class="small fw-bold border-bottom border-secondary">IBGE</span>
-                        <span class="small fw-bold border-bottom border-secondary">OSM</span>
-                        <span class="small fw-bold border-bottom border-secondary">GOOGLE AI</span>
-                    </div>
-                </div>
-                <div class="col-md-4 text-center text-md-end">
-                    <p class="small mb-0 fw-bold">© {{ date('Y') }} - Todos os direitos reservados.</p>
-                </div>
-            </div>
-
-        </div>
-    </footer>
 
     <!-- Scripts -->
     <script>
@@ -2126,6 +2070,56 @@
 
     </style>
 
+    <!-- PREMIUM FOOTER: STATE OF THE ART -->
+    <footer class="bg-dark py-14 mt-10 no-print border-top border-white/5 overflow-hidden position-relative">
+        <!-- Subtle Background Glow -->
+        <div style="position: absolute; bottom: -50px; left: 50%; transform: translateX(-50%); width: 300px; height: 100px; background: rgba(99, 102, 241, 0.05); filter: blur(80px); border-radius: 50%; pointer-events: none;"></div>
+
+        <div class="container position-relative" style="z-index: 2;">
+            <div class="row align-items-center">
+                
+                <!-- Brand Identity -->
+                <div class="col-lg-4 text-center text-lg-start mb-5 mb-lg-0">
+                    <div class="d-inline-flex align-items-center gap-3">
+                        <div class="bg-white bg-opacity-5 p-2 rounded-4 border border-white border-opacity-10 backdrop-blur-md shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                            <img src="{{ asset('favicon.png') }}" class="w-75 h-75 opacity-90" alt="Logo">
+                        </div>
+                        <div>
+                            <h5 class="text-white fw-black text-uppercase tracking-tighter mb-0" style="font-size: 1.2rem; line-height: 1;">{{ config('app.name') }}</h5>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <span class="badge bg-indigo-500 bg-opacity-10 text-indigo-400 border border-indigo-500 border-opacity-20 px-2 py-0.5" style="font-size: 8px; font-weight: 900; letter-spacing: 0.1em;">V1.4 TERRITORY ENGINE™</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technical Status -->
+                <div class="col-lg-4 text-center mb-5 mb-lg-0">
+                    <div class="d-inline-flex flex-column align-items-center">
+                        <div class="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent w-full mb-3" style="width: 120px;"></div>
+                        <p class="text-slate-500 text-[9px] font-bold uppercase tracking-[0.4em] mb-0" style="opacity: 0.6;">
+                            Territory Data Intelligence Protocol
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Personal Signature -->
+                <div class="col-lg-4 text-center text-lg-end">
+                    <div class="d-inline-flex flex-column align-items-lg-end align-items-center">
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2" style="font-size: 10px;">
+                            Powered by <span class="text-white border-bottom border-indigo-500 border-opacity-50 pb-0.5">Werneck</span>
+                        </p>
+                        <div class="d-flex align-items-center gap-2 text-slate-600 fw-bold" style="font-size: 9px; letter-spacing: 0.05em;">
+                            <span>© {{ date('Y') }}</span>
+                            <span class="opacity-25 text-indigo-400">•</span>
+                            <span class="text-indigo-400/50">Brasil</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

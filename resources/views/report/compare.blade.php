@@ -481,5 +481,11 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapB);
         L.marker([{{ $reportB->lat }}, {{ $reportB->lng }}]).addTo(mapB);
     </script>
+    <footer class="bg-dark text-white-50 py-5 mt-5">
+        <div class="container text-center">
+            <h5 class="text-white fw-black text-uppercase mb-3">{{ config('app.name') }}</h5>
+            <p class="small mb-0">Territory Engine™ | Powered by Werneck &copy; {{ date('Y') }}</p>
+        </div>
+    </footer>
 </body>
 </html>
