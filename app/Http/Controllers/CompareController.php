@@ -29,6 +29,7 @@ class CompareController extends Controller
 
     public function show($cepA, $cepB)
     {
+        @set_time_limit(120);
         $cepA = preg_replace('/\D/', '', $cepA);
         $cepB = preg_replace('/\D/', '', $cepB);
 

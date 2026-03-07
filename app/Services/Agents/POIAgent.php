@@ -54,7 +54,7 @@ class POIAgent
             try {
                 $startTime = microtime(true);
                 $response = Http::withoutVerifying()
-                    ->timeout(25) // Timeout generoso de 25s para compensar latência de rede + 15s de processamento Overpass
+                    ->timeout(12) 
                     ->withHeaders($headers)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);

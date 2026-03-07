@@ -149,7 +149,7 @@ PROMPT;
                     $aiKeyRecord->update(['last_used_at' => now()]);
 
                     $response = Http::withoutVerifying()
-                        ->timeout(45)
+                        ->timeout(15)
                         ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                         ->post("{$baseUrl}?key={$apiKey}", [
                             'contents' => [
@@ -276,7 +276,7 @@ PROMPT;
                 try {
                     $aiKeyRecord->update(['last_used_at' => now()]);
                     
-                    $response = Http::withoutVerifying()->timeout(30)
+                    $response = Http::withoutVerifying()->timeout(15)
                         ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                         ->post("{$baseUrl}?key={$aiKeyRecord->key}", [
                             'contents' => [['parts' => [['text' => $prompt]]]]
