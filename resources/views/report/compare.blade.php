@@ -1,315 +1,442 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comparativo Premium: {{ $reportA->cep }} vs {{ $reportB->cep }} | Raio-X AI</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <title>Duelo Territorial: {{ $reportA->bairro ?: $reportA->cidade }} vs {{ $reportB->bairro ?: $reportB->cidade }} | {{ config('app.name') }}</title>
     
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    
+    <!-- Leaflet & ChartJS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
             --primary: #6366f1;
             --primary-dark: #4f46e5;
+            --secondary: #64748b;
             --accent: #f59e0b;
-            --bg-body: #f8fafc;
+            --success: #10b981;
+            --danger: #ef4444;
             --dark: #0f172a;
-            --card-radius: 24px;
+            --glass: rgba(255, 255, 255, 0.75);
+            --card-radius: 28px;
+            --font-main: 'Inter', sans-serif;
+            --font-heading: 'Outfit', sans-serif;
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
-            color: var(--dark);
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-family: var(--font-main);
             overflow-x: hidden;
         }
 
-        .header-section {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            padding: 80px 0 140px;
-            color: white;
-            text-align: center;
-            position: relative;
+        h1, h2, h3, h4, .font-heading {
+            font-family: var(--font-heading);
+            font-weight: 800;
         }
 
-        .vs-circle {
-            width: 80px;
-            height: 80px;
+        /* Hero Battle Section */
+        .battle-hero {
+            position: relative;
+            background: var(--dark);
+            padding: 80px 0 140px;
+            overflow: hidden;
+            color: white;
+            text-align: center;
+        }
+
+        .battle-hero::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+            z-index: 1;
+        }
+
+        .hero-content { position: relative; z-index: 2; }
+
+        .vs-badge {
+            width: 70px;
+            height: 70px;
             background: var(--accent);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            font-weight: 900;
             font-size: 24px;
+            font-weight: 900;
+            margin: 20px auto;
+            border: 5px solid rgba(255,255,255,0.1);
             box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
-            margin: -40px auto;
-            position: relative;
-            z-index: 10;
-            border: 4px solid white;
+            animation: pulse-vs 2s infinite;
         }
 
-        .container-main {
+        @keyframes pulse-vs {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(245, 158, 11, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
             margin-top: -80px;
             position: relative;
-            z-index: 20;
-            padding-bottom: 80px;
+            z-index: 10;
         }
 
-        .comparison-card {
+        .side-card {
             background: white;
             border-radius: var(--card-radius);
             padding: 40px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
-            border: 1px solid rgba(0,0,0,0.02);
+            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.8);
             height: 100%;
-            transition: all 0.3s;
+            transition: transform 0.3s;
         }
 
-        .comparison-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 30px 60px rgba(0,0,0,0.08);
+        .side-card.winner {
+            border: 2px solid var(--primary);
+            box-shadow: 0 25px 60px -15px rgba(99, 102, 241, 0.2);
         }
 
-        .vibe-tag {
-            display: inline-block;
-            padding: 6px 16px;
-            background: #eef2ff;
-            color: var(--primary);
-            border-radius: 99px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 10px;
-        }
-
-        .metric-value {
-            font-size: 4.5rem;
+        .metric-score {
+            font-size: 5rem;
             font-weight: 900;
-            letter-spacing: -4px;
             line-height: 1;
             margin: 15px 0;
-            color: var(--primary);
+            letter-spacing: -3px;
+            font-family: var(--font-heading);
         }
 
-        .chart-container {
+        .card-a .metric-score { color: var(--primary); }
+        .card-b .metric-score { color: var(--accent); }
+
+        .location-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 800;
+            color: var(--secondary);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Bento Metrics */
+        .metric-row {
+            padding: 20px;
+            background: white;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .metric-row:hover {
+            transform: scale(1.02);
+            background: #f8fafc;
+        }
+
+        .metric-info { flex: 1; }
+        .metric-info h6 { margin: 0; font-weight: 800; color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .metric-info p { margin: 0; font-weight: 700; color: var(--dark); }
+
+        .metric-vs-center {
+            width: 120px;
+            text-align: center;
+            font-weight: 900;
+            font-size: 0.8rem;
+            color: var(--secondary);
+            position: relative;
+        }
+
+        .metric-val-a, .metric-val-b {
+            width: 35%;
+            padding: 15px;
+            border-radius: 14px;
+            font-weight: 800;
+            text-align: center;
+            background: #f8fafc;
+        }
+
+        .metric-val-a.is-winner { background: rgba(99, 102, 241, 0.1); color: var(--primary); }
+        .metric-val-b.is-winner { background: rgba(245, 158, 11, 0.1); color: var(--accent); }
+
+        /* Map Mini */
+        .mini-map {
+            height: 200px;
+            border-radius: 18px;
+            margin-top: 20px;
+            border: 2px solid #f1f5f9;
+        }
+
+        /* AI Section */
+        .ai-verdict {
+            background: var(--dark);
+            color: white;
+            border-radius: var(--card-radius);
+            padding: 50px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 40px;
+        }
+
+        .ai-verdict::after {
+            content: "\f0d0";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            bottom: -30px;
+            right: 20px;
+            font-size: 10rem;
+            opacity: 0.05;
+        }
+
+        .radar-box {
             background: white;
             border-radius: var(--card-radius);
             padding: 40px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.05);
-            margin: 40px 0;
-            text-align: center;
         }
 
-        .map-box {
-            height: 250px;
-            border-radius: 20px;
-            margin-top: 25px;
-            border: 1px solid #e2e8f0;
-            overflow: hidden;
-            z-index: 1;
-        }
-
-        .info-card {
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            height: 100%;
-            border: 1px solid #f1f5f9;
-        }
-
-        .price-badge {
-            font-size: 1.2rem;
-            font-weight: 900;
-            color: var(--dark);
-            display: block;
-        }
-
-        .delta-badge {
-            font-size: 0.75rem;
-            font-weight: 800;
-            padding: 6px 14px;
-            border-radius: 99px;
-        }
-
-        .delta-plus { background: #d1fae5; color: #065f46; }
-        .delta-minus { background: #fee2e2; color: #991b1b; }
-
-        .back-btn {
+        .back-nav {
             position: absolute;
-            top: 30px;
-            left: 30px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 14px;
+            top: 30px; left: 30px;
+            color: rgba(255,255,255,0.6);
             text-decoration: none;
-            backdrop-filter: blur(10px);
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 0.9rem;
             transition: all 0.3s;
-            z-index: 1001;
+            z-index: 100;
         }
 
-        .radar-label {
-            font-weight: 800;
-            font-size: 0.7rem;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .back-nav:hover { color: white; transform: translateX(-5px); }
+
+        @media (max-width: 768px) {
+            .metric-vs-center { width: 60px; font-size: 0.6rem; }
+            .side-card { padding: 25px; margin-bottom: 20px; }
+            .metric-score { font-size: 3.5rem; }
         }
     </style>
-    <!-- Chart.js & Leaflet -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
-    <header class="header-section">
-        <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left me-2"></i>Voltar</a>
-        <div class="container">
-            <span class="metric-label text-white-50" style="letter-spacing: 5px;">Comparativo de Inteligência</span>
-            <h1 class="header-title mt-2">Duelo de Microterritórios</h1>
-            <p class="opacity-75 lead fw-medium">{{ $reportA->cidade }}/{{ $reportA->uf }} ⚔️ {{ $reportB->cidade }}/{{ $reportB->uf }}</p>
-        </div>
-    </header>
+    <a href="{{ route('home') }}" class="back-nav no-print">
+        <i class="fa-solid fa-arrow-left me-2"></i>VOLTAR PARA BUSCA
+    </a>
 
-    <div class="container container-main">
+    <!-- BATTLE HERO -->
+    <section class="battle-hero">
+        <div class="container hero-content">
+            <span style="font-size: 0.7rem; letter-spacing: 5px; text-transform: uppercase; font-weight: 900; opacity: 0.5;">Duelo Instrumental de Territórios</span>
+            <div class="d-md-flex align-items-center justify-content-center gap-4 mt-3">
+                <div class="text-md-end">
+                    <h1 class="display-3 mb-0">{{ $reportA->bairro ?: $reportA->cidade }}</h1>
+                    <span class="opacity-50 fw-bold">{{ $reportA->cidade }}/{{ $reportA->uf }}</span>
+                </div>
+                <div class="vs-badge">VS</div>
+                <div class="text-md-start">
+                    <h1 class="display-3 mb-0">{{ $reportB->bairro ?: $reportB->cidade }}</h1>
+                    <span class="opacity-50 fw-bold">{{ $reportB->cidade }}/{{ $reportB->uf }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTENT -->
+    <div class="container comparison-grid">
         <div class="row g-4 align-items-stretch">
-            <!-- Region A -->
+            
+            @php
+                $scoreA = $comparison->comparison_data['metrics_a']['total_score'];
+                $scoreB = $comparison->comparison_data['metrics_b']['total_score'];
+            @endphp
+
+            <!-- CARD A -->
             <div class="col-lg-5">
-                <div class="comparison-card">
-                    <span class="radar-label">CEP {{ preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $reportA->cep) }}</span>
-                    <h2 class="h4 fw-black mt-1 mb-0">{{ $reportA->bairro }}</h2>
-                    <div class="vibe-tag">{{ $reportA->territorial_classification }}</div>
-
-                    <div class="metric-value">{{ $comparison->comparison_data['metrics_a']['total_score'] }}</div>
-                    <span class="radar-label">Score Territorial AI</span>
-
-                    <div id="mapA" class="map-box"></div>
+                <div class="side-card card-a {{ $scoreA >= $scoreB ? 'winner' : '' }}">
+                    @if($scoreA >= $scoreB)
+                        <div class="badge bg-primary rounded-pill mb-3"><i class="fa-solid fa-crown me-1"></i>LÍDER TERRITORIAL</div>
+                    @endif
+                    <span class="location-label">REGIÃO CEP {{ preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $reportA->cep) }}</span>
+                    <h2 class="h4 mb-4">{{ $reportA->logradouro ?: 'Centro' }}</h2>
                     
-                    <div class="text-center mt-4">
-                        <a href="{{ route('report.show', $reportA->cep) }}" class="btn btn-outline-primary btn-sm rounded-pill px-4">
-                            Ver Relatório Completo
-                        </a>
+                    <div class="metric-score">{{ $scoreA }}</div>
+                    <span class="location-label">SCORE FINAL DE QUALIDADE</span>
+
+                    <div id="mapA" class="mini-map"></div>
+                    
+                    <a href="{{ route('report.show', $reportA->cep) }}" class="btn btn-outline-primary w-100 mt-4 rounded-pill fw-bold">
+                        EXPLORAR REGIÃO A
+                    </a>
+                </div>
+            </div>
+
+            <!-- VS CENTER CHART -->
+            <div class="col-lg-2 d-md-flex align-items-center justify-content-center">
+                <div class="d-none d-lg-block text-center mt-5">
+                    <div class="metric-vs-center">
+                        <i class="fa-solid fa-chart-simple fa-2x opacity-25"></i>
+                        <p class="mt-2 small opacity-50 fw-black">INDICADORES CHAVE</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Chart / VS Section -->
-            <div class="col-lg-2 d-flex flex-column align-items-center justify-content-center">
-                <div class="vs-circle">VS</div>
-            </div>
-
-            <!-- Region B -->
+            <!-- CARD B -->
             <div class="col-lg-5">
-                <div class="comparison-card">
-                    <span class="radar-label">CEP {{ preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $reportB->cep) }}</span>
-                    <h2 class="h4 fw-black mt-1 mb-0">{{ $reportB->bairro }}</h2>
-                    <div class="vibe-tag" style="background: #fffbeb; color: #d97706;">{{ $reportB->territorial_classification }}</div>
+                <div class="side-card card-b {{ $scoreB >= $scoreA ? 'winner' : '' }}">
+                    @if($scoreB >= $scoreA)
+                        <div class="badge bg-warning text-dark rounded-pill mb-3"><i class="fa-solid fa-crown me-1"></i>LÍDER TERRITORIAL</div>
+                    @endif
+                    <span class="location-label">REGIÃO CEP {{ preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $reportB->cep) }}</span>
+                    <h2 class="h4 mb-4">{{ $reportB->logradouro ?: 'Centro' }}</h2>
 
-                    <div class="metric-value" style="color: var(--accent);">{{ $comparison->comparison_data['metrics_b']['total_score'] }}</div>
-                    <span class="radar-label">Score Territorial AI</span>
+                    <div class="metric-score">{{ $scoreB }}</div>
+                    <span class="location-label">SCORE FINAL DE QUALIDADE</span>
 
-                    <div id="mapB" class="map-box"></div>
+                    <div id="mapB" class="mini-map"></div>
 
-                    <div class="text-center mt-4">
-                        <a href="{{ route('report.show', $reportB->cep) }}" class="btn btn-outline-warning btn-sm rounded-pill px-4" style="color: #d97706; border-color: #d97706;">
-                            Ver Relatório Completo
-                        </a>
+                    <a href="{{ route('report.show', $reportB->cep) }}" class="btn btn-outline-warning w-100 mt-4 rounded-pill fw-bold" style="color: #d97706; border-color: #d97706;">
+                        EXPLORAR REGIÃO B
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- RADAR COMPARISON -->
+        <div class="row mt-5">
+            <div class="col-lg-8 mx-auto">
+                <div class="radar-box text-center">
+                    <h4 class="mb-4">Equilíbrio Atributivo</h4>
+                    <div style="max-width: 500px; margin: 0 auto;">
+                        <canvas id="radarCompare"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Radar Chart Section -->
-        <div class="chart-container reveal">
-            <h3 class="h4 fw-black mb-4">Equilíbrio de Atributos</h3>
-            <div style="max-width: 500px; margin: 0 auto;">
-                <canvas id="radarChart"></canvas>
+        <!-- BENTO COMPARISON ROWS -->
+        <h4 class="text-center mt-5 mb-4 opacity-50">DETALHAMENTO TÉCNICO</h4>
+
+        <!-- Segurança -->
+        <div class="metric-row">
+            @php
+                $sA = $reportA->safety_level;
+                $sB = $reportB->safety_level;
+                // Lógica simples de vitória de segurança
+                $sA_win = str_contains(strtoupper($sA), 'ALT') && !str_contains(strtoupper($sB), 'ALT');
+                $sB_win = str_contains(strtoupper($sB), 'ALT') && !str_contains(strtoupper($sA), 'ALT');
+            @endphp
+            <div class="metric-val-a {{ $sA_win ? 'is-winner' : '' }}">
+                {{ $sA }}
+            </div>
+            <div class="metric-vs-center">
+                <i class="fa-solid fa-shield-halved d-block mb-1 text-primary"></i>
+                SEGURANÇA
+            </div>
+            <div class="metric-val-b {{ $sB_win ? 'is-winner' : '' }}">
+                {{ $sB }}
             </div>
         </div>
 
-        <!-- Contexto Imobiliário e Qualidade de Vida -->
-        <div class="row g-4 mt-2">
-            <div class="col-md-6">
-                <div class="info-card">
-                    <h5 class="fw-black mb-4"><i class="fa-solid fa-house-chimney me-2 text-primary"></i>Custo imobiliário (m²)</h5>
-                    <div class="row align-items-center">
-                        <div class="col-5 text-center">
-                            <span class="radar-label">{{ $reportA->bairro }}</span>
-                            <span class="price-badge">{{ $reportA->real_estate_json['preco_m2'] ?? '?' }}</span>
-                        </div>
-                        <div class="col-2 text-center">
-                            <i class="fa-solid fa-right-left opacity-25"></i>
-                        </div>
-                        <div class="col-5 text-center">
-                            <span class="radar-label">{{ $reportB->bairro }}</span>
-                            <span class="price-badge">{{ $reportB->real_estate_json['preco_m2'] ?? '?' }}</span>
-                        </div>
+        <!-- Renda / Econômico -->
+        <div class="metric-row">
+            <div class="metric-val-a {{ $reportA->average_income >= $reportB->average_income ? 'is-winner' : '' }}">
+                R$ {{ number_format($reportA->average_income, 0, ',', '.') }}
+            </div>
+            <div class="metric-vs-center">
+                <i class="fa-solid fa-wallet d-block mb-1 text-success"></i>
+                ESTRATO ECONÔMICO
+            </div>
+            <div class="metric-val-b {{ $reportB->average_income >= $reportA->average_income ? 'is-winner' : '' }}">
+                R$ {{ number_format($reportB->average_income, 0, ',', '.') }}
+            </div>
+        </div>
+
+        <!-- Caminhabilidade -->
+        <div class="metric-row">
+            @php
+                $wA = $reportA->walkability_score;
+                $wB = $reportB->walkability_score;
+            @endphp
+            <div class="metric-val-a {{ (ord($wA) <= ord($wB)) && $wA ? 'is-winner' : '' }}">
+                TIER {{ $wA ?: 'C' }}
+            </div>
+            <div class="metric-vs-center">
+                <i class="fa-solid fa-person-walking d-block mb-1 text-info"></i>
+                CAMINHABILIDADE
+            </div>
+            <div class="metric-val-b {{ (ord($wB) <= ord($wA)) && $wB ? 'is-winner' : '' }}">
+                TIER {{ $wB ?: 'C' }}
+            </div>
+        </div>
+
+        <!-- Ar -->
+        <div class="metric-row">
+            <div class="metric-val-a {{ $reportA->air_quality_index <= $reportB->air_quality_index ? 'is-winner' : '' }}">
+                {{ $reportA->air_quality_index }} AQI
+            </div>
+            <div class="metric-vs-center">
+                <i class="fa-solid fa-wind d-block mb-1 text-secondary"></i>
+                PUREZA DO AR
+            </div>
+            <div class="metric-val-b {{ $reportB->air_quality_index <= $reportA->air_quality_index ? 'is-winner' : '' }}">
+                {{ $reportB->air_quality_index }} AQI
+            </div>
+        </div>
+
+        <!-- AI VERDICT -->
+        <div class="ai-verdict">
+            <div class="row align-items-center">
+                <div class="col-md-2 text-center text-md-start mb-4 mb-md-0">
+                    <div class="bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center p-3 rounded-4 shadow-lg">
+                        <i class="fa-solid fa-wand-magic-sparkles fa-3x"></i>
                     </div>
-                    <div class="mt-4 p-3 bg-light rounded-4 small">
-                        <i class="fa-solid fa-circle-info me-2 text-primary"></i>
-                        Poder de compra local: Renda média de 
-                        <strong>R$ {{ number_format($reportA->average_income, 0, ',', '.') }}</strong> (A) vs 
-                        <strong>R$ {{ number_format($reportB->average_income, 0, ',', '.') }}</strong> (B).
+                </div>
+                <div class="col-md-10">
+                    <h3 class="fw-black mb-3">Veredito da Inteligência Territorial</h3>
+                    <div class="editorial-text opacity-90" style="line-height: 1.8; text-align: justify; font-size: 1.1rem; border-left: 3px solid var(--primary); padding-left: 20px;">
+                        {!! nl2br(e($comparison->analysis_text)) !!}
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="info-card" style="border-left: 5px solid #10b981;">
-                    <h5 class="fw-black mb-4"><i class="fa-solid fa-leaf me-2 text-success"></i>Bem-estar Ambiental</h5>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span class="small fw-bold">Qualidade de Ar (AQI)</span>
-                        <div>
-                            <span class="badge {{ ($reportA->air_quality_index ?? 100) < ($reportB->air_quality_index ?? 100) ? 'bg-success' : 'bg-secondary' }}">{{ $reportA->air_quality_index }} (A)</span>
-                            <span class="badge {{ ($reportB->air_quality_index ?? 100) < ($reportA->air_quality_index ?? 100) ? 'bg-success' : 'bg-secondary' }}">{{ $reportB->air_quality_index }} (B)</span>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span class="small fw-bold">Temperatura Atual</span>
-                        <div>
-                            <span class="fw-black">{{ $reportA->climate_json['current']['temperature'] ?? '?' }}°C</span> vs
-                            <span class="fw-black">{{ $reportB->climate_json['current']['temperature'] ?? '?' }}°C</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- AI Verdict -->
-        <div class="analysis-card reveal mt-4" style="border-left: 5px solid var(--primary);">
-            <h4 class="fw-black text-primary mb-3"><i class="fa-solid fa-robot me-2"></i>Veredito da Inteligência Artificial</h4>
-            <div class="lead text-secondary" style="text-align: justify; line-height: 1.8; font-size: 1.1rem;">
-                {!! nl2br(e($comparison->analysis_text)) !!}
-            </div>
-        </div>
-
-        <div class="text-center mt-5">
-            <a href="{{ route('home') }}" class="btn btn-dark rounded-pill px-5 py-3 fw-bold shadow-lg">
-                Fazer nova pesquisa
+        <div class="text-center my-5 py-5">
+            <p class="text-muted small fw-bold mb-4">Relatório emitido via Raio-X AI Territorial Intelligence</p>
+            <a href="{{ route('home') }}" class="btn btn-dark rounded-pill px-5 py-3 shadow-lg">
+                INICIAR NOVA COMPARAÇÃO
             </a>
         </div>
+
     </div>
 
     <script>
-        // Init Radar Chart
-        const ctx = document.getElementById('radarChart').getContext('2d');
+        // RADAR CHART
+        const ctx = document.getElementById('radarCompare').getContext('2d');
         new Chart(ctx, {
             type: 'radar',
             data: {
-                labels: ['Infra', 'Mobilidade', 'Lazer', 'Comércio'],
+                labels: ['INFRA', 'MOBILIDADE', 'LAZER', 'SERVIÇOS', 'COMÉRCIO'],
                 datasets: [
                     {
-                        label: '{{ $reportA->bairro }}',
+                        label: '{{ $reportA->bairro ?: 'Região A' }}',
                         data: [
                             {{ $comparison->comparison_data['metrics_a']['infra'] }},
                             {{ $comparison->comparison_data['metrics_a']['mobility'] }},
                             {{ $comparison->comparison_data['metrics_a']['leisure'] }},
-                            {{ $comparison->comparison_data['metrics_a']['commerce'] }}
+                            {{ $comparison->comparison_data['metrics_a']['services'] ?? 50 }},
+                            {{ $comparison->comparison_data['metrics_a']['commerce'] ?? 60 }}
                         ],
                         backgroundColor: 'rgba(99, 102, 241, 0.2)',
                         borderColor: '#6366f1',
@@ -317,12 +444,13 @@
                         pointBackgroundColor: '#6366f1'
                     },
                     {
-                        label: '{{ $reportB->bairro }}',
+                        label: '{{ $reportB->bairro ?: 'Região B' }}',
                         data: [
                             {{ $comparison->comparison_data['metrics_b']['infra'] }},
                             {{ $comparison->comparison_data['metrics_b']['mobility'] }},
                             {{ $comparison->comparison_data['metrics_b']['leisure'] }},
-                            {{ $comparison->comparison_data['metrics_b']['commerce'] }}
+                            {{ $comparison->comparison_data['metrics_b']['services'] ?? 40 }},
+                            {{ $comparison->comparison_data['metrics_b']['commerce'] ?? 50 }}
                         ],
                         backgroundColor: 'rgba(245, 158, 11, 0.2)',
                         borderColor: '#f59e0b',
@@ -339,12 +467,12 @@
                     }
                 },
                 plugins: {
-                    legend: { position: 'bottom' }
+                    legend: { position: 'bottom', labels: { font: { family: 'Outfit', weight: 'bold' } } }
                 }
             }
         });
 
-        // Init Maps
+        // MAPS
         const mapA = L.map('mapA', { zoomControl: false, scrollWheelZoom: false }).setView([{{ $reportA->lat }}, {{ $reportA->lng }}], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapA);
         L.marker([{{ $reportA->lat }}, {{ $reportA->lng }}]).addTo(mapA);
