@@ -21,18 +21,22 @@
 | `config/services.php` | `app/Services/GeminiService.php` (lê `services.gemini.key`) |
 | `.env` | `config/services.php`, `config/database.php` |
 
-### ⚠️ Regras Imutáveis: Gemini JSON Parsing (GeminiService.php)
-A estrutura de `GeminiService.php` faz o tratamento e decodificação forçada do retorno da API (`v1beta/models/gemini-2.5-flash`). Modelos Flash tendem a retornar JSON mal-formados e ISO quebrado não-escapados. **A lógica nativa do PHP usando conversão agressiva `preg_replace` e `json_decode(..., JSON_INVALID_UTF8_IGNORE)` no serviço NÃO DEVE SER ALTERADA sob nenhuma hipótese**, do contrário, voltará a acusar erros 4 *Syntax error* e invalidará os grandes textos guardados da Wikipedia nos bairros e cidades do país.
+### ⚠️ Regras Imutáveis: Gemini & Rate Limiting (GeminiService.php)
+1. **Modelos**: O modelo `gemini-2.5-flash-lite` é o mais estável para este projeto. O `gemini-2.0-flash` frequentemente retorna erro **429 (Quota Excedida)** em chaves gratuitas.
+2. **Parsing**: A estrutura faz o tratamento e decodificação forçada do retorno da API. Modelos Flash tendem a retornar JSON mal-formados. **A lógica de conversão agressiva `preg_replace` e `json_decode` NÃO DEVE SER ALTERADA**.
+3. **Throttling (Hostinger/Prod)**: Para evitar bloqueios por "burst" (requisições simultâneas), o sistema implementa:
+   - **Jitter**: Atraso aleatório no início do Job.
+   - **Pausa entre retentativas**: 0.8s de espera entre trocas de chaves.
+   - **Cooldown Dinâmico**: Erro 429 suspende a chave por 5 minutos (evitar bloqueios permanentes).
 
 ---
 
 ## Rotas (routes/web.php)
 
-| Método | URI | Nome | Controller@Método |
-|--------|-----|------|-------------------|
 | GET | `/` | `home` | Welcome view (inline) |
 | POST | `/search` | `search` | `ReportController@search` |
 | GET | `/cep/{cep}` | `report.show` | `ReportController@show` |
+| GET | `/clear-cache` | — | Limpeza de cache, config e reset de chaves IA |
 
 ---
 

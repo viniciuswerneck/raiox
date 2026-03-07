@@ -49,6 +49,9 @@ class GenerateNeighborhoodText implements ShouldQueue
      */
     public function handle(GeminiService $gemini): void
     {
+        // Delay aleatório inicial (0.2s a 1.5s) para evitar que múltiplos Jobs batam na API ao mesmo tempo
+        usleep(rand(200000, 1500000)); 
+        
         set_time_limit(180);
         $report = LocationReport::find($this->reportId);
         if (!$report) {
@@ -64,6 +67,12 @@ class GenerateNeighborhoodText implements ShouldQueue
 
             // 1. Wikipedia Múltipla Lógica (Bairro ou Cidade)
             $wikiResult = $this->fetchWikipediaInfo($bairro, $city, $state);
+            
+            $sourceType = !empty($wikiResult['full_text']) ? 'FULL_TEXT' : (!empty($wikiResult['extract']) ? 'EXTRACT' : 'NONE');
+            $contentLen = strlen($wikiResult['full_text'] ?? $wikiResult['extract'] ?? '');
+            
+            Log::info("TextGenerator: Wiki Result [{$sourceType}] para {$bairro}/{$city}. Tamanho: {$contentLen} bytes.");
+            
             $historyRaw = $wikiResult['full_text'] ?? $wikiResult['extract'] ?? "Local em desenvolvimento. Sobe as informações disponíveis sobre a cidade {$city}.";
 
             // 2. AACT Context para a IA

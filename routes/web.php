@@ -55,3 +55,28 @@ Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'repr
 Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
 Route::get('/cep/{cep}/reprocessar', [ReportController::class, 'reprocessFull'])->name('report.reprocess_full');
 Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
+
+// Rota para Limpeza Geral (Útil para Produção/Hostinger)
+Route::get('/clear-cache', function() {
+    try {
+        // 1. Limpa o Cache da Aplicação
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        
+        // 2. Limpa o Cache de Configuração
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        
+        // 3. Libera todas as chaves de IA do "castigo" (cooldown)
+        \App\Models\AiKey::query()->update(['cooldown_until' => null]);
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cache limpo e chaves de IA liberadas com sucesso!',
+            'actions' => ['cache:clear', 'config:clear', 'ai_keys_reset']
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});

@@ -1079,37 +1079,13 @@
             </div>
         </div>
 
-        <!-- AACT LOG SECION -->
-        @if(!empty($report->aact_log) && is_array($report->aact_log))
-        <div class="row mb-5 reveal no-print" style="animation-delay: 0.15s;">
-            <div class="col-12">
-                <div class="card-pro border-0" style="background: rgba(99, 102, 241, 0.04); border-left: 4px solid var(--primary) !important;">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; border-radius: 12px;">
-                            <i class="fa-solid fa-robot"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-0 fw-black text-dark">Agente de Auditoria (AACT)</h5>
-                            <p class="small text-muted mb-0 fw-bold">Validação territorial inteligente concluída.</p>
-                        </div>
-                    </div>
-                    <ul class="list-unstyled mb-0 ms-1 space-y-2">
-                        @foreach($report->aact_log as $log)
-                            <li class="small text-secondary fw-medium d-flex align-items-start gap-2">
-                                <i class="fa-solid fa-check text-primary mt-1" style="font-size: 10px;"></i>
-                                <span>{{ $log }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        </div>
-        @endif
+
+
 
         <!-- MIDDLE SECTION: MAP & INFRASTRUCTURE -->
-        <div class="row g-4 mb-5">
-            <div class="col-xl-8">
-                <div id="map-print-section" class="card-pro p-0 overflow-hidden bg-white border-0 shadow-lg">
+        <div class="row g-4 mb-0">
+            <div class="col-xl-8 col-lg-7 reveal">
+                <div id="map-print-section" class="card-pro p-0 overflow-hidden d-flex flex-column bg-white border-0 shadow-lg h-100">
                     <div class="p-4 d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 bg-white border-bottom no-print">
                         <div>
                             <h4 class="mb-0">Mapeamento Territorial</h4>
@@ -1126,7 +1102,7 @@
                             <span class="map-category-btn" data-filter="services"><i class="fa-solid fa-building-columns text-dark"></i>Serviços</span>
                         </div>
                     </div>
-                    <div id="map-container" style="height: 500px; position: relative;">
+                    <div id="map-container" style="flex-grow: 1; height: auto; min-height: 950px; position: relative;">
                         <!-- Custom Map Style Controls -->
                         <div class="map-controls-premium no-print">
                             <button class="btn btn-light btn-sm fw-bold shadow-sm border" onclick="toggleHeatmap(this)"><i class="fa-solid fa-fire me-1"></i>Calor</button>
@@ -1146,7 +1122,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-4">
+            <div class="col-xl-4 col-lg-5 reveal" style="animation-delay: 0.1s">
                 <div class="card-pro h-100 d-flex flex-column">
                     <div class="mb-4 d-flex align-items-center justify-content-between">
                          <h5 class="mb-0 fw-black">Análise de Bairro</h5>
@@ -1193,7 +1169,7 @@
                         </div>
                     </div>
 
-                    <div class="poi-drawer flex-grow-1" style="max-height: 400px; overflow-y: auto;">
+                    <div class="poi-drawer flex-grow-1" style="max-height: 720px; overflow-y: auto;">
                         @php
                             $cat_list = [
                                 ['label' => 'Alimentação', 'data' => $poi_food, 'icon' => 'utensils', 'color' => 'danger'],
@@ -1264,6 +1240,7 @@
                             @endforelse
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -1282,15 +1259,16 @@
                             <i class="fa-solid fa-shield-halved"></i>
                         </div>
                         <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                                 <div>
                                     <h5 class="mb-0 fw-black text-dark" style="letter-spacing: -0.02em;">Índice de Segurança</h5>
                                     <div class="small text-muted opacity-75">Análise regional de proteção</div>
                                 </div>
-                                <span class="badge bg-{{ $sColor }} rounded-pill px-3 py-2 fw-black shadow-sm" style="font-size: 0.85rem; letter-spacing: 0.03em;">
+                                <span class="badge bg-{{ $sColor }} rounded-pill px-3 py-2 fw-black shadow-sm text-wrap" style="font-size: 0.85rem; letter-spacing: 0.03em; max-width: 200px;">
                                     <i class="fa-solid fa-check-circle me-1 small"></i>{{ $report->safety_level ?? 'N/A' }}
                                 </span>
                             </div>
+
                             <div class="editorial-text small text-muted mb-0" style="line-height: 1.6; text-align: justify; font-size: 0.95rem;">
                                 {{ $report->safety_description ?: 'Baseado em dados estatísticos regionais e infraestrutura de vigilância local.' }}
                             </div>
@@ -1303,8 +1281,18 @@
             <!-- Mercado Imobiliário -->
             <div class="col-lg-6 col-md-12 reveal" style="animation-delay: 0.5s">
                 <div class="card-pro overflow-hidden border-0 shadow-sm h-100 d-flex flex-column" style="background: white;">
+                    @php
+                        $fullTend = $report->real_estate_json['tendencia_valorizacao'] ?? 'ESTÁVEL';
+                        $isAlta = str_contains(strtoupper($fullTend), 'ALTA') || str_contains(strtoupper($fullTend), 'POSITIVA') || str_contains(strtoupper($fullTend), 'VALORIZAÇÃO') || str_contains(strtoupper($fullTend), 'VALORIZ');
+                        $isBaixa = str_contains(strtoupper($fullTend), 'BAIXA') || str_contains(strtoupper($fullTend), 'NEGATIVA') || str_contains(strtoupper($fullTend), 'DESVALORIZAÇÃO');
+                        
+                        $badgeText = $isAlta ? 'TENDÊNCIA POSITIVA' : ($isBaixa ? 'TENDÊNCIA BAIXA' : 'ESTÁVEL');
+                        $tColor = $isAlta ? 'success' : ($isBaixa ? 'danger' : 'warning');
+                        $tIcon = $isAlta ? 'arrow-trend-up' : ($isBaixa ? 'arrow-trend-down' : 'minus');
+                    @endphp
+
                     <!-- Cabeçalho com Tendência -->
-                    <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
                         <div class="d-flex align-items-center">
                             <div class="metric-icon-pro bg-primary bg-opacity-10 text-primary mb-0 me-3 shadow-none" style="width:48px;height:48px; border-radius: 14px;">
                                 <i class="fa-solid fa-house-circle-check" style="font-size: 20px;"></i>
@@ -1314,39 +1302,45 @@
                                 <div class="small text-muted opacity-75">Análise preditiva de valores</div>
                             </div>
                         </div>
-                        @php
-                            $tend = strtoupper($report->real_estate_json['tendencia_valorizacao'] ?? 'ESTÁVEL');
-                            $tColor = str_contains($tend, 'ALTA') ? 'success' : (str_contains($tend, 'BAIXA') ? 'danger' : 'warning');
-                            $tIcon = str_contains($tend, 'ALTA') ? 'arrow-trend-up' : (str_contains($tend, 'BAIXA') ? 'arrow-trend-down' : 'minus');
-                        @endphp
-                        <span class="badge bg-{{ $tColor }} bg-opacity-10 text-{{ $tColor }} border border-{{ $tColor }} border-opacity-20 px-3 py-2 rounded-pill">
+                        <span class="badge bg-{{ $tColor }} bg-opacity-10 text-{{ $tColor }} border border-{{ $tColor }} border-opacity-20 px-3 py-2 rounded-pill whitespace-nowrap">
                             <i class="fa-solid fa-{{ $tIcon }} me-1 small"></i> 
-                            <span class="fw-black" style="font-size: 0.7rem; letter-spacing: 0.05em;">{{ $tend }}</span>
+                            <span class="fw-black" style="font-size: 0.65rem; letter-spacing: 0.05em;">{{ $badgeText }}</span>
                         </span>
                     </div>
+
+                    <!-- AI Narrative Insight -->
+                    <div class="p-3 rounded-4 mb-4" style="background: rgba(var(--bs-{{ $tColor }}-rgb), 0.03); border: 1px dashed rgba(var(--bs-{{ $tColor }}-rgb), 0.2);">
+                        <div class="d-flex gap-2">
+                             <i class="fa-solid fa-quote-left text-{{ $tColor }} opacity-25" style="font-size: 14px;"></i>
+                             <p class="small text-secondary mb-0 fw-medium italic" style="line-height: 1.4; text-align: justify; font-size: 0.85rem;">
+                                 {{ $fullTend }}
+                             </p>
+                        </div>
+                    </div>
                     
-                    <!-- Preço em Destaque (Largura Total) -->
+                    <!-- Preço em Destaque -->
                     <div class="mb-4">
-                        <div class="small fw-bold text-muted mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.08em;">Preço M² Médio Estimado</div>
-                        <div class="h4 mb-0 fw-black text-dark" style="color: #1e293b; line-height: 1.2; font-size: 1.4rem;">
+                        <div class="small fw-bold text-muted mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.08em;">Estimativa de Valor M²</div>
+                        <div class="fw-black text-dark" style="color: #1e293b; line-height: 1.1; font-size: 1.25rem;">
                             {{ $report->real_estate_json['preco_m2'] ?? 'Sob Consulta' }}
                         </div>
                     </div>
 
                     <!-- Perfil da Região (Seção Inferior) -->
                     <div class="mt-auto pt-3 border-top border-light">
-                        <div class="small fw-bold text-muted mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.08em;">Perfil Comportamental da Região</div>
+                        <div class="small fw-bold text-muted mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.08em;">Perfil Comentado da Região</div>
                         <div class="small text-secondary fw-medium" style="line-height: 1.5; text-align: justify; font-size: 0.9rem;">
                             {{ $report->real_estate_json['perfil_imoveis'] ?? 'Misto' }}
                         </div>
                     </div>
+
                 </div>
             </div>
             @endif
 
         <!-- HISTORY SECTION -->
         @if($report->history_extract)
-            <div class="row mb-5 reveal">
+            <div class="row mb-4 reveal">
                 <div class="col-12">
                     <div class="card-pro border-0 shadow-lg overflow-hidden position-relative">
                         <div class="d-flex align-items-center gap-3 mb-4">
@@ -1419,18 +1413,31 @@
 @endif
     </div>
 
-    <!-- LEGAL DISCLAIMER -->
-    <div class="container mb-5 no-print">
-        <div class="p-4 rounded-4 border border-light" style="background: rgba(248, 250, 252, 0.5);">
-            <div class="d-flex align-items-start gap-3">
+    <!-- LEGAL DISCLAIMER & AUDIT -->
+    <div class="container mt-0 mb-4 no-print">
+        <div class="p-4 rounded-4 border border-light" style="background: rgba(248, 250, 252, 0.4); border-style: dashed !important;">
+            <div class="d-flex align-items-start gap-3 mb-3">
                 <i class="fa-solid fa-circle-info text-muted mt-1"></i>
                 <div>
                     <h6 class="fw-bold text-dark small mb-1">Aviso de Isenção de Responsabilidade</h6>
-                    <p class="text-muted mb-0" style="font-size: 0.8rem; line-height: 1.5; text-align: justify;">
+                    <p class="text-muted mb-0" style="font-size: 0.75rem; line-height: 1.5; text-align: justify; opacity: 0.8;">
                         As informações apresentadas neste relatório são consolidadas automaticamente a partir de fontes públicas da internet (Wikipedia, OpenStreetMap, Open-Meteo e IBGE) e processadas através de inteligência artificial. Devido à natureza dinâmica e colaborativa destas fontes, os dados podem conter imprecisões ou estar desatualizados. A plataforma não se responsabiliza pela veracidade absoluta das informações ou por decisões tomadas com base nestes dados. Recomendamos sempre a verificação presencial e a consulta a órgãos oficiais.
                     </p>
                 </div>
             </div>
+
+            <!-- AACT LOG (Integrated) -->
+            @if(!empty($report->aact_log) && is_array($report->aact_log))
+            <div class="pt-3 border-top border-light d-flex align-items-center gap-2" style="opacity: 0.4;">
+                <i class="fa-solid fa-robot small"></i>
+                <span class="fw-bold" style="font-size: 8px; letter-spacing: 0.05em;">AUDITORIA AACT:</span>
+                <div class="d-flex gap-2 flex-wrap">
+                    @foreach(array_slice($report->aact_log, 0, 6) as $log)
+                        <span class="fw-medium" style="font-size: 8px;">• {{ $log }}</span>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 
@@ -1555,7 +1562,7 @@
     </div>
 
     <!-- FOOTER -->
-    <footer class="bg-dark text-white-50 py-5 mt-5">
+    <footer class="bg-dark text-white-50 py-5 mt-4">
         <div class="container">
             <div class="row align-items-center g-4">
                 <div class="col-md-4 text-center text-md-start">
@@ -1580,6 +1587,7 @@
                     <p class="small mb-0 fw-bold">© {{ date('Y') }} - Todos os direitos reservados.</p>
                 </div>
             </div>
+
         </div>
     </footer>
 

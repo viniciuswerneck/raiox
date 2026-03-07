@@ -8,13 +8,12 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     protected $models = [
-        'gemini-2.5-flash-lite',
-        'gemini-2.0-flash',
+        'gemini-2.5-flash-lite', // O CAMPEÃO: Único que funcionou consistentemente nos logs
         'gemini-2.0-flash-lite',
-        'gemini-2.0-flash-001',
-        'gemini-2.0-flash-lite-001',
-        'gemma-3-1b-it',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
     ];
+
 
     public function __construct()
     {
@@ -23,13 +22,38 @@ class GeminiService
 
     private function getNextKey()
     {
-        return \App\Models\AiKey::where('is_active', true)
+        $key = \App\Models\AiKey::where('is_active', true)
             ->where(function ($query) {
+                // Usamos a comparação direta via DB para evitar dessincronia de horário App/DB
                 $query->whereNull('cooldown_until')
                       ->orWhere('cooldown_until', '<=', now());
             })
             ->orderBy('last_used_at', 'asc')
             ->first();
+
+        if (!$key) {
+            // Se não achou nenhuma, vamos ver se tem alguma em cooldown curto (menos de 5 min)
+            // e pegar a que vai liberar mais cedo
+            $nextToRelease = \App\Models\AiKey::where('is_active', true)
+                ->whereNotNull('cooldown_until')
+                ->orderBy('cooldown_until', 'asc')
+                ->first();
+                
+            if ($nextToRelease) {
+                $waitSecs = now()->diffInSeconds($nextToRelease->cooldown_until, false);
+                Log::warning("Gemini: Nenhuma chave livre. Próxima em {$waitSecs}s (ID: {$nextToRelease->id})");
+                
+                // Se a espera for menor que 10 segundos, vamos "forçar" o uso dela
+                if ($waitSecs < 10) {
+                    $nextToRelease->update(['cooldown_until' => null]);
+                    return $nextToRelease;
+                }
+            } else {
+                Log::error("Gemini: Nenhuma chave ATIVA cadastrada no banco de dados.");
+            }
+        }
+
+        return $key;
     }
 
     private function logUsage($keyId, $model, $success, $error = null, $latency = null)
@@ -57,7 +81,10 @@ class GeminiService
         $income = $aactContext['renda'] ?? 0;
         $safety = $aactContext['safety_level'] ?? 'MODERADO';
         
-        $wikiSub = substr($wikiText, 0, 4000);
+        $contextLength = strlen($wikiText);
+        Log::info("GeminiService: Gerando narrativa para {$location}. Contexto Wiki: {$contextLength} bytes.");
+        
+        $wikiSub = substr($wikiText, 0, 8000); // Aumentado para 8k para pegar mais dados se houver
 
         $prompt = <<<PROMPT
 AJA COMO UM AUDITOR TERRITORIAL E ANALISTA DE DADOS URBANOS. LOCAL: {$location}
@@ -92,7 +119,18 @@ PROMPT;
             $baseUrl = $this->getBaseUrl($model);
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->count();
             
+            $availableKeys = \App\Models\AiKey::where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('cooldown_until')
+                          ->orWhere('cooldown_until', '<=', now());
+                })->count();
+            
+            Log::info("GeminiService: Iniciando loop de modelos. Chaves disponíveis agora: {$availableKeys}");
+
             for ($i = 0; $i < $maxKeyTries; $i++) {
+                // Se não for a primeira tentativa do loop, espera um pouco para não burst
+                if ($i > 0) usleep(800000); // 0.8s de respiro entre chaves
+
                 $aiKeyRecord = $this->getNextKey();
                 if (!$aiKeyRecord) {
                     Log::error("Gemini Error: Nenhuma chave disponível para uso.");
@@ -168,8 +206,8 @@ PROMPT;
                     $errorBody = $response->body();
                     
                     if ($status === 429) {
-                        Log::warning("Gemini Key #{$aiKeyRecord->id} atingiu limite. Suspendendo por 1 hora.");
-                        $aiKeyRecord->update(['cooldown_until' => now()->addHour()]);
+                        Log::warning("Gemini Key #{$aiKeyRecord->id} atingiu limite (429). Suspendendo por 5 minutos.");
+                        $aiKeyRecord->update(['cooldown_until' => now()->addMinutes(5)]);
                     }
 
                     $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: " . substr($errorBody, 0, 100), $latency);
