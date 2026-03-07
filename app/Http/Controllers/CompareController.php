@@ -33,42 +33,40 @@ class CompareController extends Controller
         $cepA = preg_replace('/\D/', '', $cepA);
         $cepB = preg_replace('/\D/', '', $cepB);
 
-        // 1. Verificar se um CEP é igual ao outro
         if ($cepA === $cepB) {
             return redirect()->route('report.show', $cepA);
         }
 
-        // 2. Tentar buscar no Cache do Laravel primeiro para velocidade máxima (< 50ms)
-        $cacheKey = "compare_{$cepA}_{$cepB}";
-        $comparison = Cache::remember($cacheKey, 86400, function() use ($cepA, $cepB) {
-            
-            // 3. Verificar se os relatórios base existem
+        // 1. PRIORIDADE MÁXIMA: Verificar se já existe uma comparação salva no Banco de Dados
+        $comparison = RegionComparison::findPair($cepA, $cepB);
+
+        if ($comparison) {
+            Log::info("CompareController: Comparação recuperada do banco para {$cepA} vs {$cepB} (Duelo instantâneo)");
+        } else {
+            // 2. Se não existe no banco, TRABALHO PESADO: Carregar relatórios e gerar
             $reportA = LocationReport::where('cep', $cepA)->first();
             $reportB = LocationReport::where('cep', $cepB)->first();
 
-            // Se algum não existir, retornamos nulo para tratar no Controller (disparar pipeline)
-            if (!$reportA || !$reportB) return null;
+            // Se algum não existir, redireciona para gerar o base primeiro
+            if (!$reportA) return redirect()->route('report.show', $cepA);
+            if (!$reportB) return redirect()->route('report.show', $cepB);
 
-            // --- LAZY UPDATE: Se os relatórios existem mas não têm scores calculados (Legados) ---
+            // 3. LAZY UPDATE: Garantir que dados locais estejam atualizados (OSM/Scores)
             $this->ensureDataIsFresh($reportA);
             $this->ensureDataIsFresh($reportB);
 
-            // 4. Verificar se já existe uma comparação salva no Banco de Dados
-            $dbComparison = RegionComparison::findPair($cepA, $cepB);
-            if ($dbComparison) return $dbComparison;
-
-            // 5. Caso não exista no banco, GERAMOS a comparação AGORA
-            Log::info("CompareController: Gerando nova comparação entre {$cepA} e {$cepB}");
+            // 4. Gerar Análise via IA e Agente de Comparação
+            Log::info("CompareController: Gerando nova comparação entre {$cepA} e {$cepB} via Gemini");
             
             $results = $this->compareAgent->compare($reportA, $reportB);
             
-            // Gerar análise via Gemini
             $analysis = $this->geminiService->generateComparisonAnalysis(
                 $this->mapReportToAnalysis($reportA),
                 $this->mapReportToAnalysis($reportB)
             );
 
-            return RegionComparison::create([
+            // 5. Salvar na Pedra (Banco) para nunca mais processar este par
+            $comparison = RegionComparison::create([
                 'cep_a' => $cepA,
                 'cep_b' => $cepB,
                 'score_diff' => $results['deltas']['score_diff'],
@@ -83,21 +81,9 @@ class CompareController extends Controller
                 ],
                 'analysis_text' => $analysis
             ]);
-        });
-
-        // 6. Se a comparação retornou nulo, significa que um dos CEPs não está no banco
-        if (!$comparison) {
-            Log::info("CompareController: Um dos CEPs não existe. Redirecionando para garantir geração.");
-            
-            // Validamos qual falta e garantimos que o sistema inicie o processamento
-            $reportA = LocationReport::where('cep', $cepA)->first();
-            if (!$reportA) return redirect()->route('report.show', $cepA);
-            
-            $reportB = LocationReport::where('cep', $cepB)->first();
-            if (!$reportB) return redirect()->route('report.show', $cepB);
         }
 
-        // 7. Retornar View
+        // 6. Retornar View com os relatórios populados
         $reportA = LocationReport::where('cep', $cepA)->first();
         $reportB = LocationReport::where('cep', $cepB)->first();
 
