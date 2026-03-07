@@ -819,6 +819,11 @@
         };
     @endphp
 
+    <!-- Botão Flutuante de Comparação -->
+    <div class="compare-fab no-print" onclick="toggleCompare()" title="Comparar Bairros">
+        <i class="fa-solid fa-right-left"></i>
+    </div>
+
     <!-- HERO SECTION -->
     <section class="hero-section">
         <!-- Floating Logo Overlay -->
