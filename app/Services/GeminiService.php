@@ -8,10 +8,11 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     protected $models = [
-        'gemini-2.5-flash-lite', // O CAMPEÃO: Único que funcionou consistentemente nos logs
+        'gemini-2.5-flash-lite',
         'gemini-2.0-flash-lite',
         'gemini-2.0-flash',
         'gemini-1.5-flash',
+        'gemini-1.5-flash-8b', // Backup com quota alta
     ];
 
 
@@ -24,9 +25,10 @@ class GeminiService
     {
         $key = \App\Models\AiKey::where('is_active', true)
             ->where(function ($query) {
-                // Usamos a comparação direta via DB para evitar dessincronia de horário App/DB
+                // PHP Now() formatted for SQL comparison
+                $now = now()->toDateTimeString();
                 $query->whereNull('cooldown_until')
-                      ->orWhere('cooldown_until', '<=', now());
+                      ->orWhere('cooldown_until', '<=', $now);
             })
             ->orderBy('last_used_at', 'asc')
             ->first();
@@ -43,8 +45,8 @@ class GeminiService
                 $waitSecs = now()->diffInSeconds($nextToRelease->cooldown_until, false);
                 Log::warning("Gemini: Nenhuma chave livre. Próxima em {$waitSecs}s (ID: {$nextToRelease->id})");
                 
-                // Se a espera for menor que 10 segundos, vamos "forçar" o uso dela
                 if ($waitSecs < 10) {
+                    Log::info("Gemini: Forçando uso da chave #{$nextToRelease->id} (Próxima livre em {$waitSecs}s)");
                     $nextToRelease->update(['cooldown_until' => null]);
                     return $nextToRelease;
                 }
@@ -213,7 +215,8 @@ PROMPT;
                     $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: " . substr($errorBody, 0, 100), $latency);
 
                     if ($status === 404) {
-                        break; 
+                        Log::warning("Gemini: Modelo {$model} não encontrado para chave #{$aiKeyRecord->id} (404).");
+                        continue; 
                     }
 
                 } catch (\Exception $e) {
@@ -230,8 +233,6 @@ PROMPT;
 
     public function generateComparisonAnalysis(array $dataA, array $dataB): ?string
     {
-        $aiKeyRecord = $this->getNextKey();
-        if (!$aiKeyRecord) return "Análise temporariamente indisponível.";
 
         $prompt = <<<PROMPT
 VOCÊ É UM ANALISTA ESTRATÉGICO TERRITORIAL.
@@ -263,25 +264,49 @@ PROMPT;
 
         foreach ($this->models as $model) {
             $baseUrl = $this->getBaseUrl($model);
-            $startTime = microtime(true);
-            try {
-                $response = Http::withoutVerifying()->timeout(30)
-                    ->post("{$baseUrl}?key={$aiKeyRecord->key}", [
-                        'contents' => [['parts' => [['text' => $prompt]]]]
-                    ]);
+            $maxKeyTries = \App\Models\AiKey::where('is_active', true)->count();
 
-                $latency = (int)((microtime(true) - $startTime) * 1000);
+            for ($i = 0; $i < $maxKeyTries; $i++) {
+                if ($i > 0) usleep(500000); // 0.5s de respiro entre chaves
 
-                if ($response->successful()) {
-                    $res = $response->json();
-                    $this->logUsage($aiKeyRecord->id, $model, true, null, $latency);
-                    return $res['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                $aiKeyRecord = $this->getNextKey();
+                if (!$aiKeyRecord) break;
+
+                $startTime = microtime(true);
+                try {
+                    $aiKeyRecord->update(['last_used_at' => now()]);
+                    
+                    $response = Http::withoutVerifying()->timeout(30)
+                        ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
+                        ->post("{$baseUrl}?key={$aiKeyRecord->key}", [
+                            'contents' => [['parts' => [['text' => $prompt]]]]
+                        ]);
+
+                    $latency = (int)((microtime(true) - $startTime) * 1000);
+                    $status = $response->status();
+
+                    if ($response->successful()) {
+                        $res = $response->json();
+                        $this->logUsage($aiKeyRecord->id, $model, true, null, $latency);
+                        return $res['candidates'][0]['content']['parts'][0]['text'] ?? null;
+                    }
+                    
+                    if ($status === 429) {
+                        Log::warning("Gemini Analysis: Key #{$aiKeyRecord->id} atingiu limite (429). Suspendendo por 5 minutos.");
+                        $aiKeyRecord->update(['cooldown_until' => now()->addMinutes(5)]);
+                    }
+
+                    $this->logUsage($aiKeyRecord->id, $model, false, "Status: " . $status, $latency);
+
+                    if ($status === 404) {
+                        Log::warning("Gemini Analysis: Modelo {$model} não encontrado para chave #{$aiKeyRecord->id} (404).");
+                        continue; 
+                    }
+
+                } catch (\Exception $e) {
+                    $latency = (int)((microtime(true) - $startTime) * 1000);
+                    $this->logUsage($aiKeyRecord->id, $model, false, $e->getMessage(), $latency);
                 }
-                
-                $this->logUsage($aiKeyRecord->id, $model, false, "Status: " . $response->status(), $latency);
-            } catch (\Exception $e) {
-                $latency = (int)((microtime(true) - $startTime) * 1000);
-                $this->logUsage($aiKeyRecord->id, $model, false, $e->getMessage(), $latency);
             }
         }
 
