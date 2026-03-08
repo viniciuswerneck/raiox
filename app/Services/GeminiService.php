@@ -93,13 +93,14 @@ AJA COMO UM AUDITOR TERRITORIAL E ANALISTA DE DADOS URBANOS. LOCAL: {$location}
 DADOS REAIS: Categoria: {$categoria}, Renda: R$ {$income}, Sugurança: {$safety}.
 
 INSTRUÇÕES DE ESCRITA:
-1. Gere uma narrativa detalhada e técnica no campo "historia".
-2. A narrativa DEVE ter OBRIGATORIAMENTE no mínimo 3 parágrafos:
-   - Parágrafo 1: Contexto histórico e origem do local (baseado no contexto abaixo).
-   - Parágrafo 2: Perfil atual dos moradores e estilo de vida baseado na renda de R$ {$income}.
-   - Parágrafo 3: Análise do mercado imobiliário e perspectivas futuras para a região.
-3. Campo "nivel_seguranca" deve ser exatamente "{$safety}".
-4. RETORNE APENAS O JSON ABAIXO.
+1. Gere uma narrativa extremamente detalhada e técnica no campo "historia".
+2. A narrativa DEVE ter OBRIGATORIAMENTE no mínimo 3 parágrafos longos, totalizando pelo menos 800 caracteres.
+3. USE EXATAMENTE 2 QUEBRAS DE LINHA (\n\n) ENTRE OS PARÁGRAFOS para garantir a formatação:
+   - Parágrafo 1: Contexto histórico profundo e origem do local (use os dados da Wikipedia abaixo).
+   - Parágrafo 2: Descrição da atmosfera atual, perfil sociodemográfico e estilo de vida baseado na renda de R$ {$income}.
+   - Parágrafo 3: Análise técnica do potencial de valorização imobiliária e infraestrutura projetada.
+4. Campo "nivel_seguranca" deve ser exatamente "{$safety}".
+5. RETORNE APENAS O JSON.
 
 JSON:
 {

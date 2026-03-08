@@ -5,13 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config('app.name') }} - Inteligência Territorial</title>
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS -->
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Analise bairros, infraestrutura e segurança com a maior rede de dados geográficos do Brasil. Relatórios instantâneos gerados por IA para compra, venda ou aluguel de imóveis.">
+    <meta name="keywords" content="raio-x, vizinhança, inteligência territorial, segurança, ibge, wikipedia, imóveis, campinas, são paulo, análise de bairros">
+    <meta name="author" content="Antigravity Territory Engine">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="{{ config('app.name') }} - Inteligência Territorial em Tempo Real">
+    <meta property="og:description" content="Descubra a verdade sobre qualquer vizinhança. Dados reais de infraestrutura, segurança e demografia.">
+    <meta property="og:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ url()->current() }}">
+    <meta property="twitter:title" content="{{ config('app.name') }} - Inteligência Territorial em Tempo Real">
+    <meta property="twitter:description" content="Descubra a verdade sobre qualquer vizinhança. Dados reais de infraestrutura, segurança e demografia.">
+    <meta property="twitter:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
@@ -169,6 +181,7 @@
                                  id="cep-input"
                                  name="cep" 
                                  placeholder="00000-000"
+                                 aria-label="Digite o CEP ou endereço para análise"
                                  autocomplete="off"
                                  maxlength="9"
                                  required
@@ -177,6 +190,7 @@
                         </div>
                         <button 
                             type="submit"
+                            aria-label="Iniciar análise territorial"
                             class="md:w-auto px-10 py-6 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-[24px] transition-all shadow-xl shadow-indigo-600/20 active:scale-95 text-lg uppercase tracking-wider"
                         >
                             Analisar
@@ -193,6 +207,7 @@
                         <button 
                             type="button" 
                             onclick="showManualEntry('')"
+                            aria-label="Buscar endereço manualmente"
                             class="group flex items-center space-x-2 text-slate-500 hover:text-indigo-400 transition-colors text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full hover:bg-white/5"
                         >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
