@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name') }} - Rankings Territoriais Premium</title>
-    <meta name="description" content="Explore o ranking nacional de melhores bairros e cidades do Brasil. Inteligência Territorial e avaliações baseadas em infraestrutura e segurança com IA.">
-    <meta name="keywords" content="ranking de bairros, melhores cidades, segurança pública, qualidade do ar, caminhabilidade, inteligência territorial, melhores lugares para morar">
+    <title>{{ config('app.name') }} - Últimos Duelos Territoriais</title>
+    <meta name="description" content="Acompanhe os últimos duelos e comparações territoriais no Brasil. Inteligência Territorial e avaliações baseadas em infraestrutura e segurança com IA.">
+    <meta name="keywords" content="duelo de bairros, melhores cidades, segurança pública, comparação territorial, inteligência territorial, melhores lugares para morar">
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph / Social Media -->
     <meta property="og:site_name" content="{{ config('app.name') }}">
-    <meta property="og:title" content="{{ config('app.name') }} - Rankings Territoriais do Brasil">
-    <meta property="og:description" content="Descubra quais são os melhores bairros e cidades para se viver no Brasil com base em infraestrutura e IA.">
+    <meta property="og:title" content="{{ config('app.name') }} - Duelos Territoriais do Brasil">
+    <meta property="og:description" content="Acompanhe as comparações e descubra quais são os melhores bairros e cidades para se viver.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:image" content="{{ url('/hero_background_city_1772568797393.png') }}">
@@ -27,8 +27,8 @@
     {
       "@@context": "https://schema.org",
       "@@type": "CollectionPage",
-      "name": "Rankings Territoriais - {{ config('app.name') }}",
-      "description": "Ranking dinâmico das melhores regiões, cidades e bairros do Brasil, medido por qualidade de vida, segurança, infraestrutura e sustentabilidade ambiental.",
+      "name": "Duelos Territoriais - {{ config('app.name') }}",
+      "description": "Comparações diretas e duelos de infraestrutura e qualidade de vida entre regiões e bairros do Brasil.",
       "url": "{{ url()->current() }}"
     }
     </script>
@@ -208,68 +208,59 @@
     </nav>
 
     <header class="hero-section container mx-auto px-6">
-        <h1 class="text-5xl md:text-6xl mb-4 font-black tracking-tight">Ranking <span class="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Nacional</span></h1>
-        <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">Auditorias realizadas pela Terrytory Engine baseadas em infraestrutura e segurança real.</p>
+        <h1 class="text-5xl md:text-6xl mb-4 font-black tracking-tight"><span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">Duelos</span> Territoriais</h1>
+        <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">Comparativos estruturais auditados pela Engine entre as principais regiões do Brasil.</p>
     </header>
 
     <div class="container mx-auto px-6 pb-20">
-        
-        <div class="filter-container">
-            <a href="{{ route('ranking.index', ['category' => 'all', 'type' => $locationType]) }}" class="filter-pill {{ $category == 'all' ? 'active' : '' }}">Geral</a>
-            <a href="{{ route('ranking.index', ['category' => 'safety', 'type' => $locationType]) }}" class="filter-pill {{ $category == 'safety' ? 'active' : '' }}">Segurança</a>
-            <a href="{{ route('ranking.index', ['category' => 'walk', 'type' => $locationType]) }}" class="filter-pill {{ $category == 'walk' ? 'active' : '' }}">Caminhabilidade</a>
-            <a href="{{ route('ranking.index', ['category' => 'air', 'type' => $locationType]) }}" class="filter-pill {{ $category == 'air' ? 'active' : '' }}">Qualidade do Ar</a>
-        </div>
-
-        <div class="filter-container mb-12">
-            <a href="{{ route('ranking.index', ['type' => 'bairro', 'category' => $category]) }}" class="filter-pill {{ $locationType == 'bairro' ? 'active' : '' }}">Por Bairro</a>
-            <a href="{{ route('ranking.index', ['type' => 'cidade', 'category' => $category]) }}" class="filter-pill {{ $locationType == 'cidade' ? 'active' : '' }}">Por Cidade</a>
-        </div>
-
-        @if($results->onFirstPage())
-        <div class="podium">
-            @foreach($results->take(3) as $index => $item)
-                <div class="podium-item rank-{{ $index + 1 }}">
-                    <div class="podium-card">
-                        <span class="medal">{!! $index == 0 ? '🥇' : ($index == 1 ? '🥈' : '🥉') !!}</span>
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{{ $item->cidade }} / {{ $item->uf }}</p>
-                        <h2 class="text-2xl text-white truncate max-w-full" title="{{ $locationType == 'bairro' ? $item->bairro : $item->cidade }}">{{ $locationType == 'bairro' ? $item->bairro : $item->cidade }}</h2>
-                        <span class="final-score">{{ round($item->final_score) }}</span>
-                        <p class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mt-2">Engine Score</p>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-        @endif
-
         <div class="glass-panel p-6 md:p-10 max-w-5xl mx-auto">
             <div class="rank-list flex flex-col gap-3">
-                @forelse($results as $index => $item)
-                    @php $realPos = (($results->currentPage() - 1) * $results->perPage()) + $index + 1; @endphp
-                    <div class="rank-row flex items-center w-full">
-                        <div class="pos-badge">#{{ str_pad($realPos, 2, '0', STR_PAD_LEFT) }}</div>
-                        <div class="info-col text-left">
-                            <h3 class="text-white">{{ $locationType == 'bairro' ? $item->bairro : $item->cidade }}</h3>
-                            <p>{{ $item->cidade }} / {{ $item->uf }}</p>
+                @forelse($duels as $duel)
+                    @php 
+                        $dataA = $duel->comparison_data['location_a'] ?? 'Região A';
+                        $dataB = $duel->comparison_data['location_b'] ?? 'Região B';
+                        $scoreA = $duel->comparison_data['metrics_a']['total_score'] ?? 0;
+                        $scoreB = $duel->comparison_data['metrics_b']['total_score'] ?? 0;
+                        $winner = $scoreA >= $scoreB ? $dataA : $dataB;
+                        $isOld = $duel->updated_at->diffInMonths(now()) >= 6;
+                    @endphp
+                    <div class="rank-row flex flex-col md:flex-row items-center w-full gap-4 md:gap-8">
+                        <div class="flex-1 text-center md:text-right">
+                            <h3 class="text-white text-lg md:text-xl font-black uppercase tracking-tight">
+                                @if($scoreA > $scoreB) <i class="fa-solid fa-trophy text-warning me-1 text-sm"></i> @endif
+                                {{ explode(',', $dataA)[0] }}
+                            </h3>
+                            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{{ round($scoreA) }} Score Territorial</p>
                         </div>
-                        <div class="score-circle flex-shrink-0">{{ round($item->final_score) }}</div>
                         
-                        @php
-                            $repCep = \App\Models\LocationReport::where('cidade', $item->cidade)
-                                ->when($locationType == 'bairro', fn($q) => $q->where('bairro', $item->bairro))
-                                ->value('cep');
-                        @endphp
-                        <a href="{{ route('report.show', $repCep) }}" class="border border-white/20 text-white hover:bg-white/10 rounded-full px-6 py-2 text-xs font-black uppercase tracking-widest ml-4 transition-all no-underline shrink-0">
-                            Analisar
+                        <div class="flex-shrink-0 flex flex-col items-center justify-center">
+                            <div class="w-12 h-12 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-black italic shadow-[0_0_15px_rgba(168,85,247,0.3)] border border-purple-500/30">VS</div>
+                            @if($isOld)
+                            <span class="text-[9px] font-black text-warning uppercase mt-2"><i class="fa-solid fa-clock-rotate-left me-1"></i> Desatualizado</span>
+                            @else
+                            <span class="text-[9px] font-black text-slate-500 uppercase mt-2">{{ $duel->created_at->locale('pt_BR')->diffForHumans() }}</span>
+                            @endif
+                        </div>
+                        
+                        <div class="flex-1 text-center md:text-left">
+                            <h3 class="text-white text-lg md:text-xl font-black uppercase tracking-tight">
+                                @if($scoreB > $scoreA) <i class="fa-solid fa-trophy text-warning me-1 text-sm"></i> @endif
+                                {{ explode(',', $dataB)[0] }}
+                            </h3>
+                            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{{ round($scoreB) }} Score Territorial</p>
+                        </div>
+                        
+                        <a href="{{ route('report.compare', ['cepA' => $duel->cep_a, 'cepB' => $duel->cep_b]) }}" class="border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:text-white rounded-full px-8 py-3 text-xs font-black uppercase tracking-widest transition-all no-underline shrink-0 mt-4 md:mt-0">
+                            Ver Resultado
                         </a>
                     </div>
                 @empty
-                    <div class="text-center py-10 text-slate-500 font-bold uppercase tracking-widest">Nenhum dado auditado nesta categoria.</div>
+                    <div class="text-center py-10 text-slate-500 font-bold uppercase tracking-widest">Nenhum duelo foi processado no banco de dados.</div>
                 @endforelse
             </div>
 
             <div class="mt-12 w-full flex justify-center pagination-wrapper">
-                {{ $results->links('pagination::tailwind') }}
+                {{ $duels->links('pagination::tailwind') }}
             </div>
         </div>
     </div>

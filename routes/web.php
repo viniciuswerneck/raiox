@@ -58,7 +58,9 @@ Route::middleware(['throttle:10,1'])->group(function () {
     Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
     Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
     Route::get('/cep/{cep}/reprocessar', [ReportController::class, 'reprocessFull'])->name('report.reprocess_full');
+    Route::get('/duelos', [CompareController::class, 'index'])->name('duels.index');
     Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
+    Route::get('/compare/{cepA}/{cepB}/reprocessar', [CompareController::class, 'reprocess'])->name('report.compare_reprocess');
 });
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)

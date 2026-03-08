@@ -9,11 +9,51 @@
     <meta name="keywords" content="viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, qualidade do ar {{ $report->cidade }}">
     
     <!-- Open Graph / Social Media -->
-    <meta property="og:title" content="Raio-X Territorial: {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}">
-    <meta property="og:description" content="Confira a análise completa de infraestrutura e qualidade de vida desta região.">
-    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ config('app.name') }}">
+    <meta property="og:title" content="Raio-X Territorial: {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }}">
+    <meta property="og:description" content="Raio-X de Segurança, Caminhabilidade e Infraestrutura de {{ $report->bairro ?: $report->cidade }}. O melhor guia territorial alimentado por IA.">
+    <meta property="og:type" content="article">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:image" content="{{ url('/hero_background_city_1772568797393.png') }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Análise do CEP {{ substr($report->cep, 0, 5) }}-{{ substr($report->cep, 5, 3) }}: {{ $report->bairro ?: $report->cidade }}">
+    <meta name="twitter:description" content="Raio-X de Segurança, Caminhabilidade e Infraestrutura de {{ $report->bairro ?: $report->cidade }}.">
+    <meta name="twitter:image" content="{{ url('/hero_background_city_1772568797393.png') }}">
+
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "Place",
+      "name": "{{ $report->bairro ?: $report->cidade }}",
+      "description": "Análise territorial e de infraestrutura do bairro {{ $report->bairro }} na cidade de {{ $report->cidade }}.",
+      "address": {
+        "@@type": "PostalAddress",
+        "addressLocality": "{{ $report->cidade }}",
+        "addressRegion": "{{ $report->uf }}",
+        "postalCode": "{{ $report->cep }}",
+        "addressCountry": "BR"
+      },
+      "geo": {
+        "@@type": "GeoCoordinates",
+        "latitude": "{{ $report->lat }}",
+        "longitude": "{{ $report->lng }}"
+      },
+      "aggregateRating": {
+        "@@type": "AggregateRating",
+        "ratingValue": "{{ $report->final_score }}",
+        "bestRating": "100",
+        "worstRating": "0",
+        "ratingCount": "1",
+        "reviewCount": "1"
+      }
+    }
+    </script>
+
     
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -859,8 +899,11 @@
                         </div>
                         @endif
                     </div>
-                    <h1 class="display-1 text-white mb-2">
-                        {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
+                    <h1 class="display-1 text-white mb-2" style="font-size: clamp(2.5rem, 5vw, 4rem);">
+                        @if($report->bairro) {{ $report->bairro }} <br> @endif
+                        <span class="{{ $report->bairro ? 'h3 text-white-50 fw-light' : '' }}">
+                            {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
+                        </span>
                     </h1>
                     @php
                         $formattedCep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep);

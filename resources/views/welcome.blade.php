@@ -25,6 +25,30 @@
     <meta property="twitter:description" content="Descubra a verdade sobre qualquer vizinhança. Dados reais de infraestrutura, segurança e demografia.">
     <meta property="twitter:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
 
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "WebSite",
+      "name": "{{ config('app.name') }}",
+      "url": "{{ url('/') }}",
+      "potentialAction": {
+        "@@type": "SearchAction",
+        "target": "{{ route('search') }}?cep={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "Organization",
+      "name": "Territory Engine",
+      "url": "{{ url('/') }}",
+      "logo": "{{ asset('favicon.png') }}"
+    }
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
@@ -391,6 +415,71 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- Últimos Duelos -->
+                <div class="pt-8">
+                    <div class="flex items-center justify-center space-x-3 mb-6">
+                        <div class="h-[1px] w-12 bg-purple-500/20"></div>
+                        <span class="text-purple-400 text-[10px] font-black uppercase tracking-[0.3em] whitespace-nowrap">Últimos Duelos</span>
+                        <div class="h-[1px] w-12 bg-purple-500/20"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                        @php
+                            $lastDuels = \App\Models\RegionComparison::orderBy('created_at', 'desc')->limit(4)->get();
+                        @endphp
+
+                        @foreach($lastDuels as $duel)
+                        @php 
+                            $dataA = $duel->comparison_data['location_a'] ?? 'Região A';
+                            $dataB = $duel->comparison_data['location_b'] ?? 'Região B';
+                            $scoreA = $duel->comparison_data['metrics_a']['total_score'] ?? 0;
+                            $scoreB = $duel->comparison_data['metrics_b']['total_score'] ?? 0;
+                            $winner = $scoreA >= $scoreB ? $dataA : $dataB;
+                        @endphp
+                        <a href="{{ route('report.compare', ['cepA' => $duel->cep_a, 'cepB' => $duel->cep_b]) }}" class="feature-card p-4 rounded-3xl text-left block group border-purple-500/10 hover:border-purple-500/30">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="bg-purple-500/20 p-2 rounded-xl text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-all">
+                                    <i class="fa-solid fa-right-left"></i>
+                                </div>
+                                <span class="bg-purple-500/10 text-purple-400 text-[9px] font-black px-2 py-1 rounded-md">{{ $duel->created_at->locale('pt_BR')->diffForHumans() }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex-1">
+                                    <h4 class="text-white font-bold text-xs uppercase truncate max-w-[120px]">
+                                        @if($scoreA > $scoreB) <i class="fa-solid fa-trophy text-warning me-1"></i> @endif
+                                        {{ explode(',', $dataA)[0] }}
+                                    </h4>
+                                    <p class="text-slate-500 text-[9px] font-bold uppercase">{{ round($scoreA) }} pts</p>
+                                </div>
+                                <div class="text-purple-400/50 text-xs font-black italic">VS</div>
+                                <div class="flex-1 text-right">
+                                    <h4 class="text-white font-bold text-xs uppercase truncate max-w-[120px] inline-block">
+                                        @if($scoreB > $scoreA) <i class="fa-solid fa-trophy text-warning ms-1 float-right mt-1 ml-1"></i> @endif
+                                        {{ explode(',', $dataB)[0] }}
+                                    </h4>
+                                    <div class="clear-both"></div>
+                                    <p class="text-slate-500 text-[9px] font-bold uppercase">{{ round($scoreB) }} pts</p>
+                                </div>
+                            </div>
+                        </a>
+                        @endforeach
+                        
+                        @if($lastDuels->isEmpty())
+                            <div class="col-span-2 py-10 bg-white/5 rounded-3xl border border-dashed border-white/10 text-center">
+                                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">Nenhum duelo realizado ainda...</p>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="mt-8">
+                        <a href="{{ route('duels.index') }}" class="text-purple-400 hover:text-purple-300 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group transition-all">
+                            Ver todos os duelos <i class="fa-solid fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+                        </a>
+                    </div>
+                </div>
+
+
 
                 <!-- Footer Stats Grid -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 px-4 pt-12">

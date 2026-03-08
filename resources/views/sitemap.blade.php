@@ -25,4 +25,20 @@
         <priority>0.8</priority>
     </url>
     @endforeach
+    <!-- Duelos -->
+    <url>
+        <loc>{{ route('duels.index') }}</loc>
+        <lastmod>{{ now()->toAtomString() }}</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.9</priority>
+    </url>
+
+    @foreach($duels as $duel)
+    <url>
+        <loc>{{ route('report.compare', ['cepA' => $duel->cep_a, 'cepB' => $duel->cep_b]) }}</loc>
+        <lastmod>{{ $duel->updated_at->toAtomString() }}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.85</priority>
+    </url>
+    @endforeach
 </urlset>

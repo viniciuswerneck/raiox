@@ -5,6 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Duelo Territorial: {{ $reportA->bairro ?: $reportA->cidade }} vs {{ $reportB->bairro ?: $reportB->cidade }} | {{ config('app.name') }}</title>
     
+    <!-- SEO Meta Tags -->
+    @php
+        $locationA = trim(($reportA->bairro ? $reportA->bairro . ' - ' : '') . $reportA->cidade);
+        $locationB = trim(($reportB->bairro ? $reportB->bairro . ' - ' : '') . $reportB->cidade);
+        $desc = "Duelo Territorial: Comparação detalhada de infraestrutura, segurança e qualidade de vida entre {$locationA} e {$locationB}. Descubra qual a melhor região.";
+    @endphp
+    <meta name="description" content="{{ $desc }}">
+    <meta name="keywords" content="duelo de bairros, comparação {{ $locationA }} e {{ $locationB }}, melhores cidades, {{ $reportA->cidade }}, {{ $reportB->cidade }}, segurança pública">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:site_name" content="{{ config('app.name') }}">
+    <meta property="og:title" content="Duelo: {{ $locationA }} vs {{ $locationB }} - {{ config('app.name') }}">
+    <meta property="og:description" content="{{ $desc }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Duelo: {{ $locationA }} vs {{ $locationB }}">
+    <meta name="twitter:description" content="{{ $desc }}">
+    <meta name="twitter:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
+
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "Article",
+      "headline": "Duelo Territorial: {{ $locationA }} vs {{ $locationB }}",
+      "description": "{{ $desc }}",
+      "url": "{{ url()->current() }}",
+      "publisher": {
+        "@@type": "Organization",
+        "name": "{{ config('app.name') }}",
+        "logo": {
+          "@@type": "ImageObject",
+          "url": "{{ asset('favicon.png') }}"
+        }
+      }
+    }
+    </script>
+    
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -250,11 +293,31 @@
                     <span class="opacity-50 fw-bold">{{ $reportB->cidade }}/{{ $reportB->uf }}</span>
                 </div>
             </div>
+            <div class="mt-5 pt-3 border-top border-white border-opacity-10 d-inline-block px-4">
+                <span class="text-white-50 small fw-bold text-uppercase tracking-widest" style="font-size: 0.75rem;">
+                    <i class="fa-regular fa-clock me-1"></i> Duelo realizado em {{ $comparison->created_at->format('d/m/Y \à\s H:i') }}
+                </span>
+            </div>
         </div>
     </section>
 
     <!-- CONTENT -->
     <div class="container comparison-grid">
+        @if($comparison->updated_at->diffInMonths(now()) >= 6)
+        <div class="row mb-5 text-center px-4 no-print">
+            <div class="col-12 py-3 px-4 bg-warning bg-opacity-25 border border-warning rounded-4 d-inline-flex justify-content-center align-items-center gap-4 mx-auto" style="max-width: 800px; backdrop-filter: blur(10px);">
+                <i class="fa-solid fa-clock-rotate-left fa-2x text-warning"></i>
+                <div class="text-start">
+                    <h5 class="fw-black mb-1">Análise Antiga</h5>
+                    <p class="small mb-0 fw-medium opacity-75">Este duelo tem mais de 6 meses. A IA e os dados podem ter evoluído.</p>
+                </div>
+                <a href="{{ route('report.compare_reprocess', ['cepA' => $reportA->cep, 'cepB' => $reportB->cep]) }}" class="btn btn-warning rounded-pill fw-black px-4 ms-auto shadow-sm">
+                    REFAZER DUELO AGORA
+                </a>
+            </div>
+        </div>
+        @endif
+
         <div class="row g-4 align-items-stretch">
             
             @php

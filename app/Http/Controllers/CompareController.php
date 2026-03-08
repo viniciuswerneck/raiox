@@ -27,6 +27,27 @@ class CompareController extends Controller
         $this->neighborhoodService = $neighborhoodService;
     }
 
+    public function index()
+    {
+        $duels = RegionComparison::orderBy('created_at', 'desc')->paginate(15);
+        return view('report.duels', compact('duels'));
+    }
+
+    public function reprocess($cepA, $cepB)
+    {
+        $cepA = preg_replace('/\D/', '', $cepA);
+        $cepB = preg_replace('/\D/', '', $cepB);
+        
+        $comparison = RegionComparison::findPair($cepA, $cepB);
+
+        if ($comparison) {
+            $comparison->delete();
+            Log::info("CompareController: Duelo entre {$cepA} e {$cepB} foi apagado para reprocessamento.");
+        }
+
+        return redirect()->route('report.compare', ['cepA' => $cepA, 'cepB' => $cepB]);
+    }
+
     public function show($cepA, $cepB)
     {
         @set_time_limit(120);
