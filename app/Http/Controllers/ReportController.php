@@ -80,7 +80,7 @@ class ReportController extends Controller
         $qClean = $this->normalizeSearchQuery($q);
         \Illuminate\Support\Facades\Log::info("GEOCODE: hitting Nominatim for [{$q}] (Cleaned: [{$qClean}])");
 
-        $response = \Illuminate\Support\Facades\Http::withoutVerifying()
+        $response = \Illuminate\Support\Facades\Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
             ->timeout(8)
             ->withHeaders($headers)
             ->get("https://nominatim.openstreetmap.org/search", [
@@ -129,7 +129,7 @@ class ReportController extends Controller
 
                 if ($roadClean && $city && $uf) {
                     \Illuminate\Support\Facades\Log::info("GEOCODE: Trying ViaCEP Strategy 2 for {$uf}/{$city}/{$roadClean}");
-                    $viacepResponse = \Illuminate\Support\Facades\Http::withoutVerifying()
+                    $viacepResponse = \Illuminate\Support\Facades\Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
                         ->timeout(5)
                         ->get("https://viacep.com.br/ws/{$uf}/" . urlencode($city) . "/" . urlencode($roadClean) . "/json/");
 
@@ -146,7 +146,7 @@ class ReportController extends Controller
                 if ($city && $uf) {
                     $suburb = $item['address']['suburb'] ?? 'Centro';
                     \Illuminate\Support\Facades\Log::info("GEOCODE: Trying ViaCEP Strategy 3 (Suburb/Centro) for {$uf}/{$city}/{$suburb}");
-                    $viacepCityResponse = \Illuminate\Support\Facades\Http::withoutVerifying()
+                    $viacepCityResponse = \Illuminate\Support\Facades\Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
                         ->timeout(5)
                         ->get("https://viacep.com.br/ws/{$uf}/" . urlencode($city) . "/" . urlencode($suburb) . "/json/");
                     
@@ -160,7 +160,7 @@ class ReportController extends Controller
                     
                     // Estratégia 4: Fallback Final (Cidade como Rua)
                     \Illuminate\Support\Facades\Log::info("GEOCODE: Trying ViaCEP Strategy 4 (City as Road) for {$uf}/{$city}/{$city}");
-                    $viacepFinalResponse = \Illuminate\Support\Facades\Http::withoutVerifying()
+                    $viacepFinalResponse = \Illuminate\Support\Facades\Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
                         ->timeout(5)
                         ->get("https://viacep.com.br/ws/{$uf}/" . urlencode($city) . "/" . urlencode($city) . "/json/");
                     
@@ -242,7 +242,7 @@ class ReportController extends Controller
                     $viacepUrl = "https://viacep.com.br/ws/{$uf}/" . rawurlencode($cityTry) . "/" . rawurlencode($street) . "/json/";
                     \Illuminate\Support\Facades\Log::info("SUGGESTIONS: Consultando ViaCEP: [{$viacepUrl}]");
                     
-                    $vResponse = \Illuminate\Support\Facades\Http::withoutVerifying()->timeout(12)->get($viacepUrl);
+                    $vResponse = \Illuminate\Support\Facades\Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())->timeout(12)->get($viacepUrl);
                     
                     \Illuminate\Support\Facades\Log::info("SUGGESTIONS: Resposta ViaCEP [{$vResponse->status()}]");
 
@@ -291,7 +291,7 @@ class ReportController extends Controller
                 $params['q'] = "{$q}, Brazil";
             }
 
-            $response = \Illuminate\Support\Facades\Http::withoutVerifying()
+            $response = \Illuminate\Support\Facades\Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
                 ->timeout(5)
                 ->withHeaders($headers)
                 ->get("https://nominatim.openstreetmap.org/search", $params);
@@ -347,10 +347,13 @@ class ReportController extends Controller
 
     private function ensureDataIsFresh(\App\Models\LocationReport $report)
     {
-        $needsUpdate = false;
-        if ($report->data_version < 3 && $report->lat && $report->lng) {
-            \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
-            try {
+        $lock = \Illuminate\Support\Facades\Cache::lock("rehydrate_{$report->cep}", 120);
+        if (!$lock->get()) return;
+
+        try {
+            $needsUpdate = false;
+            if ($report->data_version < 3 && $report->lat && $report->lng) {
+                \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
                 $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
                 $newPois = $adaptiveData['pois'];
@@ -360,7 +363,6 @@ class ReportController extends Controller
                     $report->search_radius = $adaptiveData['radius'];
                     $report->data_version = 3;
                     
-                    // Recalcular scores com os novos dados
                     $compareAgent = app(\App\Services\Agents\CompareAgent::class);
                     $metrics = $compareAgent->getRegionMetrics($newPois);
                     $report->infra_score = $metrics['infra'];
@@ -370,11 +372,11 @@ class ReportController extends Controller
                     
                     $needsUpdate = true;
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("ReportController: Erro no Lazy Update para {$report->cep}: " . $e->getMessage());
             }
+            if ($needsUpdate) $report->save();
+        } finally {
+            $lock->release();
         }
-        if ($needsUpdate) $report->save();
     }
 
     public function compare($cep1, $cep2)

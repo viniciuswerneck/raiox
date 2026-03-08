@@ -99,13 +99,14 @@ class CompareController extends Controller
      */
     private function ensureDataIsFresh(LocationReport $report)
     {
-        $needsUpdate = false;
+        $lock = \Illuminate\Support\Facades\Cache::lock("rehydrate_{$report->cep}", 120);
+        if (!$lock->get()) return;
 
-        // 1. Se o relatório for de versão antiga (sem busca adaptativa 5km)
-        if ($report->data_version < 3) {
-            Log::info("CompareController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
-            try {
-                // Injetamos o POIAgent via Service Container se possível, ou usamos o coordenador
+        try {
+            $needsUpdate = false;
+            // 1. Se o relatório for de versão antiga (sem busca adaptativa 5km)
+            if ($report->data_version < 3) {
+                Log::info("CompareController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
                 $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
                 $newPois = $adaptiveData['pois'];
@@ -116,25 +117,25 @@ class CompareController extends Controller
                     $report->data_version = 3;
                     $needsUpdate = true;
                 }
-            } catch (\Exception $e) {
-                Log::error("CompareController: Erro ao reidratar POIs para {$report->cep}: " . $e->getMessage());
             }
-        }
 
-        // 2. Se não tem scores calculados, calcula agora
-        if ($report->general_score == 0 && !empty($report->pois_json)) {
-            Log::info("CompareController: Calculando scores ausentes para o CEP {$report->cep}");
-            $metrics = $this->compareAgent->getRegionMetrics($report->pois_json);
-            
-            $report->infra_score = $metrics['infra'];
-            $report->mobility_score = $metrics['mobility'];
-            $report->leisure_score = $metrics['leisure'];
-            $report->general_score = $metrics['total_score'];
-            $needsUpdate = true;
-        }
+            // 2. Se não tem scores calculados, calcula agora
+            if ($report->general_score == 0 && !empty($report->pois_json)) {
+                Log::info("CompareController: Calculando scores ausentes para o CEP {$report->cep}");
+                $metrics = $this->compareAgent->getRegionMetrics($report->pois_json);
+                
+                $report->infra_score = $metrics['infra'];
+                $report->mobility_score = $metrics['mobility'];
+                $report->leisure_score = $metrics['leisure'];
+                $report->general_score = $metrics['total_score'];
+                $needsUpdate = true;
+            }
 
-        if ($needsUpdate) {
-            $report->save();
+            if ($needsUpdate) {
+                $report->save();
+            }
+        } finally {
+            $lock->release();
         }
     }
 

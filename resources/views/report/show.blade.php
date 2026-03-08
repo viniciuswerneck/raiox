@@ -1542,6 +1542,12 @@
 
     <!-- Scripts -->
     <script>
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const centerLat = {{ $report->lat }};
             const centerLng = {{ $report->lng }};
@@ -1901,8 +1907,8 @@
 
                     const marker = L.marker([poi.lat, poi.lon], { icon: customIcon }).bindPopup(`
                         <div class="poi-popup">
-                            <div class="fw-black text-dark mb-1">${poi.tags.name || 'Ponto de Interesse'}</div>
-                            <div class="badge bg-light text-dark border mb-2">${translations[poi.tags.amenity || poi.tags.shop || ''] || 'Local'}</div>
+                            <div class="fw-black text-dark mb-1">${escapeHtml(poi.tags.name || 'Ponto de Interesse')}</div>
+                            <div class="badge bg-light text-dark border mb-2">${escapeHtml(translations[poi.tags.amenity || poi.tags.shop || ''] || 'Local')}</div>
                             <div class="small text-muted"><i class="fa-solid fa-person-walking me-1"></i>${dist}m</div>
                         </div>
                     `);
@@ -1929,7 +1935,10 @@
                 
                 const originalContent = btn.innerHTML;
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Solicitando...';
+                btn.textContent = 'Solicitando...';
+                const spinner = document.createElement('i');
+                spinner.className = 'fa-solid fa-spinner fa-spin me-2';
+                btn.prepend(spinner);
 
                 try {
                     const response = await fetch('{{ route('report.reprocess', $report->cep) }}', {

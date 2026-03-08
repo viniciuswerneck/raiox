@@ -48,13 +48,18 @@ Route::get('/api/trigger-queue', function () {
     }
 });
 
-Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
-Route::post('/search', [ReportController::class, 'search'])->name('search');
-Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
-Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
-Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
-Route::get('/cep/{cep}/reprocessar', [ReportController::class, 'reprocessFull'])->name('report.reprocess_full');
-Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
+Route::middleware(['throttle:30,1'])->group(function () {
+    Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
+    Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
+});
+
+Route::middleware(['throttle:10,1'])->group(function () {
+    Route::post('/search', [ReportController::class, 'search'])->name('search');
+    Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
+    Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
+    Route::get('/cep/{cep}/reprocessar', [ReportController::class, 'reprocessFull'])->name('report.reprocess_full');
+    Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
+});
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)
 Route::get('/clear-cache', function() {

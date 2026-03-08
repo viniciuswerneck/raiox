@@ -13,12 +13,14 @@ class ClimaAgent
     public function getPoolRequests(Pool $pool, float $lat, float $lng): array
     {
         return [
-            'weather' => $pool->as('weather')->withoutVerifying()->timeout(8)
+            'weather' => $pool->as('weather')->when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                ->timeout(8)
                 ->get("https://api.open-meteo.com/v1/forecast", [
                     'latitude' => $lat, 'longitude' => $lng, 'current_weather' => 'true'
                 ]),
                 
-            'air_quality' => $pool->as('air_quality')->withoutVerifying()->timeout(8)
+            'air_quality' => $pool->as('air_quality')->when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                ->timeout(8)
                 ->get("https://air-quality-api.open-meteo.com/v1/air-quality", [
                     'latitude' => $lat, 'longitude' => $lng, 'current' => 'european_aqi,us_aqi'
                 ])

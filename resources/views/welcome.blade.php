@@ -28,6 +28,11 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
+    <!-- Assets -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <style>
         :root {
             --primary: #6366f1;
@@ -616,20 +621,38 @@
                         const fCep = item.details.formatted_cep || item.cep;
                         const complement = item.details.complement ? `<span class="text-indigo-300/60 lowercase italic ml-1"> - ${item.details.complement}</span>` : "";
                         
-                        div.innerHTML = `
-                            <div class="flex flex-col">
-                                <div class="flex items-center">
-                                    <span class="text-white font-black text-lg tracking-wider group-hover:text-indigo-200">${fCep}</span>
-                                    ${complement}
-                                </div>
-                                <span class="text-indigo-400/70 text-[10px] uppercase font-black tracking-widest mt-1">${item.details.neighborhood || 'Bairro local'}</span>
-                            </div>
-                            <div class="bg-indigo-500/10 p-2 rounded-xl group-hover:bg-indigo-500/40 transition-colors text-indigo-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        `;
+                        const textContainer = document.createElement('div');
+                        textContainer.className = "flex flex-col";
+                        
+                        const cepRow = document.createElement('div');
+                        cepRow.className = "flex items-center";
+                        
+                        const cepSpan = document.createElement('span');
+                        cepSpan.className = "text-white font-black text-lg tracking-wider group-hover:text-indigo-200";
+                        cepSpan.textContent = fCep;
+                        
+                        cepRow.appendChild(cepSpan);
+                        
+                        if (item.details.complement) {
+                            const compSpan = document.createElement('span');
+                            compSpan.className = "text-indigo-300/60 lowercase italic ml-1";
+                            compSpan.textContent = ` - ${item.details.complement}`;
+                            cepRow.appendChild(compSpan);
+                        }
+                        
+                        const neighSpan = document.createElement('span');
+                        neighSpan.className = "text-indigo-400/70 text-[10px] uppercase font-black tracking-widest mt-1";
+                        neighSpan.textContent = item.details.neighborhood || 'Bairro local';
+                        
+                        textContainer.appendChild(cepRow);
+                        textContainer.appendChild(neighSpan);
+                        
+                        const iconDiv = document.createElement('div');
+                        iconDiv.className = "bg-indigo-500/10 p-2 rounded-xl group-hover:bg-indigo-500/40 transition-colors text-indigo-400";
+                        iconDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
+                        
+                        div.appendChild(textContainer);
+                        div.appendChild(iconDiv);
                         div.onclick = () => {
                             display.value = fCep;
                             sugMenu.classList.add('hidden');

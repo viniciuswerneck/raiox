@@ -149,7 +149,7 @@ PROMPT;
                     // Marcar como usada
                     $aiKeyRecord->update(['last_used_at' => now()]);
 
-                    $response = Http::withoutVerifying()
+                    $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
                         ->timeout(15)
                         ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                         ->post("{$baseUrl}?key={$apiKey}", [
@@ -277,7 +277,8 @@ PROMPT;
                 try {
                     $aiKeyRecord->update(['last_used_at' => now()]);
                     
-                    $response = Http::withoutVerifying()->timeout(15)
+                    $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                        ->timeout(15)
                         ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                         ->post("{$baseUrl}?key={$aiKeyRecord->key}", [
                             'contents' => [['parts' => [['text' => $prompt]]]]

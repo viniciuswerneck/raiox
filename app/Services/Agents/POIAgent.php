@@ -53,7 +53,7 @@ class POIAgent
         foreach ($endpoints as $endpoint) {
             try {
                 $startTime = microtime(true);
-                $response = Http::withoutVerifying()
+                $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
                     ->timeout(12) 
                     ->withHeaders($headers)
                     ->asForm()

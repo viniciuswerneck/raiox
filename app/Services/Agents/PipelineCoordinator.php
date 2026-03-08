@@ -34,7 +34,7 @@ class PipelineCoordinator
     {
         Log::info("PipelineCoordinator: Iniciando resolução básica de GeoAgent para {$cepClean}");
         
-        $street = ''; $city = ''; $state = ''; $ibgeCode = null; $bairro = '';
+        $street = ''; $city = ''; $state = ''; $ibgeCode = null; $bairro = ''; $lat = null; $lng = null;
         
         // Fase 1: Identidade Básica
         $viaCep = $this->geoAgent->resolveCep($cepClean);
@@ -44,18 +44,25 @@ class PipelineCoordinator
             $state = $viaCep['uf'];
             $ibgeCode = $viaCep['ibge'] ?? null;
             $bairro = $viaCep['bairro'] ?? '';
+            $lat = $viaCep['lat'] ?? null;
+            $lng = $viaCep['lon'] ?? null;
         }
 
-        if (!$city || !$state) { // Fallback, no momento consideramos o Fast Path falho se não tiver CEP no viacep.
-            Log::error("PipelineCoordinator: FastPath interrompido. Endereço base não localizado.");
-            return null;
+        if (!$city || !$state) { 
+            Log::error("PipelineCoordinator: FastPath interrompido. Endereço base não localizado nas APIs de CEP.");
+            return [
+                'city' => $city, 'state' => $state, 'street' => $street, 'ibge_code' => $ibgeCode, 'error' => true,
+                'error_message' => 'CEP inválido ou sem cobertura geográfica identificada.', 'status' => 'failed'
+            ];
         }
 
-        // Fase 2: Lat/Lng
-        $geo = $this->geoAgent->geolocate($street, $city, $state);
-        $lat = $geo['lat'] ?? null;
-        $lng = $geo['lon'] ?? null;
-        $bairro = $bairro ?: ($geo['suburb'] ?? '');
+        // Fase 2: Lat/Lng (Se não veio do resolveCep)
+        if (!$lat || !$lng) {
+            $geo = $this->geoAgent->geolocate($street, $city, $state, $cepClean);
+            $lat = $geo['lat'] ?? null;
+            $lng = $geo['lon'] ?? null;
+            $bairro = $bairro ?: ($geo['suburb'] ?? '');
+        }
 
         if (!$lat || !$lng) {
             Log::error("PipelineCoordinator: Falha ao geolocalizar (Nominatim).");
@@ -72,7 +79,7 @@ class PipelineCoordinator
         // Fase 3: MASTER POOL ASSÍNCRONO (Clima, Ar e SocioEconomico)
         Log::info("PipelineCoordinator: Lançando Master Pool Assíncrono [{$lat}, {$lng}] - IBGE: {$ibgeCode}");
         
-        $poolResponses = Http::withoutVerifying()->pool(fn ($pool) => array_merge(
+        $poolResponses = Http::pool(fn ($pool) => array_merge(
             $this->climaAgent->getPoolRequests($pool, $lat, $lng),
             $this->socioAgent->getPoolRequests($pool, $ibgeCode)
         ));

@@ -18,10 +18,12 @@ class SocioAgent
         $ids = '29765|29168|60037|96385|29171'; // salary, idhm, sanitation, population, pib
         
         return [
-            'ibge_basic' => $pool->as('ibge_basic')->withoutVerifying()->timeout(10)
+            'ibge_basic' => $pool->as('ibge_basic')->when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                ->timeout(10)
                 ->get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{$ibgeCode}"),
                 
-            'ibge_indicators' => $pool->as('ibge_indicators')->withoutVerifying()->timeout(10)
+            'ibge_indicators' => $pool->as('ibge_indicators')->when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                ->timeout(10)
                 ->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/{$ids}/resultados/{$ibgeCode}")
         ];
     }
@@ -85,13 +87,15 @@ class SocioAgent
                 
                 try {
                     // 1. Tentar Basic Data (Nome/UF)
-                    $basicDirect = Http::withoutVerifying()->timeout(8)
+                    $basicDirect = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                        ->timeout(8)
                         ->get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{$ibgeCode}");
                     if ($basicDirect->successful()) $raw = $basicDirect->json();
 
                     // 2. Tentar Indicadores
                     $ids = '29765|29168|60037|96385|29171';
-                    $indicatorsDirect = Http::withoutVerifying()->timeout(10)
+                    $indicatorsDirect = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                        ->timeout(10)
                         ->get("https://servicodados.ibge.gov.br/api/v1/pesquisas/indicadores/{$ids}/resultados/{$ibgeCode}");
                     
                     if ($indicatorsDirect->successful()) {
@@ -162,7 +166,8 @@ class SocioAgent
     public function fetchIbgeCodeByName(string $city, string $stateUf): ?string
     {
         try {
-            $response = Http::withoutVerifying()->timeout(8)
+            $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                ->timeout(8)
                 ->get("https://servicodados.ibge.gov.br/api/v1/localidades/estados/{$stateUf}/municipios");
             if ($response->successful()) {
                 foreach ($response->json() as $mun) {
