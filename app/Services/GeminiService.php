@@ -94,13 +94,14 @@ DADOS REAIS: Categoria: {$categoria}, Renda: R$ {$income}, Sugurança: {$safety}
 
 INSTRUÇÕES DE ESCRITA:
 1. Gere uma narrativa extremamente detalhada e técnica no campo "historia".
-2. A narrativa DEVE ter OBRIGATORIAMENTE no mínimo 3 parágrafos longos, totalizando pelo menos 800 caracteres.
-3. USE EXATAMENTE 2 QUEBRAS DE LINHA (\n\n) ENTRE OS PARÁGRAFOS para garantir a formatação:
-   - Parágrafo 1: Contexto histórico profundo e origem do local (use os dados da Wikipedia abaixo).
-   - Parágrafo 2: Descrição da atmosfera atual, perfil sociodemográfico e estilo de vida baseado na renda de R$ {$income}.
-   - Parágrafo 3: Análise técnica do potencial de valorização imobiliária e infraestrutura projetada.
+2. A narrativa DEVE ter OBRIGATORIAMENTE E EXATAMENTE 3 parágrafos longos.
+3. USE EXATAMENTE O CARACTERE DE QUEBRA DE LINHA (\n\n) ENTRE OS 3 PARÁGRAFOS para garantir a formatação:
+   - Parágrafo 1: Contexto histórico profundo e origem do local (use os dados da Wikipedia abaixo se houver).
+   - Parágrafo 2: Descrição da atmosfera atual, perfil sociodemográfico e estilo de vida baseado na renda de R$ {$income} e categoria {$categoria}.
+   - Parágrafo 3: Análise técnica do potencial de valorização imobiliária, segurança e infraestrutura projetada.
 4. Campo "nivel_seguranca" deve ser exatamente "{$safety}".
-5. RETORNE APENAS O JSON.
+5. RETORNE APENAS O JSON VÁLIDO.
+
 
 JSON:
 {
