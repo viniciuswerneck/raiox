@@ -8,6 +8,7 @@ class AiKey extends Model
 {
     protected $fillable = [
         'provider',
+        'email',
         'key',
         'is_active',
         'last_used_at',
