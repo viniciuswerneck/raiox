@@ -126,6 +126,15 @@
         <img src="{{ $city->image_url ?: 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325?q=80&w=1200&auto=format&fit=crop' }}" class="hero-bg-img" alt="{{ $city->name }}">
         <div class="hero-bg-overlay"></div>
         <div class="container relative z-2 text-center text-md-start">
+            <!-- Breadcrumbs -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/" class="text-white-50 text-decoration-none">Brasil</a></li>
+                    <li class="breadcrumb-item"><a href="#" class="text-white-50 text-decoration-none">{{ $city->uf }}</a></li>
+                    <li class="breadcrumb-item active text-white" aria-current="page">{{ $city->name }}</li>
+                </ol>
+            </nav>
+
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <span class="stats-badge mb-3 d-inline-block">
@@ -174,12 +183,123 @@
                 </div>
             </div>
 
+            <!-- Gráfico de Mix de Uso -->
+            <div class="col-lg-8 mt-4">
+                <div class="card-pro bg-white p-4" style="background: white !important;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="h6 text-secondary text-uppercase fw-bold mb-0">Mix Urbanístico (Perfil de Uso)</h4>
+                        <span class="small text-muted">Proporção por Classificação Mapeada</span>
+                    </div>
+                    <div class="progress rounded-pill bg-light" style="height: 32px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                        @php
+                            $usageColors = [
+                                'Residencial Alto Padrão' => '#4f46e5',
+                                'Residencial Nobre' => '#6366f1',
+                                'Residencial Médio' => '#818cf8',
+                                'Residencial Popular' => '#a5b4fc',
+                                'Comercial Central' => '#f59e0b',
+                                'Turístico Premium' => '#ec4899',
+                                'Zona de Expansão / Rural' => '#10b981'
+                            ];
+                        @endphp
+                        @foreach($city->stats_cache['usage_percentages'] ?? [] as $label => $pct)
+                            <div class="progress-bar transition-all" 
+                                 role="progressbar" 
+                                 style="width: {{ $pct }}%; background-color: {{ $usageColors[$label] ?? '#cbd5e1' }}; border-right: 2px solid white;" 
+                                 aria-valuenow="{{ $pct }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100"
+                                 title="{{ $label }}: {{ $pct }}%">
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        @foreach($city->stats_cache['usage_percentages'] ?? [] as $label => $pct)
+                            <div class="d-flex align-items-center me-3" style="font-size: 11px;">
+                                <span class="d-inline-block rounded-circle me-1" style="width: 8px; height: 8px; background-color: {{ $usageColors[$label] ?? '#cbd5e1' }};"></span>
+                                <span class="fw-medium">{{ $label }}</span>
+                                <span class="text-muted ms-1">({{ $pct }}%)</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparativo Regional (Novo) -->
+            <div class="col-lg-4 mt-4">
+                <div class="card-pro bg-white p-4" style="background: white !important;">
+                    <h4 class="h6 text-secondary text-uppercase fw-bold mb-3">Comparativo Regional</h4>
+                    
+                    @php
+                        $cityScore = $city->stats_cache['avg_score'] ?? 0;
+                        $stateScore = $city->stats_cache['state_avg_score'] ?? 0;
+                        $diff = $cityScore - $stateScore;
+                        $isBetter = $diff >= 0;
+                    @endphp
+
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="me-3">
+                            <div class="h2 fw-black mb-0 {{ $isBetter ? 'text-success' : 'text-primary' }}">
+                                {{ $isBetter ? '+' : '' }}{{ number_format($diff, 1) }}
+                            </div>
+                            <div class="small text-muted fw-bold">vs média de {{ $city->uf }}</div>
+                        </div>
+                        <div class="ms-auto h1 opacity-25">
+                            <i class="fa-solid {{ $isBetter ? 'fa-arrow-trend-up text-success' : 'fa-arrow-trend-down text-danger' }}"></i>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Escore Municipal ({{ $city->name }})</span>
+                            <span class="fw-bold">{{ $cityScore }} pts</span>
+                        </div>
+                        <div class="progress rounded-pill bg-light mb-3" style="height: 6px;">
+                            <div class="progress-bar bg-primary" style="width: {{ $cityScore }}%"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Média Estadual ({{ $city->uf }})</span>
+                            <span class="fw-bold">{{ $stateScore }} pts</span>
+                        </div>
+                        <div class="progress rounded-pill bg-light" style="height: 6px;">
+                            <div class="progress-bar bg-secondary" style="width: {{ $stateScore }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- História e Resumo -->
             <div class="col-lg-8">
                 <div class="card-pro">
                     <h3 class="fw-black mb-4"><i class="fa-solid fa-scroll me-2 text-primary"></i> Contexto Cultural e Geográfico</h3>
-                    <div class="editorial-text drop-cap">
+                    <div class="editorial-text drop-cap mb-5">
                         {!! nl2br(e($city->history_extract ?: 'Aguardando processamento da IA...')) !!}
+                    </div>
+
+                    <hr class="opacity-10 my-5">
+
+                    <!-- Destaques da Infraestrutura (Novo) -->
+                    <h3 class="fw-black mb-4 d-flex align-items-center">
+                        <i class="fa-solid fa-store me-2 text-primary"></i> 
+                        Conveniências & Serviços Mapeados
+                    </h3>
+                    <div class="row g-3">
+                        @forelse($city->stats_cache['top_conveniencias'] ?? [] as $type => $count)
+                            <div class="col-md-6 col-lg-4">
+                                <div class="p-3 rounded-4 bg-light border d-flex align-items-center">
+                                    <div class="rounded-3 bg-white border p-2 me-3 text-primary shadow-sm">
+                                        <i class="fa-solid fa-check-circle" style="font-size: 14px;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="small text-muted text-uppercase fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">{{ $type }}</div>
+                                        <div class="fw-bold h6 mb-0">{{ $count }} Unidades</div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="col-12"><p class="text-muted small">Ainda coletando dados detalhados de infraestrutura...</p></div>
+                        @endforelse
                     </div>
                 </div>
             </div>

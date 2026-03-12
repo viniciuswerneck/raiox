@@ -63,15 +63,25 @@ class CityDashboardService
         $avgIncome = $reports->avg('average_income');
         
         $totalPois = 0;
+        $poiTypes = [];
         foreach ($reports as $report) {
             if (is_array($report->pois_json)) {
                 $totalPois += count($report->pois_json);
+                foreach ($report->pois_json as $poi) {
+                    $type = $poi['type_label'] ?? 'Outros';
+                    $poiTypes[$type] = ($poiTypes[$type] ?? 0) + 1;
+                }
             }
         }
+        arsort($poiTypes);
+        $topPois = array_slice($poiTypes, 0, 5, true);
         
         // Contagem de categorias para o "Mix de Uso"
         $categories = $reports->pluck('territorial_classification')->countBy();
         $predominant = $categories->sortDesc()->keys()->first();
+        
+        $totalCats = $categories->sum();
+        $usagePercentages = $categories->map(fn($val) => round(($val / $totalCats) * 100, 1))->toArray();
 
         // Ranking de Bairros (Nome e Score Médio)
         $neighborhoodRanking = $reports->groupBy('bairro')
@@ -85,18 +95,24 @@ class CityDashboardService
             ->values()
             ->toArray();
 
-        // Média de pontuação final municipal
+        // Média de pontuação municipal e estadual para comparação
         $avgScore = $reports->avg('general_score');
+        $stateAvgScore = LocationReport::where('uf', $city->uf)
+            ->where('status', 'completed')
+            ->avg('general_score');
 
         $city->stats_cache = [
             'avg_income' => round($avgIncome, 2),
             'total_mapped_ceps' => $reports->count(),
             'neighborhood_count' => count($neighborhoodRanking),
-            'neighborhood_list' => $neighborhoodRanking, // Agora contém o ranking estruturado
+            'neighborhood_list' => $neighborhoodRanking,
             'total_pois' => $totalPois,
+            'top_conveniencias' => $topPois,
             'avg_score' => round($avgScore, 1),
+            'state_avg_score' => round($stateAvgScore, 1),
             'predominant_class' => $predominant,
-            'mix_usage' => $categories->toArray()
+            'mix_usage' => $categories->toArray(),
+            'usage_percentages' => $usagePercentages
         ];
         
         $city->last_calculated_at = now();
