@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Services\Agents\CacheAgent;
 use App\Services\Agents\LLMAgent;
 use App\Services\Agents\PipelineCoordinator;
+use App\Services\CityDashboard\CityDashboardService;
+use App\Models\City;
 use Illuminate\Support\Facades\Log;
 
 class NeighborhoodService
@@ -12,15 +14,18 @@ class NeighborhoodService
     protected $coordinator;
     protected $cacheAgent;
     protected $llmAgent;
+    protected $cityService;
 
     public function __construct(
         PipelineCoordinator $coordinator,
         CacheAgent $cacheAgent,
-        LLMAgent $llmAgent
+        LLMAgent $llmAgent,
+        CityDashboardService $cityService
     ) {
         $this->coordinator = $coordinator;
         $this->cacheAgent = $cacheAgent;
         $this->llmAgent = $llmAgent;
+        $this->cityService = $cityService;
     }
 
     /**
@@ -103,6 +108,15 @@ class NeighborhoodService
             ];
 
             $report = $this->cacheAgent->upsertBasicData($cepClean, $reportData);
+
+            // Garantir que a cidade existe
+            $this->coordinator->ensureCityExists($reportData);
+            
+            // Atualizar dashboard da cidade (Estatísticas e História se necessário)
+            $cityObj = City::where('name', $reportData['cidade'])->where('uf', $reportData['uf'])->first();
+            if ($cityObj) {
+                $this->cityService->updateCityData($cityObj);
+            }
 
             // 5. DELEGAR NARRATIVA LLM
             $wikiContext = [

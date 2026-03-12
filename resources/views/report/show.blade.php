@@ -902,7 +902,14 @@
                     <h1 class="display-1 text-white mb-2" style="font-size: clamp(2.5rem, 5vw, 4rem);">
                         @if($report->bairro) {{ $report->bairro }} <br> @endif
                         <span class="{{ $report->bairro ? 'h3 text-white-50 fw-light' : '' }}">
-                            {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
+                            @if($city)
+                                <a href="{{ route('city.show', $city->slug) }}" class="text-white-50 text-decoration-none hover-white">
+                                    {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square ms-1 small" style="font-size: 0.5em;"></i>
+                                </a>
+                            @else
+                                {{ $report->cidade }} <span style="color: var(--primary)">{{ $report->uf }}</span>
+                            @endif
                         </span>
                     </h1>
                     @php

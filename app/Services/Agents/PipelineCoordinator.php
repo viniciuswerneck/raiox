@@ -2,6 +2,7 @@
 
 namespace App\Services\Agents;
 
+use App\Models\City;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -126,6 +127,27 @@ class PipelineCoordinator
             'status' => 'processing_text', // Define a trave de Polling pro Frontend
             'error' => false
         ];
+    }
+
+    /**
+     * Garante que a cidade existe no banco de dados.
+     */
+    public function ensureCityExists(array $data): void
+    {
+        try {
+            City::firstOrCreate(
+                ['name' => $data['cidade'], 'uf' => $data['uf']],
+                [
+                    'ibge_code' => $data['codigo_ibge'],
+                    'population' => $data['population'],
+                    'average_income' => $data['average_income'],
+                    'idhm' => $data['idhm'],
+                    'sanitation_rate' => $data['sanitation_rate'] ?? 0
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::warning("Erro ao criar cidade: " . $e->getMessage());
+        }
     }
 
     /**

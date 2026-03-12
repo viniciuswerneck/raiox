@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class City extends Model
 {
@@ -18,7 +19,19 @@ class City extends Model
         'population' => 'integer',
         'average_income' => 'decimal:2',
         'sanitation_rate' => 'decimal:2',
+        'stats_cache' => 'array',
+        'last_calculated_at' => 'datetime',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::saving(function ($city) {
+            if (empty($city->slug)) {
+                $city->slug = Str::slug($city->name . '-' . $city->uf);
+            }
+        });
+    }
 
     public function neighborhoods()
     {

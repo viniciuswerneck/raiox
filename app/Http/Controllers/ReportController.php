@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\City;
 use App\Services\NeighborhoodService;
 use Illuminate\Http\Request;
 
@@ -341,8 +342,12 @@ class ReportController extends Controller
         // Lazy Update para novos POIs (V1 -> V2) e Scores
         $this->ensureDataIsFresh($report);
 
+        $city = City::where('name', $report->cidade)
+            ->where('uf', $report->uf)
+            ->first();
+
         $wiki = $report->wiki_json ?? [];
-        return view('report.show', compact('report', 'wiki'));
+        return view('report.show', compact('report', 'wiki', 'city'));
     }
 
     private function ensureDataIsFresh(\App\Models\LocationReport $report)
