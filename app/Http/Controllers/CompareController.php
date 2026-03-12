@@ -6,6 +6,8 @@ use App\Models\LocationReport;
 use App\Models\RegionComparison;
 use App\Services\Agents\CompareAgent;
 use App\Services\GeminiService;
+use App\Services\GroqService;
+use App\Services\OpenRouterService;
 use App\Services\NeighborhoodService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,15 +17,21 @@ class CompareController extends Controller
 {
     protected $compareAgent;
     protected $geminiService;
+    protected $groqService;
+    protected $openRouterService;
     protected $neighborhoodService;
 
     public function __construct(
         CompareAgent $compareAgent,
         GeminiService $geminiService,
+        GroqService $groqService,
+        OpenRouterService $openRouterService,
         NeighborhoodService $neighborhoodService
     ) {
-        $this->compareAgent = $compareAgent;
-        $this->geminiService = $geminiService;
+        $this->compareAgent       = $compareAgent;
+        $this->geminiService      = $geminiService;
+        $this->groqService        = $groqService;
+        $this->openRouterService   = $openRouterService;
         $this->neighborhoodService = $neighborhoodService;
     }
 
@@ -77,14 +85,30 @@ class CompareController extends Controller
             $this->ensureDataIsFresh($reportB);
 
             // 4. Gerar Análise via IA e Agente de Comparação
-            Log::info("CompareController: Gerando nova comparação entre {$cepA} e {$cepB} via Gemini");
-            
+            Log::info("CompareController: Gerando nova comparação entre {$cepA} e {$cepB}");
+
             $results = $this->compareAgent->compare($reportA, $reportB);
-            
+
             $analysis = $this->geminiService->generateComparisonAnalysis(
                 $this->mapReportToAnalysis($reportA),
                 $this->mapReportToAnalysis($reportB)
             );
+
+            if (!$analysis) {
+                Log::warning("CompareController: Gemini falhou para comparação {$cepA} vs {$cepB}. Tentando Groq...");
+                $analysis = $this->groqService->generateComparisonAnalysis(
+                    $this->mapReportToAnalysis($reportA),
+                    $this->mapReportToAnalysis($reportB)
+                );
+            }
+
+            if (!$analysis) {
+                Log::warning("CompareController: Groq falhou para comparação {$cepA} vs {$cepB}. Tentando OpenRouter...");
+                $analysis = $this->openRouterService->generateComparisonAnalysis(
+                    $this->mapReportToAnalysis($reportA),
+                    $this->mapReportToAnalysis($reportB)
+                );
+            }
 
             // 5. Salvar na Pedra (Banco) para nunca mais processar este par
             $comparison = RegionComparison::create([

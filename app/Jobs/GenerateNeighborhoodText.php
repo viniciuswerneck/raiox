@@ -6,6 +6,9 @@ use App\Models\City;
 use App\Models\LocationReport;
 use App\Models\Neighborhood;
 use App\Services\GeminiService;
+use App\Services\GroqService;
+use App\Services\OpenRouterService;
+use App\Services\TextReviserService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -47,7 +50,7 @@ class GenerateNeighborhoodText implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(GeminiService $gemini): void
+    public function handle(GeminiService $gemini, GroqService $groq, OpenRouterService $openRouter, TextReviserService $reviser): void
     {
         // Delay aleatório inicial (0.2s a 1.5s) para evitar que múltiplos Jobs batam na API ao mesmo tempo
         usleep(rand(200000, 1500000)); 
@@ -88,21 +91,33 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'safety_level' => $report->safety_level ?? 'MODERADO'
             ];
 
-            // 3. Gemini Generation
-            Log::info("TextGenerator: Disparando Gemini para {$bairro}, {$city}");
+            // 3. Gemini Generation (Groq como fallback)
             $locationName = $bairro ? "{$bairro}, {$city}" : $city;
+
+            Log::info("TextGenerator: Disparando Gemini para {$locationName}");
             $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
 
             if (!$aiSummary) {
-                // Se o Gemini falhou, salvamos o que temos e marcamos como 'completed'
-                // para não quebrar a visualização dos dados técnicos (mapa, infra, etc)
+                Log::warning("TextGenerator: Gemini falhou para {$locationName}. Tentando Groq...");
+                $aiSummary = $groq->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
+            }
+
+            if (!$aiSummary) {
+                Log::warning("TextGenerator: Groq falhou para {$locationName}. Tentando OpenRouter...");
+                $aiSummary = $openRouter->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
+            }
+
+            if (!$aiSummary) {
                 $report->update([
-                    'status' => 'completed',
+                    'status'          => 'completed',
                     'history_extract' => 'A narrativa territorial está temporariamente indisponível devido à alta demanda nos satélites de IA. Os dados técnicos abaixo permanecem precisos.',
-                    'error_message' => 'AI_TIMEOUT'
+                    'error_message'   => 'AI_TIMEOUT'
                 ]);
                 return;
             }
+
+            // Revisão e humanização da narrativa gerada
+            $aiSummary = $reviser->reviseHistoria($aiSummary);
 
             // 4. Salvar Entidades Locais (Bairro e Cidade) para cache
             $cityModel = City::where('name', $city)->where('uf', $state)->first();

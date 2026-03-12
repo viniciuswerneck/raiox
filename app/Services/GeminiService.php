@@ -24,6 +24,7 @@ class GeminiService
     private function getNextKey()
     {
         $key = \App\Models\AiKey::where('is_active', true)
+            ->where('provider', 'gemini')
             ->where(function ($query) {
                 // PHP Now() formatted for SQL comparison
                 $now = now()->toDateTimeString();
@@ -37,6 +38,7 @@ class GeminiService
             // Se não achou nenhuma, vamos ver se tem alguma em cooldown curto (menos de 5 min)
             // e pegar a que vai liberar mais cedo
             $nextToRelease = \App\Models\AiKey::where('is_active', true)
+                ->where('provider', 'gemini')
                 ->whereNotNull('cooldown_until')
                 ->orderBy('cooldown_until', 'asc')
                 ->first();
@@ -121,9 +123,10 @@ PROMPT;
 
         foreach ($this->models as $model) {
             $baseUrl = $this->getBaseUrl($model);
-            $maxKeyTries = \App\Models\AiKey::where('is_active', true)->count();
+            $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'gemini')->count();
             
             $availableKeys = \App\Models\AiKey::where('is_active', true)
+                ->where('provider', 'gemini')
                 ->where(function ($query) {
                     $query->whereNull('cooldown_until')
                           ->orWhere('cooldown_until', '<=', now());
@@ -266,7 +269,7 @@ PROMPT;
 
         foreach ($this->models as $model) {
             $baseUrl = $this->getBaseUrl($model);
-            $maxKeyTries = \App\Models\AiKey::where('is_active', true)->count();
+            $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'gemini')->count();
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
                 if ($i > 0) usleep(500000); // 0.5s de respiro entre chaves
