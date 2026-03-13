@@ -63,6 +63,7 @@ Route::middleware(['throttle:10,1'])->group(function () {
     Route::get('/duelos', [CompareController::class, 'index'])->name('duels.index');
     Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
     Route::get('/compare/{cepA}/{cepB}/reprocessar', [CompareController::class, 'reprocess'])->name('report.compare_reprocess');
+    Route::get('/cidade/{slug}/pois', [CityPOIController::class, 'getPOIsByCategory'])->name('city.pois');
 });
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)

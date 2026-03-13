@@ -123,6 +123,44 @@
         .bg-white-10 { background: rgba(255,255,255,0.1); }
         .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .bg-primary-10 { background: rgba(99, 102, 241, 0.1); }
+        .bg-primary-10 { background: rgba(99, 102, 241, 0.1); }
+        .poi-card-clickable { cursor: pointer; transition: all 0.2s; }
+        .poi-card-clickable:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; border-color: var(--primary) !important; }
+        .modal-glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.5); }
+        .poi-item { padding: 16px; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
+        .poi-item:last-child { border-bottom: none; }
+        .poi-item:hover { background: #f8fafc; }
+
+        /* Banner Style */
+        .intelligence-banner {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            position: relative;
+            overflow: hidden;
+            margin-top: 20px; /* Removido o negativo para não cobrir o título */
+            z-index: 5;
+            transition: transform 0.3s ease;
+        }
+        .intelligence-banner:hover {
+            transform: translateY(-5px);
+        }
+        .intelligence-banner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), #10b981);
+        }
+        .pulse-icon {
+            animation: pulse-primary 2s infinite;
+        }
+        @keyframes pulse-primary {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
     </style>
 </head>
 <body>
@@ -167,6 +205,36 @@
     </section>
 
     <div class="container dashboard-container">
+        <!-- Dynamic Data Notice -->
+        <div class="row mb-5 justify-content-center">
+            <div class="col-lg-11">
+                <div class="intelligence-banner p-4">
+                    <div class="d-flex align-items-center flex-column flex-sm-row text-center text-sm-start">
+                        <div class="rounded-circle pulse-icon bg-primary text-white d-flex align-items-center justify-content-center mb-3 mb-sm-0 me-sm-4" style="width: 56px; height: 56px; flex-shrink: 0;">
+                            <i class="fa-solid fa-brain fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-black mb-1 text-dark" style="letter-spacing: -0.5px;">Inteligência Territorial Gerada por IA</h5>
+                            <p class="text-muted mb-0 lh-sm">
+                                Este panorama é dinâmico e evolui a cada pesquisa. Atualmente, analisamos <strong>{{ $city->stats_cache['total_mapped_ceps'] ?? 0 }} CEPs</strong> em {{ $city->name }}. 
+                            </p>
+                            <div class="mt-2 d-flex align-items-center">
+                                <span class="text-primary fw-bold small me-2"><i class="fa-solid fa-handshake-angle me-1"></i> Quer colaborar?</span>
+                                <a href="{{ route('home') }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" style="font-size: 11px;">
+                                    PESQUISE SEU CEP <i class="fa-solid fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="ms-sm-auto mt-3 mt-sm-0">
+                            <div class="badge bg-primary-10 text-primary rounded-pill px-3 py-2 border border-primary-10">
+                                <i class="fa-solid fa-bolt me-1"></i> Modo Preditivo Ativo
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-4">
             <!-- Estatísticas Rápidas -->
             <div class="col-md-4">
@@ -201,42 +269,42 @@
             <div class="col-12 mt-2">
                 <div class="row g-3">
                     <div class="col-6 col-md-4 col-lg-2">
-                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border poi-card-clickable" onclick="showPOICategory('Farmácias')">
                             <i class="fa-solid fa-pills text-danger mb-2 h4"></i>
                             <div class="h5 fw-black mb-0">{{ $essentials['pharmacies'] ?? 0 }}</div>
                             <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Farmácias</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border poi-card-clickable" onclick="showPOICategory('Postos')">
                             <i class="fa-solid fa-gas-pump text-warning mb-2 h4"></i>
                             <div class="h5 fw-black mb-0">{{ $essentials['gas_stations'] ?? 0 }}</div>
                             <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Postos</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border poi-card-clickable" onclick="showPOICategory('Mercados')">
                             <i class="fa-solid fa-cart-shopping text-success mb-2 h4"></i>
                             <div class="h5 fw-black mb-0">{{ $essentials['markets'] ?? 0 }}</div>
                             <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Mercados</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border poi-card-clickable" onclick="showPOICategory('Saúde')">
                             <i class="fa-solid fa-hospital text-primary mb-2 h4"></i>
                             <div class="h5 fw-black mb-0">{{ $essentials['health'] ?? 0 }}</div>
                             <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Saúde</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border poi-card-clickable" onclick="showPOICategory('Educação')">
                             <i class="fa-solid fa-graduation-cap text-info mb-2 h4"></i>
                             <div class="h5 fw-black mb-0">{{ $essentials['education'] ?? 0 }}</div>
                             <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Educação</div>
                         </div>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border poi-card-clickable" onclick="showPOICategory('Gastronomia')">
                             <i class="fa-solid fa-utensils text-secondary mb-2 h4"></i>
                             <div class="h5 fw-black mb-0">{{ $city->stats_cache['top_conveniencias']['Gastronomia'] ?? ($city->stats_cache['top_conveniencias']['Gastronomia/Bares'] ?? 0) }}</div>
                             <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Gastronomia</div>
@@ -420,7 +488,7 @@
                         @endphp
                         @forelse($city->stats_cache['top_conveniencias'] ?? [] as $type => $count)
                             <div class="col-md-6 col-lg-3">
-                                <div class="p-3 rounded-4 bg-light border d-flex align-items-center h-100 transition-all hover-white shadow-sm">
+                                <div class="p-3 rounded-4 bg-light border d-flex align-items-center h-100 transition-all hover-white shadow-sm poi-card-clickable" onclick="showPOICategory('{{ $type }}')">
                                     <div class="rounded-3 bg-primary-10 p-2 me-3 text-primary shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
                                         <i class="fa-solid fa-{{ $iconMap[$type] ?? 'location-dot' }}" style="font-size: 16px;"></i>
                                     </div>
@@ -433,6 +501,14 @@
                         @empty
                             <div class="col-12"><p class="text-muted small">Ainda coletando dados detalhados de infraestrutura...</p></div>
                         @endforelse
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <p class="small text-muted italic">
+                            <i class="fa-solid fa-circle-info me-1"></i> 
+                            Estes dados são parciais e baseados na cobertura atual da nossa rede. 
+                            <strong>Quanto mais buscas por CEP forem realizadas na cidade, maior será a precisão desta análise.</strong>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -609,5 +685,85 @@
         </div>
     </footer>
 
+    <!-- POI Modal -->
+    <div class="modal fade" id="poiModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content modal-glass border-0">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h3 class="modal-title fw-black h4 mb-0" id="poiModalTitle">Gastronomia</h3>
+                        <p class="text-muted small mb-0" id="poiModalSubtitle">Estabelecimentos mapeados em {{ $city->name }}</p>
+                    </div>
+                    <button type="button" class="btn-close rounded-circle border shadow-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0 pt-3">
+                    <div id="poiLoader" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted mt-2">Buscando detalhes geográficos...</p>
+                    </div>
+                    <div id="poiList" class="d-none">
+                        <!-- Itens virão via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function showPOICategory(category) {
+            const modal = new bootstrap.Modal(document.getElementById('poiModal'));
+            const title = document.getElementById('poiModalTitle');
+            const list = document.getElementById('poiList');
+            const loader = document.getElementById('poiLoader');
+            
+            title.innerText = category;
+            list.classList.add('d-none');
+            loader.classList.remove('d-none');
+            modal.show();
+
+            try {
+                const response = await fetch(`/cidade/{{ $city->slug }}/pois?category=${encodeURIComponent(category)}`);
+                const data = await response.json();
+                
+                list.innerHTML = '';
+                
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(item => {
+                        const html = `
+                            <div class="poi-item d-flex align-items-center">
+                                <div class="rounded-circle bg-primary-10 text-primary d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px; flex-shrink: 0;">
+                                    <i class="fa-solid fa-shop"></i>
+                                </div>
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="fw-bold text-dark text-truncate">${item.name}</div>
+                                    <div class="small text-muted text-truncate">${item.street} ${item.number} ${item.neighborhood ? ' - ' + item.neighborhood : ''}</div>
+                                </div>
+                                ${item.phone ? `
+                                    <a href="tel:${item.phone.replace(/\D/g, '')}" class="btn btn-primary btn-sm rounded-pill ms-2">
+                                        <i class="fa-solid fa-phone"></i>
+                                    </a>
+                                ` : ''}
+                                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name + ' ' + item.street + ' ' + '{{ $city->name }}')}" target="_blank" class="btn btn-outline-light border btn-sm rounded-pill text-dark ms-2">
+                                    <i class="fa-solid fa-location-arrow"></i>
+                                </a>
+                            </div>
+                        `;
+                        list.insertAdjacentHTML('beforeend', html);
+                    });
+                } else {
+                    list.innerHTML = '<div class="p-5 text-center text-muted">Nenhum detalhe adicional encontrado para esta categoria.</div>';
+                }
+                
+                loader.classList.add('d-none');
+                list.classList.remove('d-none');
+            } catch (error) {
+                console.error('Error fetching POIs:', error);
+                list.innerHTML = '<div class="p-5 text-center text-danger">Erro ao carregar os dados. Tente novamente.</div>';
+                loader.classList.add('d-none');
+                list.classList.remove('d-none');
+            }
+        }
+    </script>
 </body>
 </html>
