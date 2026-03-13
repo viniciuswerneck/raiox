@@ -4,6 +4,8 @@ namespace App\Services\CityDashboard;
 
 use App\Models\City;
 use App\Models\LocationReport;
+use App\Services\Agents\GeoAgent;
+use App\Services\Agents\POIAgent;
 use App\Services\GeminiService;
 use App\Services\GroqService;
 use App\Services\OpenRouterService;
@@ -17,17 +19,23 @@ class CityDashboardService
     protected $groq;
     protected $openRouter;
     protected $reviser;
+    protected $geoAgent;
+    protected $poiAgent;
 
     public function __construct(
         GeminiService $gemini,
         GroqService $groq,
         OpenRouterService $openRouter,
-        TextReviserService $reviser
+        TextReviserService $reviser,
+        GeoAgent $geoAgent,
+        POIAgent $poiAgent
     ) {
         $this->gemini = $gemini;
         $this->groq = $groq;
         $this->openRouter = $openRouter;
         $this->reviser = $reviser;
+        $this->geoAgent = $geoAgent;
+        $this->poiAgent = $poiAgent;
     }
 
     /**
@@ -53,6 +61,16 @@ class CityDashboardService
 
     private function aggregateStats(City $city)
     {
+        // 1. Garantir que temos os dados geográficos da cidade para busca oficial
+        if (empty($city->bbox_json) || !$city->lat) {
+            $geo = $this->geoAgent->geolocateCity($city->name, $city->uf);
+            if ($geo) {
+                $city->lat = $geo['lat'];
+                $city->lng = $geo['lon'];
+                $city->bbox_json = $geo['bbox']; // [lat_min, lat_max, lon_min, lon_max]
+            }
+        }
+
         $reports = LocationReport::where('cidade', $city->name)
             ->where('uf', $city->uf)
             ->where('status', 'completed')
@@ -62,19 +80,135 @@ class CityDashboardService
 
         $avgIncome = $reports->avg('average_income');
         
-        $totalPois = 0;
         $poiTypes = [];
-        foreach ($reports as $report) {
-            if (is_array($report->pois_json)) {
-                $totalPois += count($report->pois_json);
-                foreach ($report->pois_json as $poi) {
-                    $type = $poi['type_label'] ?? 'Outros';
-                    $poiTypes[$type] = ($poiTypes[$type] ?? 0) + 1;
+        $uniquePoisList = [];
+
+        // ESTRATÉGIA NOVA: Busca Municipal via Overpass se tivermos BBox
+        if ($city->bbox_json) {
+            // Overpass espera: (minlat, minlon, maxlat, maxlon)
+            // Nominatim retorna: [minlat, maxlat, minlon, maxlon]
+            $b = $city->bbox_json;
+            $overpassBBox = "{$b[0]},{$b[2]},{$b[1]},{$b[3]}";
+            $uniquePoisList = $this->poiAgent->fetchPOIsByBBox($overpassBBox, 1000);
+        } else {
+            // Fallback: Manter agregação manual por CEP (menos precisa para a cidade inteira)
+            $processedPoisIds = [];
+            foreach ($reports as $report) {
+                if (is_array($report->pois_json)) {
+                    foreach ($report->pois_json as $poi) {
+                        $poiId = ($poi['type'] ?? '') . '_' . ($poi['id'] ?? '');
+                        if (in_array($poiId, $processedPoisIds)) continue;
+                        $processedPoisIds[] = $poiId;
+                        $uniquePoisList[] = $poi;
+                    }
                 }
             }
         }
+
+        $totalPois = count($uniquePoisList);
+        $tagMap = [
+            // Amenity
+            'school' => 'Educação',
+            'kindergarten' => 'Educação Infantil',
+            'university' => 'Universidades',
+            'college' => 'Faculdades',
+            'bank' => 'Bancos',
+            'atm' => 'Caixas Eletrônicos',
+            'pharmacy' => 'Farmácias',
+            'hospital' => 'Saúde (Hospitais)',
+            'clinic' => 'Clínicas Médicas',
+            'doctors' => 'Médicos/Consultórios',
+            'dentist' => 'Odontologia',
+            'veterinary' => 'Pet/Veterinários',
+            'restaurant' => 'Gastronomia',
+            'cafe' => 'Cafeterias',
+            'fast_food' => 'Lanches/Fast Food',
+            'bar' => 'Lazer Noturno (Bares)',
+            'pub' => 'Pubs/Bares',
+            'nightclub' => 'Casas Noturnas',
+            'fuel' => 'Postos de Combustível',
+            'gym' => 'Saúde & Bem-Estar',
+            'fitness_centre' => 'Academias',
+            'park' => 'Lazer & Áreas Verdes',
+            'square' => 'Praças Públicas',
+            'church' => 'Templos/Igrejas',
+            'place_of_worship' => 'Religião',
+            'bakery' => 'Padarias/Confeitarias',
+            'car_repair' => 'Mecânicos/Oficinas',
+            'car_wash' => 'Lava Rápido',
+            'parking' => 'Estacionamento',
+            'library' => 'Cultura/Bibliotecas',
+            'theatre' => 'Cultura/Teatros',
+            'cinema' => 'Cultura/Cinemas',
+            'police' => 'Segurança Pública',
+            'fire_station' => 'Bombeiros',
+            'post_office' => 'Serviços Postais',
+            'townhall' => 'Serviços Públicos',
+            
+            // Shops
+            'supermarket' => 'Supermercados',
+            'convenience' => 'Lojas de Conveniência',
+            'mall' => 'Shopping Center',
+            'department_store' => 'Lojas de Departamento',
+            'clothes' => 'Moda/Vestuário',
+            'shoes' => 'Lojas de Calçados',
+            'beauty' => 'Beleza & Estética',
+            'hairdresser' => 'Salão de Beleza',
+            'optician' => 'Óticas',
+            'jewelry' => 'Joalherias',
+            'variety_store' => 'Lojas de Variedades',
+            'hardware' => 'Material de Construção',
+            'doityourself' => 'Ferragens/DIY',
+            'furniture' => 'Móveis & Decoração',
+            'stationery' => 'Papelaria',
+            'pet' => 'Pet Shop',
+            'toys' => 'Brinquedos',
+            'electronics' => 'Eletrônicos',
+            'mobile_phone' => 'Lojas de Celular',
+            'bicycle' => 'Bicicletarias',
+            'laundry' => 'Lavanderias',
+            'florist' => 'Floriculturas',
+            'butcher' => 'Açougues',
+            
+            // Tourism & Leisure
+            'hotel' => 'Hospedagem (Hoteis)',
+            'motel' => 'Hospedagem (Moteis)',
+            'museum' => 'Cultura/Museus',
+            'attraction' => 'Pontos Turísticos',
+            'viewpoint' => 'Mirantes/Turismo',
+            'stadium' => 'Esportes/Estádios',
+            'sports_centre' => 'Centros Esportivos',
+            'swimming_pool' => 'Lazer Aquático'
+        ];
+
+        foreach ($uniquePoisList as $poi) {
+            $tags = $poi['tags'] ?? [];
+            $found = false;
+
+            // Busca por tags de OSM reais (Amenity, Shop, Leisure, Tourism, Healthcare, Craft)
+            foreach (['amenity', 'shop', 'leisure', 'tourism', 'healthcare', 'craft'] as $key) {
+                if (isset($tags[$key])) {
+                    $osmVal = $tags[$key];
+                    $type = $tagMap[$osmVal] ?? null;
+                    if ($type) {
+                        $poiTypes[$type] = ($poiTypes[$type] ?? 0) + 1;
+                        $found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$found) {
+                $poiTypes['Diversos'] = ($poiTypes['Diversos'] ?? 0) + 1;
+            }
+        }
+        
         arsort($poiTypes);
-        $topPois = array_slice($poiTypes, 0, 5, true);
+        // Remove 'Diversos' do top se houver outros
+        $topPois = array_filter($poiTypes, fn($v, $k) => $k !== 'Diversos', ARRAY_FILTER_USE_BOTH);
+        
+        // Se ficou vazio, bota Diversos de volta no radar
+        if (empty($topPois)) $topPois = array_slice($poiTypes, 0, 1, true);
         
         // Contagem de categorias para o "Mix de Uso"
         $categories = $reports->pluck('territorial_classification')->countBy();
@@ -101,6 +235,27 @@ class CityDashboardService
             ->where('status', 'completed')
             ->avg('general_score');
 
+        // Médias de atributos para o "Radar da Cidade"
+        $avgAirQuality = $reports->avg('air_quality_index') ?: 50;
+        $avgSanitation = $reports->avg('sanitation_rate') ?: 50;
+        
+        // Mapeamento de Segurança (Médio de 0 a 100)
+        $avgSafety = $reports->map(function($r) {
+            $sl = strtoupper($r->safety_level);
+            if (str_contains($sl, 'ALTO') || str_contains($sl, 'ALTA')) return 100;
+            if (str_contains($sl, 'MODERADO')) return 70;
+            return 40;
+        })->average() ?: 50;
+
+        // Mapeamento de Caminhabilidade
+        $avgWalkability = $reports->map(function($r) {
+            $ws = strtoupper($r->walkability_score);
+            if ($ws == 'A') return 100;
+            if ($ws == 'B') return 80;
+            if ($ws == 'C') return 60;
+            return 40;
+        })->average() ?: 50;
+
         $city->stats_cache = [
             'avg_income' => round($avgIncome, 2),
             'total_mapped_ceps' => $reports->count(),
@@ -112,7 +267,20 @@ class CityDashboardService
             'state_avg_score' => round($stateAvgScore, 1),
             'predominant_class' => $predominant,
             'mix_usage' => $categories->toArray(),
-            'usage_percentages' => $usagePercentages
+            'usage_percentages' => $usagePercentages,
+            'essentials' => [
+                'pharmacies' => $poiTypes['Farmácias'] ?? 0,
+                'gas_stations' => $poiTypes['Postos de Combustível'] ?? 0,
+                'markets' => $poiTypes['Supermercados'] ?? 0,
+                'health' => ($poiTypes['Saúde (Hospitais)'] ?? 0) + ($poiTypes['Clínicas Médicas'] ?? 0),
+                'education' => ($poiTypes['Educação'] ?? 0) + ($poiTypes['Educação Infantil'] ?? 0)
+            ],
+            'radar' => [
+                'safety' => round($avgSafety, 1),
+                'walkability' => round($avgWalkability, 1),
+                'air_quality' => round(100 - $avgAirQuality, 1), // Invertido: Menor índice = Melhor qualidade
+                'sanitation' => round($avgSanitation, 1)
+            ]
         ];
         
         $city->last_calculated_at = now();

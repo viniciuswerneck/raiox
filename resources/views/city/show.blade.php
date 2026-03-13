@@ -118,6 +118,11 @@
             border-color: var(--primary);
             box-shadow: 0 10px 20px rgba(0,0,0,0.05);
         }
+
+        .shadow-pro { box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1); }
+        .bg-white-10 { background: rgba(255,255,255,0.1); }
+        .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .bg-primary-10 { background: rgba(99, 102, 241, 0.1); }
     </style>
 </head>
 <body>
@@ -146,9 +151,15 @@
                     </p>
                 </div>
                 <div class="col-lg-4 text-center text-lg-end mt-4 mt-lg-0">
-                    <div class="stats-badge py-3 px-4">
+                    <div class="stats-badge py-3 px-4 d-inline-block text-start" style="min-width: 200px;">
                         <span class="d-block small opacity-75">ESCORE DE VIZINHANÇA MÉDIO</span>
                         <span class="h2 fw-black text-white m-0">{{ $city->stats_cache['avg_score'] ?? '0.0' }} <small style="font-size: 0.5em; opacity: 0.7;">pts</small></span>
+                    </div>
+
+                    <div class="mt-3">
+                        <button onclick="navigator.clipboard.writeText(window.location.href); alert('Link da cidade copiado! 🚀')" class="btn btn-sm btn-outline-light rounded-pill px-3 glass" style="font-size: 11px;">
+                            <i class="fa-solid fa-share-nodes me-2"></i> Compartilhar Cidade
+                        </button>
                     </div>
                 </div>
             </div>
@@ -175,11 +186,62 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card-pro">
+                <div class="card-pro h-100">
                     <div class="metric-icon"><i class="fa-solid fa-location-dot"></i></div>
                     <h4 class="h6 text-secondary text-uppercase fw-bold mb-1">Infraestrutura Total</h4>
                     <p class="h3 fw-black mb-0">{{ number_format($city->stats_cache['total_pois'] ?? 0, 0, ',', '.') }}</p>
-                    <small class="text-muted">Pontos de interesse catalogados</small>
+                    <small class="text-muted">Estabelecimentos únicos mapeados</small>
+                </div>
+            </div>
+
+            <!-- Serviços Essenciais (Atrativos do Usuário) -->
+            @php
+                $essentials = $city->stats_cache['essentials'] ?? [];
+            @endphp
+            <div class="col-12 mt-2">
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                            <i class="fa-solid fa-pills text-danger mb-2 h4"></i>
+                            <div class="h5 fw-black mb-0">{{ $essentials['pharmacies'] ?? 0 }}</div>
+                            <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Farmácias</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                            <i class="fa-solid fa-gas-pump text-warning mb-2 h4"></i>
+                            <div class="h5 fw-black mb-0">{{ $essentials['gas_stations'] ?? 0 }}</div>
+                            <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Postos</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                            <i class="fa-solid fa-cart-shopping text-success mb-2 h4"></i>
+                            <div class="h5 fw-black mb-0">{{ $essentials['markets'] ?? 0 }}</div>
+                            <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Mercados</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                            <i class="fa-solid fa-hospital text-primary mb-2 h4"></i>
+                            <div class="h5 fw-black mb-0">{{ $essentials['health'] ?? 0 }}</div>
+                            <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Saúde</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                            <i class="fa-solid fa-graduation-cap text-info mb-2 h4"></i>
+                            <div class="h5 fw-black mb-0">{{ $essentials['education'] ?? 0 }}</div>
+                            <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Educação</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <div class="card-pro text-center p-3 h-100 bg-white shadow-sm border">
+                            <i class="fa-solid fa-utensils text-secondary mb-2 h4"></i>
+                            <div class="h5 fw-black mb-0">{{ $city->stats_cache['top_conveniencias']['Gastronomia'] ?? ($city->stats_cache['top_conveniencias']['Gastronomia/Bares'] ?? 0) }}</div>
+                            <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Gastronomia</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -285,15 +347,86 @@
                         Conveniências & Serviços Mapeados
                     </h3>
                     <div class="row g-3">
+                        @php
+                            $iconMap = [
+                                'Educação' => 'graduation-cap',
+                                'Educação Infantil' => 'child-reaching',
+                                'Universidades' => 'building-columns',
+                                'Faculdades' => 'building-columns',
+                                'Bancos' => 'building-columns',
+                                'Caixas Eletrônicos' => 'money-bill-transfer',
+                                'Farmácias' => 'pills',
+                                'Saúde (Hospitais)' => 'hospital',
+                                'Clínicas Médicas' => 'stethoscope',
+                                'Médicos/Consultórios' => 'user-doctor',
+                                'Odontologia' => 'tooth',
+                                'Pet/Veterinários' => 'paw',
+                                'Gastronomia' => 'utensils',
+                                'Cafeterias' => 'mug-hot',
+                                'Lanches/Fast Food' => 'burger',
+                                'Lazer Noturno (Bares)' => 'martini-glass',
+                                'Pubs/Bares' => 'beer-mug-empty',
+                                'Casas Noturnas' => 'music',
+                                'Postos de Combustível' => 'gas-pump',
+                                'Saúde & Bem-Estar' => 'heart-pulse',
+                                'Academias' => 'dumbbell',
+                                'Lazer & Áreas Verdes' => 'leaf',
+                                'Praças Públicas' => 'couch',
+                                'Templos/Igrejas' => 'church',
+                                'Religião' => 'hands-praying',
+                                'Padarias/Confeitarias' => 'bread-slice',
+                                'Mecânicos/Oficinas' => 'wrench',
+                                'Lava Rápido' => 'faucet-detergent',
+                                'Estacionamento' => 'square-p',
+                                'Cultura/Bibliotecas' => 'book',
+                                'Cultura/Teatros' => 'masks-theater',
+                                'Cultura/Cinemas' => 'film',
+                                'Segurança Pública' => 'shield-halved',
+                                'Bombeiros' => 'fire-extinguisher',
+                                'Serviços Postais' => 'envelope',
+                                'Serviços Públicos' => 'building',
+                                'Supermercados' => 'cart-shopping',
+                                'Lojas de Conveniência' => 'shop',
+                                'Shopping Center' => 'bag-shopping',
+                                'Lojas de Departamento' => 'building-store',
+                                'Moda/Vestuário' => 'shirt',
+                                'Lojas de Calçados' => 'shoe-prints',
+                                'Beleza & Estética' => 'sparkles',
+                                'Salão de Beleza' => 'scissors',
+                                'Óticas' => 'glasses',
+                                'Joalherias' => 'gem',
+                                'Lojas de Variedades' => 'boxes-packing',
+                                'Material de Construção' => 'trowel-bricks',
+                                'Ferragens/DIY' => 'hammer',
+                                'Móveis & Decoração' => 'chair',
+                                'Papelaria' => 'pen-nib',
+                                'Pet Shop' => 'dog',
+                                'Brinquedos' => 'gamepad',
+                                'Eletrônicos' => 'tv',
+                                'Lojas de Celular' => 'mobile-screen-button',
+                                'Bicicletarias' => 'bicycle',
+                                'Lavanderias' => 'soap',
+                                'Floriculturas' => 'flower-up',
+                                'Açougues' => 'drumstick-bite',
+                                'Hospedagem (Hoteis)' => 'hotel',
+                                'Hospedagem (Moteis)' => 'bed',
+                                'Cultura/Museus' => 'monument',
+                                'Pontos Turísticos' => 'camera',
+                                'Mirantes/Turismo' => 'binoculars',
+                                'Esportes/Estádios' => 'volleyball',
+                                'Centros Esportivos' => 'medal',
+                                'Lazer Aquático' => 'water'
+                            ];
+                        @endphp
                         @forelse($city->stats_cache['top_conveniencias'] ?? [] as $type => $count)
-                            <div class="col-md-6 col-lg-4">
-                                <div class="p-3 rounded-4 bg-light border d-flex align-items-center">
-                                    <div class="rounded-3 bg-white border p-2 me-3 text-primary shadow-sm">
-                                        <i class="fa-solid fa-check-circle" style="font-size: 14px;"></i>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="p-3 rounded-4 bg-light border d-flex align-items-center h-100 transition-all hover-white shadow-sm">
+                                    <div class="rounded-3 bg-primary-10 p-2 me-3 text-primary shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fa-solid fa-{{ $iconMap[$type] ?? 'location-dot' }}" style="font-size: 16px;"></i>
                                     </div>
-                                    <div>
+                                    <div class="text-truncate">
                                         <div class="small text-muted text-uppercase fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">{{ $type }}</div>
-                                        <div class="fw-bold h6 mb-0">{{ $count }} Unidades</div>
+                                        <div class="fw-bold h6 mb-0">{{ $count }} <small class="text-muted fw-normal">unid.</small></div>
                                     </div>
                                 </div>
                             </div>
@@ -342,20 +475,97 @@
                             </div>
                         </div>
                     @endif
+
+                    <!-- Radar de Atributos Municipais (Novo) -->
+                    <div class="mt-4 p-4 rounded-4 bg-dark text-white shadow-pro">
+                        <h4 class="h6 fw-bold mb-4 text-uppercase small opacity-75 d-flex align-items-center">
+                            <i class="fa-solid fa-microscope me-2 text-primary"></i> 
+                            Análise Técnica Municipal
+                        </h4>
+                        
+                        @php
+                            $radar = $city->stats_cache['radar'] ?? [];
+                        @endphp
+
+                        <div class="space-y-4">
+                            @foreach([
+                                'Segurança' => ['val' => $radar['safety'] ?? 50, 'icon' => 'shield-halved', 'color' => 'success'],
+                                'Caminhabilidade' => ['val' => $radar['walkability'] ?? 50, 'icon' => 'person-walking', 'color' => 'info'],
+                                'Qualidade do Ar' => ['val' => $radar['air_quality'] ?? 50, 'icon' => 'wind', 'color' => 'warning'],
+                                'Saneamento' => ['val' => $radar['sanitation'] ?? 50, 'icon' => 'droplet', 'color' => 'primary']
+                            ] as $label => $data)
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span><i class="fa-solid fa-{{ $data['icon'] }} me-2 text-{{ $data['color'] }}"></i> {{ $label }}</span>
+                                        <span class="fw-bold">{{ $data['val'] }}%</span>
+                                    </div>
+                                    <div class="progress bg-white-10" style="height: 4px;">
+                                        <div class="progress-bar bg-{{ $data['color'] }}" style="width: {{ $data['val'] }}%"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <p class="text-white-50 mt-3 mb-0" style="font-size: 10px; line-height: 1.4;">
+                            * Dados baseados em mapeamentos georreferenciados proprietários corrigidos por API técnica.
+                        </p>
+                    </div>
+
+                    <!-- Search CTA -->
+                    <div class="mt-4 p-4 rounded-4 border bg-gradient text-center" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white;">
+                        <i class="fa-solid fa-magnifying-glass-location h2 mb-3"></i>
+                        <h5 class="fw-black mb-2">Não achou seu bairro?</h5>
+                        <p class="small opacity-90 mb-3">Consulte seu CEP agora e ajude a mapear {{ $city->name }}!</p>
+                        <a href="/" class="btn btn-white w-100 rounded-pill fw-bold text-primary py-2">Consultar CEP Grátis</a>
+                    </div>
                 </div>
             </div>
 
-            <!-- Território Mapeado (Abaixo do Texto) -->
+            <!-- Território Mapeado (Ranking Completo) -->
             <div class="col-12">
                 <div class="card-pro bg-white" style="background: white !important;">
+                    
+                    @php
+                        $podium = array_slice($city->stats_cache['neighborhood_list'] ?? [], 0, 3);
+                        $rest = array_slice($city->stats_cache['neighborhood_list'] ?? [], 3);
+                    @endphp
+
+                    @if(!empty($podium))
+                        <!-- Podio de Bairros (Destaques) -->
+                        <div class="row g-4 mb-5">
+                            <div class="col-12 text-center mb-2">
+                                <span class="badge bg-primary-10 text-primary px-3 py-2 rounded-pill fw-bold text-uppercase" style="font-size: 11px;">🏆 O Podio da Cidade</span>
+                            </div>
+                            @foreach($podium as $index => $item)
+                                <div class="col-md-4">
+                                    <div class="p-4 rounded-5 border text-center transition-all hover-white shadow-pro h-100 position-relative bg-white">
+                                        <div class="position-absolute top-0 start-50 translate-middle">
+                                            <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center border border-white border-4 shadow" style="width: 50px; height: 50px; font-size: 20px;">
+                                                @if($index == 0) 🥇 @elseif($index == 1) 🥈 @else 🥉 @endif
+                                            </div>
+                                        </div>
+                                        <div class="mt-4">
+                                            <h4 class="fw-black mb-1 h5 text-truncate px-2">{{ $item['name'] }}</h4>
+                                            <div class="text-muted small mb-3">#{{ $index + 1 }} do Ranking</div>
+                                            <div class="h3 fw-black {{ $item['avg_score'] >= 80 ? 'text-success' : 'text-primary' }} mb-0">
+                                                {{ $item['avg_score'] }} <span style="font-size: 12px; opacity: 0.6;">pts</span>
+                                            </div>
+                                            <div class="small fw-bold opacity-50 text-uppercase" style="font-size: 9px; letter-spacing: 1px;">Escore Territorial</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <hr class="opacity-10 my-5">
+                    @endif
+
                     <div class="row align-items-center mb-4">
                         <div class="col-md-8">
                             <h3 class="fw-black mb-1">
                                 <i class="fa-solid fa-ranking-star me-2 text-primary"></i> 
-                                Ranking de Qualidade de Vida por Bairro
+                                Ranking Completo de Bairros ({{ $city->name }})
                             </h3>
                             <p class="text-muted mb-0">
-                                Bairros ordenados pelo <strong>Escore de Vizinhança</strong> (média real dos CEPs mapeados).
+                                Demais bairros ordenados pelo <strong>Escore de Vizinhança</strong> mapeado.
                             </p>
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
@@ -366,7 +576,7 @@
                     </div>
 
                     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
-                        @foreach($city->stats_cache['neighborhood_list'] ?? [] as $item)
+                        @foreach($rest ?? [] as $item)
                             <div class="col">
                                 <div class="p-3 h-100 rounded-4 bg-light border transition-all hover-white shadow-sm" style="cursor: default;">
                                     <div class="d-flex justify-content-between align-items-start mb-2">

@@ -103,6 +103,31 @@ class GeoAgent
      * @param string $state
      * @param string|null $cep (opcional, para busca precisa)
      */
+    public function geolocateCity(string $city, string $state): ?array
+    {
+        $headers = ['User-Agent' => 'GeoAgent-RaioX/1.0'];
+        $queryParams = [
+            'city' => $city,
+            'state' => $state,
+            'country' => 'Brazil',
+            'format' => 'json',
+            'addressdetails' => 1,
+            'limit' => 1
+        ];
+
+        $node = $this->queryNominatim($queryParams, $headers);
+
+        if ($node) {
+            return [
+                'lat' => $node['lat'] ?? null,
+                'lon' => $node['lon'] ?? null,
+                'bbox' => $node['boundingbox'] ?? null, // [lat_min, lat_max, lon_min, lon_max]
+            ];
+        }
+
+        return null;
+    }
+
     public function geolocate(string $street, string $city, string $state, ?string $cep = null): ?array
     {
         $headers = ['User-Agent' => 'GeoAgent-RaioX/1.0'];

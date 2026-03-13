@@ -20,9 +20,16 @@ class CityController extends Controller
     {
         $city = City::where('slug', $slug)->firstOrFail();
 
-        // Se nunca foi calculado ou faz mais de 24h, atualiza
-        if (!$city->last_calculated_at || $city->last_calculated_at->diffInHours(now()) > 24) {
+        // Gatilho de auto-reprocessamento: Se o cache estiver velho (>24h) ou faltar info essencial
+        $hasMissingInfo = !$city->history_extract 
+            || !$city->image_url 
+            || empty($city->stats_cache) 
+            || !isset($city->stats_cache['radar']) 
+            || !isset($city->stats_cache['top_conveniencias']);
+
+        if (!$city->last_calculated_at || $city->last_calculated_at->diffInHours(now()) > 24 || $hasMissingInfo) {
             $this->cityService->updateCityData($city);
+            $city->refresh(); // Garante que a view receba os dados novos
         }
 
         $recentReports = LocationReport::where('cidade', $city->name)

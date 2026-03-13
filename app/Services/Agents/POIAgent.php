@@ -14,29 +14,36 @@ class POIAgent
     {
         Log::info("POIAgent: Iniciando busca de POIs em [{$lat}, {$lng}] com raio {$radius}m");
         
-        // Conversão aproximada de metros para graus para criar uma Bounding Box (BBox)
-        // 0.009 graus é aproximadamente 1km.
         $margin = ($radius / 1000) * 0.009;
-        
         $lat_min = $lat - $margin;
         $lat_max = $lat + $margin;
         $lon_min = $lng - $margin;
         $lon_max = $lng + $margin;
         $bbox = "{$lat_min},{$lon_min},{$lat_max},{$lon_max}";
 
-        // Consulta de alta performance: busca por chaves principais dentro da BBox
-        // Usamos nwr para garantir que polígonos (shoppings, parques) também venham, 
-        // mas o BBox mantém a resposta instantânea.
-        $query = "[out:json][timeout:25];(
-            nwr({$bbox})[\"amenity\"~\"restaurant|pharmacy|hospital|bank|school|university|clinic|doctors|police|fire_station|post_office|marketplace|cinema|theatre|library|community_centre\"];
-            nwr({$bbox})[\"shop\"~\"supermarket|bakery|convenience|clothes|beauty|department_store|books|butcher|greengrocer|laundry|mall|pharmacy|hardware\"];
-            nwr({$bbox})[\"leisure\"~\"park|square|gym|sports_centre|playground|garden|beach|stadium\"];
-            nwr({$bbox})[\"tourism\"~\"museum|monument|attraction|artwork|gallery|viewpoint|hotel\"];
+        return $this->executeQuery($bbox, 300);
+    }
+
+    public function fetchPOIsByBBox(string $bbox, int $limit = 1000): array
+    {
+        Log::info("POIAgent: Iniciando busca municipal de POIs via BBox: {$bbox}");
+        return $this->executeQuery($bbox, $limit);
+    }
+
+    private function executeQuery(string $bbox, int $limit): array
+    {
+        $query = "[out:json][timeout:35];(
+            nwr({$bbox})[\"amenity\"~\"restaurant|pharmacy|hospital|bank|atm|school|university|clinic|doctors|police|fire_station|post_office|marketplace|cinema|theatre|library|community_centre|fuel|car_repair|dentist|veterinary|kindergarten|townhall|courthouse|events_venue\"];
+            nwr({$bbox})[\"shop\"~\"supermarket|bakery|convenience|clothes|beauty|department_store|books|butcher|greengrocer|laundry|mall|pharmacy|hardware|shoes|optician|jewelry|variety_store|furniture|stationery|pet|toys|electronics|mobile_phone|bicycle|florist|butcher|car_repair|hairdresser\"];
+            nwr({$bbox})[\"leisure\"~\"park|square|gym|sports_centre|playground|garden|beach|stadium|fitness_centre|swimming_pool\"];
+            nwr({$bbox})[\"tourism\"~\"museum|monument|attraction|artwork|gallery|viewpoint|hotel|motel|guest_house\"];
+            nwr({$bbox})[\"healthcare\"~\"pharmacy|hospital|clinic|dentist\"];
+            nwr({$bbox})[\"craft\"~\"carpenter|electrician|plumber|gardener\"];
             nwr({$bbox})[\"historic\"];
             nwr({$bbox})[\"railway\"~\"station|stop\"];
             nwr({$bbox})[\"highway\"~\"bus_stop|bus_station\"];
             nwr({$bbox})[\"amenity\"=\"subway_entrance\"];
-        );out center qt 300;";
+        );out center qt {$limit};";
 
         $endpoints = [
             'https://lz4.overpass-api.de/api/interpreter',

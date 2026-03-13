@@ -20,6 +20,7 @@ class City extends Model
         'average_income' => 'decimal:2',
         'sanitation_rate' => 'decimal:2',
         'stats_cache' => 'array',
+        'bbox_json' => 'array',
         'last_calculated_at' => 'datetime',
     ];
 
