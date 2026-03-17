@@ -94,6 +94,9 @@ Route::get('/clear-cache', function() {
         
         // 2. Limpa o Cache de Configuração
         \Illuminate\Support\Facades\Artisan::call('config:clear');
+
+        // 3. Limpa o Cache das Views
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
         
         // 3. Libera todas as chaves de IA do "castigo" (cooldown)
         \App\Models\AiKey::query()->update(['cooldown_until' => null]);
