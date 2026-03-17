@@ -150,42 +150,42 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="text-white-50 mb-4">O sistema Raio-X opera através de uma malha de microsserviços inteligentes coordenados por um motor de orquestração assíncrona.</p>
+                <p class="text-white-50 mb-4">O **Ecosystem Raio-X v3.0** é uma plataforma de inteligência territorial de alta fidelidade, operando sobre uma infraestrutura de micro-serviços cognitivos e orquestração assíncrona distribuída.</p>
                 
                 <div class="row">
                     <div class="col-md-6">
                         <div class="module-card">
                             <div class="module-icon"><i class="fa-solid fa-brain"></i></div>
-                            <h6>LlmRouterService</h6>
-                            <p class="small text-white-50 mb-0">O cérebro central. Gerencia rotação exaustiva de chaves, cooldown de falhas (429) e balanceamento entre provedores (Groq, OpenRouter, Google).</p>
+                            <h6>Neural Routing Engine</h6>
+                            <p class="small text-white-50 mb-0">Malha de roteamento inteligente (LlmRouter) que gerencia clusters de modelos globais. Executa auto-healing de chaves e balanceamento dinâmico entre provedores de elite (DeepSeek-R1, Gemini 1.5 Pro, Llama 3.3).</p>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="module-card">
                             <div class="module-icon"><i class="fa-solid fa-shield-halved"></i></div>
-                            <h6>IntegrityAgent</h6>
-                            <p class="small text-white-50 mb-0">O zelador de dados (Auto-Repair). Audita em tempo real cada acesso, detectando e corrigindo lacunas de informação em background.</p>
+                            <h6>Predictive Integrity Agent</h6>
+                            <p class="small text-white-50 mb-0">Zelador autônomo de dados (IntegrityAgent). Realiza auditoria passiva em tempo real em cada requisição, identificando gaps de informação e disparando jobs de auto-reparo para garantir a integridade perpétua da base.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="module-card">
                             <div class="module-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-                            <h6>TerritoryEngine</h6>
-                            <p class="small text-white-50 mb-0">Orquestrador de contexto. Reúne dados de POIs, Clima, Wiki e Socioeconomia para criar o prompt dimensional de análise territorial.</p>
+                            <h6>Context Fusion Engine</h6>
+                            <p class="small text-white-50 mb-0">Orquestrador multi-dimensional (TerritoryEngine). Sintetiza trilhões de pontos de dados de POIs, clima, demografia e socioeconomia em um hyper-prompt contextualizado para análises territoriais ultra-precisas.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="module-card">
                             <div class="module-icon"><i class="fa-solid fa-chart-line"></i></div>
-                            <h6>AactService</h6>
-                            <p class="small text-white-50 mb-0">Auditor de calibração. Valida a consistência de dados imobiliários e segurança gerados pela IA cruzando com indicadores reais de renda.</p>
+                            <h6>Metric Calibration Guard</h6>
+                            <p class="small text-white-50 mb-0">Camada de validação paramétrica (AactService). Atua como um auditor matemático que cruza narrativas de IA com indicadores reais de renda e mercado imobiliário, eliminando alucinações e garantindo precisão estatística.</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-3 p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25">
-                    <h6 class="fw-bold mb-2 small text-uppercase" style="letter-spacing: 1px;">Fluxo de Inteligência</h6>
-                    <p class="small mb-0">Trigger de CEP &rarr; GeoAgent (Localização) &rarr; TerritoryEngine (Data Gathering) &rarr; LlmRouter (Analysis) &rarr; AactService (Calibration) &rarr; IntegrityAgent (Final Audit).</p>
+                    <h6 class="fw-bold mb-2 small text-uppercase" style="letter-spacing: 1px;">Pipeline de Hiper-Inteligência</h6>
+                    <p class="small mb-0">Ingestão Geodata &rarr; Fusão Contextual (RAG) &rarr; Processamento Cognitivo Nativo &rarr; Calibração Métrica &rarr; Auditoria de Integridade Perpétua.</p>
                 </div>
             </div>
             <div class="modal-footer border-0 pt-0">
