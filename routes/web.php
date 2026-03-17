@@ -6,6 +6,9 @@ use App\Http\Controllers\CompareController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\CityController;
+use App\Http\Controllers\CityPOIController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -71,6 +74,7 @@ Route::middleware(['throttle:10,1'])->group(function () {
     Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
     Route::get('/compare/{cepA}/{cepB}/reprocessar', [CompareController::class, 'reprocess'])->name('report.compare_reprocess');
     Route::get('/cidade/{slug}/pois', [CityPOIController::class, 'getPOIsByCategory'])->name('city.pois');
+    Route::get('/adm', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 });
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)
