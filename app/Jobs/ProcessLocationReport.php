@@ -16,6 +16,7 @@ class ProcessLocationReport implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $cep;
+    protected $preResolvedGeo;
 
     /**
      * The number of times the job may be attempted.
@@ -27,82 +28,85 @@ class ProcessLocationReport implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(string $cep)
+    public function __construct(string $cep, array $preResolvedGeo = [])
     {
         $this->cep = $cep;
+        $this->preResolvedGeo = $preResolvedGeo;
     }
 
     /**
      * Execute the job.
      */
-    public function handle(NeighborhoodService $service): void
-    {
+    public function handle(
+        \App\Services\Territory\TerritoryEngine $territory,
+        \App\Services\Agents\CacheAgent $cacheAgent,
+        \App\Services\Agents\LLMAgent $llmAgent,
+        \App\Services\CityDashboard\CityDashboardService $cityService
+    ): void {
         $cepClean = preg_replace('/\D/', '', $this->cep);
         $report = LocationReport::where('cep', $cepClean)->first();
 
-        if ($report) {
-            $report->update(['status' => 'processing']);
-        }
-
         try {
-            Log::info("Job started for CEP: {$cepClean}");
+            Log::info("Job ProcessLocationReport started for CEP: {$cepClean}");
             
-            // Reutiliza a lógica existente do serviço, mas forçando o processamento
-            // já que o Job só é disparado quando o cache expirou ou não existe.
-            $data = $service->getFullReport($cepClean);
-            
-            if (empty($data)) {
-                throw new \Exception("Could not fetch data for CEP: {$cepClean}");
+            // 1. Orquestração Completa
+            $territoryData = $territory->resolve($cepClean, $this->preResolvedGeo);
+
+            if ($territoryData['status'] === 'failed') {
+                throw new \Exception($territoryData['error'] ?? 'Falha na resolução territorial.');
             }
 
+            $location = $territoryData['location'];
+            $agents = $territoryData['agents'];
+            $categorization = $territoryData['categorization'];
+
+            // 2. Mapeamento de dados para o Modelo
             $reportData = [
-                'cep' => $cepClean,
-                'logradouro' => $data['logradouro'] ?? '',
-                'bairro' => $data['bairro'] ?? '',
-                'cidade' => $data['localidade'],
-                'uf' => $data['uf'],
-                'codigo_ibge' => $data['ibge_code'] ?? $data['ibge'] ?? '',
-                'populacao' => $data['population'] ?? null,
-                'idhm' => $data['idhm'] ?? null,
-                'raw_ibge_data' => $data['municipality_info'] ?? [],
-                'lat' => $data['lat'] ?? null,
-                'lng' => $data['lng'] ?? null,
-                'pois_json' => $data['pois_json'] ?? [],
-                'search_radius' => $data['search_radius'] ?? 10000,
-                'climate_json' => $data['climate_json'] ?? [],
-                'wiki_json' => $data['wiki_json'] ?? [],
-                'air_quality_index' => $data['air_quality_index'] ?? null,
-                'walkability_score' => $data['walkability_score'] ?? 'C',
-                'average_income' => $data['average_income'] ?? null,
-                'sanitation_rate' => $data['sanitation_rate'] ?? null,
-                'history_extract' => $data['history_extract'] ?? null,
-                'safety_level' => $data['safety_level'] ?? null,
-                'safety_description' => $data['safety_description'] ?? null,
-                'real_estate_json' => $data['real_estate_json'] ?? null,
-                'territorial_classification' => $data['territorial_classification'] ?? null,
-                'aact_log' => $data['aact_log'] ?? null,
-                'status' => 'completed',
-                'error_message' => null,
+                'populacao' => $agents['socio']['population'],
+                'idhm' => $agents['socio']['idhm'],
+                'pois_json' => $agents['poi']['data'],
+                'search_radius' => $agents['poi']['radius'],
+                'climate_json' => $agents['clima']['climate_json'],
+                'air_quality_index' => $agents['clima']['air_quality_index'],
+                'walkability_score' => $agents['poi']['walk_score'],
+                'infra_score' => $agents['poi']['metrics']['infra'] ?? 0,
+                'mobility_score' => $agents['poi']['metrics']['mobility'] ?? 0,
+                'leisure_score' => $agents['poi']['metrics']['leisure'] ?? 0,
+                'general_score' => $agents['poi']['metrics']['total_score'] ?? 0,
+                'average_income' => $agents['socio']['average_income'],
+                'sanitation_rate' => $categorization['sanitation_rate'],
+                'territorial_classification' => $categorization['classification'],
+                'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
+                'raw_ibge_data' => $agents['socio']['raw_ibge_data'] ?? null,
+                'wiki_json' => $agents['wiki'],
+                'status' => 'processing_text', // Agora vai para a fase de narrativa
+                'data_version' => 3,
+                'error_message' => null
             ];
 
             if ($report) {
                 $report->update($reportData);
             } else {
-                LocationReport::create($reportData);
+                $report = LocationReport::create(array_merge(['cep' => $cepClean], $reportData));
             }
 
-            Log::info("Job completed successfully for CEP: {$cepClean}");
+            // 3. Garantir Cidade e Dashboard
+            $territory->ensureCityExists($location, $agents['socio']);
+            $cityObj = \App\Models\City::where('name', $location['city'])->where('uf', $location['state'])->first();
+            if ($cityObj) {
+                $cityService->updateCityData($cityObj);
+            }
+
+            // 4. Disparar Narrativa LLM
+            $llmAgent->dispatchTextGeneration($cepClean, $report->id, $agents['knowledge_base'] ?? []);
+
+            Log::info("Job ProcessLocationReport completed successfully for CEP: {$cepClean}");
 
         } catch (\Exception $e) {
-            Log::error("Job failed for CEP: {$cepClean}. Error: " . $e->getMessage());
-            
+            Log::error("Job ProcessLocationReport failed for CEP: {$cepClean}. Error: " . $e->getMessage());
             if ($report) {
-                $report->update([
-                    'status' => 'failed',
-                    'error_message' => $e->getMessage()
-                ]);
+                $report->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
             }
-            
             throw $e;
         }
     }

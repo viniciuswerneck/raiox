@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Services\Agents\CacheAgent;
-use App\Services\Agents\LLMAgent;
+use App\Services\LlmManagerService;
+use App\Services\TextReviserService;
 use App\Services\Agents\PipelineCoordinator;
 use App\Services\CityDashboard\CityDashboardService;
 use App\Models\City;
@@ -11,18 +12,18 @@ use Illuminate\Support\Facades\Log;
 
 class NeighborhoodService
 {
-    protected $coordinator;
+    protected $territory;
     protected $cacheAgent;
     protected $llmAgent;
     protected $cityService;
 
     public function __construct(
-        PipelineCoordinator $coordinator,
-        CacheAgent $cacheAgent,
-        LLMAgent $llmAgent,
-        CityDashboardService $cityService
+        \App\Services\Territory\TerritoryEngine $territory,
+        \App\Services\Agents\CacheAgent $cacheAgent,
+        \App\Services\Agents\LLMAgent $llmAgent,
+        \App\Services\CityDashboard\CityDashboardService $cityService
     ) {
-        $this->coordinator = $coordinator;
+        $this->territory = $territory;
         $this->cacheAgent = $cacheAgent;
         $this->llmAgent = $llmAgent;
         $this->cityService = $cityService;
@@ -57,75 +58,44 @@ class NeighborhoodService
         }
 
         try {
-            Log::info("NeighborhoodService: Iniciando Orquestração Completa para CEP {$cepClean}");
+            Log::info("NeighborhoodService: Iniciando Orquestração ASYNC para CEP {$cepClean}");
             
-            $fastPathData = $this->coordinator->orchestrateFastPath($cepClean);
+            // 3. FAST-PATH: Resolver apenas GEOGRAFIA (Síncrono, ~500ms)
+            $fastData = $this->territory->resolveFast($cepClean);
 
-            if (!$fastPathData || ($fastPathData['error'] ?? false)) {
+            if ($fastData['status'] === 'failed') {
                 $errData = [
                     'cep' => $cepClean,
-                    'cidade' => $fastPathData['city'] ?? 'Não Localizado',
-                    'uf' => $fastPathData['state'] ?? '??',
-                    'codigo_ibge' => $fastPathData['ibge_code'] ?? '0',
                     'status' => 'failed',
-                    'error_message' => $fastPathData['error_message'] ?? 'CEP inválido ou sem cobertura geográfica inicial.'
+                    'error_message' => $fastData['error'] ?? 'CEP inválido.',
+                    'cidade' => 'Não Localizado',
+                    'uf' => '??',
+                    'codigo_ibge' => '0'
                 ];
                 return $this->cacheAgent->upsertBasicData($cepClean, $errData);
             }
 
-            // 3. APLICA COMPENSAÇÕES
-            $categorization = $this->coordinator->calculateCategorization($fastPathData);
+            $location = $fastData['location'];
 
-            // 4. SALVAR ESTRUCTURA NO CACHE (DB)
+            // 4. SALVAR PLACEHOLDER NO BANCO (Status: processing)
             $reportData = [
                 'cep' => $cepClean,
-                'logradouro' => $fastPathData['logradouro'] ?? '',
-                'bairro' => $fastPathData['bairro'] ?? '',
-                'cidade' => $fastPathData['cidade'],
-                'uf' => $fastPathData['uf'],
-                'codigo_ibge' => $fastPathData['codigo_ibge'],
-                'populacao' => $fastPathData['population'],
-                'idhm' => $fastPathData['idhm'],
-                'lat' => $fastPathData['lat'],
-                'lng' => $fastPathData['lng'],
-                'pois_json' => $fastPathData['pois_json'],
-                'search_radius' => 1000,
-                'climate_json' => $fastPathData['climate_json'],
-                'air_quality_index' => $fastPathData['air_quality_index'],
-                'walkability_score' => $fastPathData['walkability_score'],
-                'infra_score' => $fastPathData['infra_score'] ?? 0,
-                'mobility_score' => $fastPathData['mobility_score'] ?? 0,
-                'leisure_score' => $fastPathData['leisure_score'] ?? 0,
-                'general_score' => $fastPathData['general_score'] ?? 0,
-                'average_income' => $fastPathData['average_income'],
-                'sanitation_rate' => $categorization['sanitation_rate'],
-                'territorial_classification' => $categorization['classification'],
-                'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
-                'raw_ibge_data' => $fastPathData['raw_ibge_data'] ?? null,
-                'status' => 'processing_text',
-                'data_version' => 3,
-                'error_message' => null
+                'logradouro' => $location['address'],
+                'bairro' => $location['neighborhood'],
+                'cidade' => $location['city'],
+                'uf' => $location['state'],
+                'codigo_ibge' => $location['ibge'],
+                'lat' => $location['coordinates']['lat'],
+                'lng' => $location['coordinates']['lng'],
+                'status' => 'processing',
+                'data_version' => 3
             ];
 
             $report = $this->cacheAgent->upsertBasicData($cepClean, $reportData);
 
-            // Garantir que a cidade existe
-            $this->coordinator->ensureCityExists($reportData);
-            
-            // Atualizar dashboard da cidade (Estatísticas e História se necessário)
-            $cityObj = City::where('name', $reportData['cidade'])->where('uf', $reportData['uf'])->first();
-            if ($cityObj) {
-                $this->cityService->updateCityData($cityObj);
-            }
-
-            // 5. DELEGAR NARRATIVA LLM
-            $wikiContext = [
-                'bairro' => $reportData['bairro'],
-                'city' => $reportData['cidade'],
-                'state' => $reportData['uf']
-            ];
-            
-            $this->llmAgent->dispatchTextGeneration($cepClean, $report->id, $wikiContext);
+            // 5. DISPARAR JOB DE PROCESSAMENTO COMPLETO (Background)
+            // Este Job fará o trabalho pesado de Wiki, POIs, Clima, etc.
+            \App\Jobs\ProcessLocationReport::dispatch($cepClean, $location);
 
             return $report;
         } finally {

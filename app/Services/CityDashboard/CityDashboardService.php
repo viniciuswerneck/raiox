@@ -15,27 +15,27 @@ use Illuminate\Support\Facades\Log;
 
 class CityDashboardService
 {
-    protected $gemini;
-    protected $groq;
-    protected $openRouter;
+    protected $llm;
     protected $reviser;
     protected $geoAgent;
     protected $poiAgent;
+    protected $knowledge;
+    protected $wiki;
 
     public function __construct(
-        GeminiService $gemini,
-        GroqService $groq,
-        OpenRouterService $openRouter,
+        \App\Services\LlmManagerService $llm,
         TextReviserService $reviser,
         GeoAgent $geoAgent,
-        POIAgent $poiAgent
+        POIAgent $poiAgent,
+        \App\Services\Agents\KnowledgeAgent $knowledge,
+        \App\Services\Agents\WikiAgent $wiki
     ) {
-        $this->gemini = $gemini;
-        $this->groq = $groq;
-        $this->openRouter = $openRouter;
+        $this->llm = $llm;
         $this->reviser = $reviser;
         $this->geoAgent = $geoAgent;
         $this->poiAgent = $poiAgent;
+        $this->knowledge = $knowledge;
+        $this->wiki = $wiki;
     }
 
     /**
@@ -219,21 +219,48 @@ class CityDashboardService
 
         // Ranking de Bairros (Nome e Score Médio)
         $neighborhoodRanking = $reports->groupBy('bairro')
-            ->map(function ($items) {
+            ->filter(fn($items, $key) => !empty($key) && $key !== 'null')
+            ->map(function ($items, $key) {
                 return [
-                    'name' => $items->first()->bairro ?: 'Centro',
-                    'avg_score' => round($items->avg('general_score'), 1)
+                    'name' => $key ?: 'Centro',
+                    'avg_score' => round($items->avg('general_score'), 1),
+                    'mapped' => true,
+                    'report_count' => $items->count()
                 ];
-            })
-            ->sortByDesc('avg_score')
+            });
+
+        // Tentar descobrir bairros oficiais se tivermos BBox E a lista estiver curta (<30) ou cache velho
+        $currentCount = $neighborhoodRanking->count();
+        $isLargeCity = ($city->stats_cache['population'] ?? 0) > 100000 || in_array($city->uf, ['SP', 'RJ', 'MG', 'PR', 'SC', 'RS']);
+
+        if ($city->bbox_json && ($currentCount < 30 || ($city->last_calculated_at && $city->last_calculated_at->diffInDays(now()) > 7))) {
+            $b = $city->bbox_json;
+            $bbox = "{$b[0]},{$b[2]},{$b[1]},{$b[3]}";
+            $officialNames = $this->poiAgent->fetchCityNeighborhoods($bbox);
+            
+            foreach ($officialNames as $name) {
+                if (!$neighborhoodRanking->has($name)) {
+                    $neighborhoodRanking->put($name, [
+                        'name' => $name,
+                        'avg_score' => 0,
+                        'mapped' => false,
+                        'report_count' => 0
+                    ]);
+                }
+            }
+        }
+
+        $neighborhoodRanking = $neighborhoodRanking->sortByDesc('avg_score')
             ->values()
             ->toArray();
 
         // Média de pontuação municipal e estadual para comparação
         $avgScore = $reports->avg('general_score');
-        $stateAvgScore = LocationReport::where('uf', $city->uf)
-            ->where('status', 'completed')
-            ->avg('general_score');
+        $stateAvgScore = \Illuminate\Support\Facades\Cache::remember('state_avg_' . $city->uf, 3600, function() use ($city) {
+            return LocationReport::where('uf', $city->uf)
+                ->where('status', 'completed')
+                ->avg('general_score');
+        });
 
         // Médias de atributos para o "Radar da Cidade"
         $avgAirQuality = $reports->avg('air_quality_index') ?: 50;
@@ -349,25 +376,51 @@ class CityDashboardService
 
     private function generateHistory(City $city)
     {
-        // Busca na Wikipedia com SSL desativado
+        // 1. RAG: Ver o que já temos sobre a cidade no nosso banco SQL
+        $ragContext = $this->knowledge->search("História, fundação e cultura da cidade de {$city->name} - {$city->uf}", 5);
+        
+        // 2. Wikipedia (Modo novo)
         $wikiText = $this->fetchWikipediaData($city);
         
-        $context = [
-            'categoria' => 'Resumo da Cidade',
-            'renda' => $city->average_income ?? 0,
-            'safety_level' => $city->safety_level ?? 'MODERADO'
+        // 3. Prompt Master via LlmManager (Economia de tokens + Cache)
+        $prompt = [
+            ['role' => 'system', 'content' => "Você é um Historiador Territorial sênior. Sua tarefa é descrever a cidade de {$city->name} focando em fundação, evolução urbana e identidade cultural. Use dados técnicos. Retorne um JSON com a chave 'historia' contendo 3 a 4 parágrafos robustos."],
+            ['role' => 'user', 'content' => "Contexto Wiki: [{$wikiText}] \n\n Memória Territorial: " . json_encode($ragContext)]
         ];
 
-        // Tenta Gemini -> Groq -> OpenRouter
-        $summary = $this->gemini->generateNeighborhoodSummary($wikiText, $city->name, $context)
-            ?? $this->groq->generateNeighborhoodSummary($wikiText, $city->name, $context)
-            ?? $this->openRouter->generateNeighborhoodSummary($wikiText, $city->name, $context);
+        $response = $this->llm->chat($prompt, 'creative', [
+            'agent_name' => 'CityLibrarian',
+            'agent_version' => '2.0.0'
+        ]);
 
-        if ($summary && isset($summary['historia'])) {
+        $content = $response['choices'][0]['message']['content'] ?? '';
+        
+        // Extrair JSON da resposta se necessário
+        if (preg_match('/\{.*\}/s', $content, $matches)) {
+            $summary = json_decode($matches[0], true);
+        } else {
+            $summary = ['historia' => $content];
+        }
+
+        if ($summary && !empty($summary['historia'])) {
+            // Se a IA retornar historia como array de parágrafos, junta em string
+            if (is_array($summary['historia'])) {
+                $summary['historia'] = implode("\n\n", $summary['historia']);
+            }
+
             // Aplica o revisor para garantir 3 parágrafos e humanização
             $revised = $this->reviser->reviseHistoria($summary);
             $city->history_extract = $revised['historia'];
-            $city->wiki_json = ['raw' => substr($wikiText, 0, 5000)];
+            $city->wiki_json = [
+                'raw' => substr($wikiText, 0, 3000),
+                'grounded' => count($ragContext) > 0
+            ];
+            
+            // Indexar esse novo conhecimento para futuras buscas
+            $this->knowledge->store($revised['historia'], 'city_summary', $city->slug, [
+                'city' => $city->name,
+                'uf' => $city->uf
+            ]);
         }
     }
 

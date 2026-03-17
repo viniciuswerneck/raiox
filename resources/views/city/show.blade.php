@@ -621,9 +621,15 @@
                                         </div>
                                         <div class="mt-4">
                                             <h4 class="fw-black mb-1 h5 text-truncate px-2">{{ $item['name'] }}</h4>
-                                            <div class="text-muted small mb-3">#{{ $index + 1 }} do Ranking</div>
-                                            <div class="h3 fw-black {{ $item['avg_score'] >= 80 ? 'text-success' : 'text-primary' }} mb-0">
-                                                {{ $item['avg_score'] }} <span style="font-size: 12px; opacity: 0.6;">pts</span>
+                                            <div class="text-muted small mb-3">
+                                                @if($item['mapped'] ?? true)
+                                                    #{{ $index + 1 }} do Ranking
+                                                @else
+                                                    Descoberto via Satélite
+                                                @endif
+                                            </div>
+                                            <div class="h3 fw-black {{ ($item['avg_score'] ?? 0) >= 80 ? 'text-success' : 'text-primary' }} mb-0">
+                                                {{ $item['avg_score'] ?: '--' }} <span style="font-size: 12px; opacity: 0.6;">pts</span>
                                             </div>
                                             <div class="small fw-bold opacity-50 text-uppercase" style="font-size: 9px; letter-spacing: 1px;">Escore Territorial</div>
                                         </div>
@@ -638,41 +644,53 @@
                         <div class="col-md-8">
                             <h3 class="fw-black mb-1">
                                 <i class="fa-solid fa-ranking-star me-2 text-primary"></i> 
-                                Ranking Completo de Bairros ({{ $city->name }})
+                                Território Mapeado e em Descoberta ({{ $city->name }})
                             </h3>
                             <p class="text-muted mb-0">
-                                Demais bairros ordenados pelo <strong>Escore de Vizinhança</strong> mapeado.
+                                Veja o panorama completo dos bairros identificados em nosso ecossistema.
                             </p>
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
                             <span class="badge bg-light text-dark border p-2 px-3 rounded-pill">
-                                <i class="fa-solid fa-sync fa-spin me-2 text-primary"></i> Atualizado em Real-Time
+                                <i class="fa-solid fa-sync fa-spin me-2 text-primary"></i> {{ count($city->stats_cache['neighborhood_list'] ?? []) }} Bairros Identificados
                             </span>
                         </div>
                     </div>
 
                     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
-                        @foreach($rest ?? [] as $item)
+                        @forelse($rest ?? [] as $item)
                             <div class="col">
                                 <div class="p-3 h-100 rounded-4 bg-light border transition-all hover-white shadow-sm" style="cursor: default;">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <i class="fa-solid fa-location-dot text-primary-50" style="font-size: 12px;"></i>
+                                        <i class="fa-solid fa-location-dot {{ ($item['mapped'] ?? true) ? 'text-primary' : 'text-muted opacity-50' }}" style="font-size: 12px;"></i>
                                         @php
-                                            $colorStyle = $item['avg_score'] >= 80 
+                                            $score = $item['avg_score'] ?? 0;
+                                            $colorStyle = $score >= 80 
                                                 ? 'background: #dcfce7; color: #16a34a;' 
-                                                : ($item['avg_score'] >= 50 ? 'background: #fff3cd; color: #856404;' : 'background: #fee2e2; color: #dc2626;');
+                                                : ($score >= 50 ? 'background: #fff3cd; color: #856404;' : ($score > 0 ? 'background: #fee2e2; color: #dc2626;' : 'background: #f1f5f9; color: #64748b;'));
                                         @endphp
-                                        <span class="badge rounded-pill px-3 py-2" style="font-size: 12px; font-weight: 800; {{ $colorStyle }}">
-                                            {{ $item['avg_score'] }} pts
+                                        <span class="badge rounded-pill px-3 py-2" style="font-size: 11px; font-weight: 800; {{ $colorStyle }}">
+                                            {{ $score > 0 ? $score . ' pts' : 'N/A' }}
                                         </span>
                                     </div>
-                                    <div class="fw-bold text-truncate" title="{{ $item['name'] }}" style="font-size: 14px;">
+                                    <div class="fw-bold text-truncate" title="{{ $item['name'] }}" style="font-size: 13px;">
                                         {{ $item['name'] }}
                                     </div>
-                                    <div class="small text-muted" style="font-size: 11px;">Escore Territorial</div>
+                                    <div class="small text-muted" style="font-size: 10px;">
+                                        @if($item['mapped'] ?? true)
+                                            Escore Territorial
+                                        @else
+                                            Aguardando CEP
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
-                        @endforeach
+                        @empty
+                            <div class="col-12 py-5 text-center">
+                                <i class="fa-solid fa-map-location-dot fs-1 text-muted opacity-25 mb-3"></i>
+                                <p class="text-muted">Ainda estamos descobrindo os limites territoriais desta cidade.</p>
+                            </div>
+                        @endforelse
                     </div>
                 </div>
             </div>

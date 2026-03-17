@@ -5,8 +5,10 @@ namespace App\Services\Agents;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class GeoAgent
+class GeoAgent extends BaseAgent
 {
+    public const VERSION = '1.2.0';
+
     private const STATES_MAP = [
         'Acre' => 'AC', 'Alagoas' => 'AL', 'Amapá' => 'AP', 'Amazonas' => 'AM', 
         'Bahia' => 'BA', 'Ceará' => 'CE', 'Distrito Federal' => 'DF', 'Espírito Santo' => 'ES', 
@@ -18,11 +20,13 @@ class GeoAgent
     ];
 
     /**
-     * Resolve endereço via ViaCEP com 2 retries
+     * Resolve endereço via ViaCEP com múltiplos retries e fallbacks
      */
     public function resolveCep(string $cep): ?array
     {
-        // Tratamento para CEPs inativos que frequentemente falham nas APIs principais
+        $this->logInfo("Iniciando resolução de CEP: {$cep}");
+
+        // Tratamento para CEPs inativos conhecido
         $knownInactiveCeps = [
             '13089470' => [
                 'logradouro' => 'Rua Cesario Galli',
@@ -32,26 +36,36 @@ class GeoAgent
                 'ibge' => '3509502',
                 'lat' => '-22.84982',
                 'lon' => '-47.03545'
+            ],
+            '12300010' => [
+                'logradouro' => 'Rua Comendador Xavier de Toledo',
+                'bairro' => 'Centro',
+                'localidade' => 'Jacareí',
+                'uf' => 'SP',
+                'ibge' => '3524402',
+                'lat' => '-23.3050682',
+                'lon' => '-45.9723075'
             ]
         ];
 
         if (array_key_exists($cep, $knownInactiveCeps)) {
+            $this->logInfo("CEP identificado em base interna de conhecidos.");
             return $knownInactiveCeps[$cep];
         }
 
         // Estratégia 1: ViaCEP
         try {
             $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
-                ->timeout(4) // Aumentado um pouco
+                ->timeout(4)
                 ->get("https://viacep.com.br/ws/{$cep}/json/");
             if ($response->successful() && !isset($response->json()['erro'])) {
                 return $response->json();
             }
         } catch (\Exception $e) {
-            Log::error("GeoAgent [ViaCEP]: " . $e->getMessage());
+            $this->logError("Erro ViaCEP: " . $e->getMessage());
         }
 
-        // Estratégia 2: BrasilAPI (Fallback de peso)
+        // Estratégia 2: BrasilAPI
         try {
             Log::info("GeoAgent: Tentando BrasilAPI para CEP {$cep}");
             $res = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
@@ -68,10 +82,10 @@ class GeoAgent
                 ];
             }
         } catch (\Exception $e) {
-            Log::error("GeoAgent [BrasilAPI]: " . $e->getMessage());
+            $this->logError("Erro BrasilAPI: " . $e->getMessage());
         }
 
-        // Estratégia 3: AwesomeAPI (Fallback para CEPs inativos)
+        // Estratégia 3: AwesomeAPI
         try {
             Log::info("GeoAgent: Tentando AwesomeAPI para CEP {$cep}");
             $res = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
@@ -90,7 +104,7 @@ class GeoAgent
                 ];
             }
         } catch (\Exception $e) {
-            Log::error("GeoAgent [AwesomeAPI]: " . $e->getMessage());
+            $this->logError("Erro AwesomeAPI: " . $e->getMessage());
         }
 
         return null;
@@ -98,14 +112,10 @@ class GeoAgent
 
     /**
      * Resolve coordenadas via Nominatim
-     * @param string $street
-     * @param string $city
-     * @param string $state
-     * @param string|null $cep (opcional, para busca precisa)
      */
     public function geolocateCity(string $city, string $state): ?array
     {
-        $headers = ['User-Agent' => 'GeoAgent-RaioX/1.0'];
+        $headers = ['User-Agent' => 'GeoAgent-RaioX/' . self::VERSION];
         $queryParams = [
             'city' => $city,
             'state' => $state,
@@ -121,7 +131,7 @@ class GeoAgent
             return [
                 'lat' => $node['lat'] ?? null,
                 'lon' => $node['lon'] ?? null,
-                'bbox' => $node['boundingbox'] ?? null, // [lat_min, lat_max, lon_min, lon_max]
+                'bbox' => $node['boundingbox'] ?? null,
             ];
         }
 
@@ -130,12 +140,11 @@ class GeoAgent
 
     public function geolocate(string $street, string $city, string $state, ?string $cep = null): ?array
     {
-        $headers = ['User-Agent' => 'GeoAgent-RaioX/1.0'];
+        $headers = ['User-Agent' => 'GeoAgent-RaioX/' . self::VERSION];
         
         $queryBase = empty($city) ? "{$street}" : "{$street}, {$city}, {$state}";
         $queryBase = trim(trim($queryBase), ',');
 
-        // Tentativa principal: Rua + Cidade + Estado + CEP se tiver
         $queryParams = [
             'format' => 'json',
             'addressdetails' => 1,
@@ -153,7 +162,7 @@ class GeoAgent
 
         // Fallback: Apenas Cidade e Estado
         if (!$node && !empty($street) && !empty($city)) {
-            Log::info("GeoAgent: Fallback Nominatim (Cidade apenas).");
+            $this->logInfo("Fallback Nominatim (Cidade apenas).");
             $fallbackParams = [
                 'format' => 'json',
                 'addressdetails' => 1,
@@ -167,14 +176,13 @@ class GeoAgent
         if ($node) {
             $countryCode = $node['address']['country_code'] ?? '';
             if ($countryCode !== 'br') {
-                Log::warning("GeoAgent: Nominatim retornou resultado fora do Brasil ({$countryCode}). Ignorando.");
+                $this->logInfo("Nominatim retornou resultado fora do Brasil ({$countryCode}). Ignorando.");
                 return null;
             }
 
             $stateName = $node['address']['state'] ?? '';
             $mappedState = self::STATES_MAP[$stateName] ?? null;
 
-            // Se não mapeou, mas o estado tem 2 letras, usa como está. Senão, nulo.
             $finalState = $mappedState ?: (strlen($stateName) === 2 ? strtoupper($stateName) : substr($stateName, 0, 2));
 
             return [
@@ -206,7 +214,7 @@ class GeoAgent
                 
             return $response->json()[0] ?? null;
         } catch (\Exception $e) {
-            Log::error("GeoAgent [Nominatim]: " . $e->getMessage());
+            $this->logError("Erro Nominatim: " . $e->getMessage());
             return null;
         }
     }

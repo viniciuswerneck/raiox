@@ -293,7 +293,17 @@
                     <span class="opacity-50 fw-bold">{{ $reportB->cidade }}/{{ $reportB->uf }}</span>
                 </div>
             </div>
-            <div class="mt-5 pt-3 border-top border-white border-opacity-10 d-inline-block px-4">
+
+            @if(isset($comparison->comparison_data['distance_km']))
+            <div class="mt-4">
+                <span class="badge bg-white bg-opacity-10 py-2 px-3 rounded-pill">
+                    <i class="fa-solid fa-route me-2 text-accent"></i>
+                    Distância entre os pontos: <strong>{{ $comparison->comparison_data['distance_km'] ?? '0' }} km</strong>
+                </span>
+            </div>
+            @endif
+
+            <div class="mt-4 pt-3 border-top border-white border-opacity-10 d-inline-block px-4">
                 <span class="text-white-50 small fw-bold text-uppercase tracking-widest" style="font-size: 0.75rem;">
                     <i class="fa-regular fa-clock me-1"></i> Duelo realizado em {{ $comparison->created_at->format('d/m/Y \à\s H:i') }}
                 </span>
@@ -391,12 +401,43 @@
         <!-- BENTO COMPARISON ROWS -->
         <h4 class="text-center mt-5 mb-4 opacity-50">DETALHAMENTO TÉCNICO</h4>
 
+        <!-- Perfil -->
+        <div class="metric-row">
+            <div class="metric-val-a">
+                {{ $reportA->territorial_classification }}
+            </div>
+            <div class="metric-vs-center">
+                <i class="fa-solid fa-map-location-dot d-block mb-1 text-warning"></i>
+                PERFIL DO BAIRRO
+            </div>
+            <div class="metric-val-b">
+                {{ $reportB->territorial_classification }}
+            </div>
+        </div>
+
+        <!-- Ruído -->
+        <div class="metric-row">
+            @php
+                $noiseA = $comparison->comparison_data['profiles']['a']['noise'] ?? 'MODERADO';
+                $noiseB = $comparison->comparison_data['profiles']['b']['noise'] ?? 'MODERADO';
+            @endphp
+            <div class="metric-val-a {{ str_contains($noiseA, 'BAIXO') ? 'is-winner' : '' }}">
+                {{ $noiseA }}
+            </div>
+            <div class="metric-vs-center">
+                <i class="fa-solid fa-volume-high d-block mb-1 text-danger"></i>
+                POLUIÇÃO SONORA
+            </div>
+            <div class="metric-val-b {{ str_contains($noiseB, 'BAIXO') ? 'is-winner' : '' }}">
+                {{ $noiseB }}
+            </div>
+        </div>
+
         <!-- Segurança -->
         <div class="metric-row">
             @php
                 $sA = $reportA->safety_level;
                 $sB = $reportB->safety_level;
-                // Lógica simples de vitória de segurança
                 $sA_win = str_contains(strtoupper($sA), 'ALT') && !str_contains(strtoupper($sB), 'ALT');
                 $sB_win = str_contains(strtoupper($sB), 'ALT') && !str_contains(strtoupper($sA), 'ALT');
             @endphp

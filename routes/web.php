@@ -20,6 +20,13 @@ Route::get('/api/report-status/{cep}', function ($cep) {
     return response()->json(['status' => $report ? $report->status : 'not_found']);
 });
 
+Route::get('/api/report-data/{cep}', function ($cep) {
+    $report = \App\Models\LocationReport::where('cep', preg_replace('/\D/', '', $cep))->first();
+    if (!$report) return response()->json(['error' => 'not found'], 404);
+    
+    return response()->json($report);
+});
+
 // Rota para disparar a fila manualmente no local (Simulando o Cron)
 Route::get('/api/trigger-queue', function () {
     // Aumenta o tempo para o worker web não morrer prematuramente

@@ -697,8 +697,8 @@
 </head>
 <body>
 
-    <!-- LOADER / QUEUE OVERLAY -->
-    @if(in_array($report->status, ['pending', 'processing', 'failed']) || $report->cidade === 'Localizando...')
+    <!-- LOADER / QUEUE OVERLAY (Bloqueia apenas se estiver na fila ou falhar) -->
+    @if(in_array($report->status, ['pending', 'failed']) || $report->cidade === 'Localizando...')
     <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); z-index: 99999;">
         <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
             <div class="absolute inset-0 orbit opacity-20">
@@ -715,10 +715,6 @@
             <h3 class="fw-black text-white h2 mb-1">
                 @if($report->status === 'pending')
                     Sincronizando Território
-                @elseif($report->status === 'processing')
-                    Analisando Indicadores com IA
-                @elseif($report->status === 'processing_text')
-                    Refinando Narrativa Territorial
                 @else
                     Ops! Algo deu errado
                 @endif
@@ -729,16 +725,10 @@
                 <a href="{{ route('home') }}" class="btn btn-outline-light rounded-pill px-4">Tentar outro CEP</a>
             @else
                 <p id="queue-text" class="text-white-50 small fw-bold text-uppercase" style="letter-spacing: 0.3em;">
-                    @if($report->status === 'pending')
-                        Aguardando na fila de satélites...
-                    @elseif($report->status === 'processing_text')
-                        Cruzando dados da Wikipedia e Gemini IA...
-                    @else
-                        Processando dados do IBGE, Clima e Wikipedia...
-                    @endif
+                    Aguardando na fila de satélites...
                 </p>
                 <div class="progress rounded-pill mx-auto mb-4" style="width: 250px; height: 6px; background: rgba(255,255,255,0.1);">
-                    <div id="queue-bar" class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: {{ $report->status === 'pending' ? '20%' : '60%' }}"></div>
+                    <div id="queue-bar" class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: 20%"></div>
                 </div>
                 <div class="p-3 rounded-4 border border-white/10 bg-white/5 backdrop-blur-sm">
                     <p class="small text-white-50 mb-0">
@@ -749,46 +739,34 @@
             @endif
         </div>
     </div>
+    @endif
+
+    {{-- Script de Polling Inteligente --}}
+    @if(in_array($report->status, ['pending', 'processing', 'processing_text']))
     <script>
-        // Polling para verificar status
-        const pollInterval = setInterval(async () => {
+        const pollStatus = async () => {
             try {
                 const response = await fetch('/api/report-status/{{ $report->cep }}');
                 const data = await response.json();
                 
-                if (data.status === 'completed' || data.status === 'processing_text') {
-                    clearInterval(pollInterval);
+                // Se saiu do processamento inicial ou terminou a narrativa
+                if (
+                    ('{{ $report->status }}' === 'processing' && data.status !== 'processing') ||
+                    ('{{ $report->status }}' === 'processing_text' && data.status === 'completed') ||
+                    (data.status === 'failed')
+                ) {
                     window.location.reload();
-                } else if (data.status === 'failed') {
-                    clearInterval(pollInterval);
-                    window.location.reload();
+                    return;
                 }
+                
+                setTimeout(pollStatus, 3000);
             } catch (e) {
                 console.error("Erro no polling:", e);
+                setTimeout(pollStatus, 5000);
             }
-        }, 3000);
+        };
+        pollStatus();
     </script>
-    @else
-    <div id="loader" class="d-flex flex-column align-items-center justify-content-center text-white" style="display: none !important;">
-        <div class="relative flex items-center justify-center mb-5" style="width: 200px; height: 200px;">
-            <div class="absolute inset-0 orbit opacity-20">
-                <div class="absolute top-0 left-1/2 w-4 h-4 bg-indigo-500 rounded-full blur-sm"></div>
-                <div class="absolute bottom-0 left-1/2 w-4 h-4 bg-purple-500 rounded-full blur-sm"></div>
-            </div>
-            <div class="relative w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center ai-pulse shadow-2xl shadow-indigo-500/50">
-                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.798-1.338 2.798H4.136c-1.368 0-2.338-1.798-1.338-2.798L4 15.298" />
-                </svg>
-            </div>
-        </div>
-        <div class="text-center space-y-3">
-            <h3 class="fw-black text-white h4 mb-1">Iniciando Duelo Territorial</h3>
-            <p id="loader-text" class="text-white-50 small fw-bold text-uppercase" style="letter-spacing: 0.3em;">Cruzando indicadores...</p>
-            <div class="progress rounded-pill mx-auto" style="width: 150px; height: 4px; background: rgba(255,255,255,0.1);">
-                <div id="progress-bar" class="progress-bar bg-primary" style="width: 10%"></div>
-            </div>
-        </div>
-    </div>
     @endif
 
     @php
@@ -943,12 +921,12 @@
                         <p class="text-muted small mb-0">Mobilidade ativa e acesso peatonal.</p>
                     </div>
                     <div class="text-center py-2 flex-grow-1 d-flex flex-column justify-content-center">
-                        <div style="font-size: 4rem; line-height: 1; font-weight: 900; color: {{ $walkColor }}">
-                            {{ $report->walkability_score }}
+                        <div class="{{ $report->status === 'processing' ? 'skeleton' : '' }}" style="font-size: 4rem; line-height: 1; font-weight: 900; color: {{ $walkColor }}">
+                            {{ $report->status === 'processing' ? 'A' : $report->walkability_score }}
                         </div>
                         <div class="mt-2">
-                            <span class="status-pill" style="background: {{ $walkColor }}15; color: {{ $walkColor }}">
-                                {{ $walkLabel }}
+                            <span class="status-pill {{ $report->status === 'processing' ? 'skeleton' : '' }}" style="background: {{ $walkColor }}15; color: {{ $walkColor }}">
+                                {{ $report->status === 'processing' ? 'Carregando Indicadores...' : $walkLabel }}
                             </span>
                         </div>
                     </div>
@@ -974,10 +952,12 @@
                     <h5 class="fw-bold">Qualidade do Ar</h5>
                     <div class="mt-3">
                         <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="h4 mb-0 fw-bold">{{ $aqi }}</span>
-                            <span class="status-pill bg-{{ $aqiRes['color'] }} text-white">{{ $aqiRes['level'] }}</span>
+                            <span class="h4 mb-0 fw-bold {{ $report->status === 'processing' ? 'skeleton' : '' }}">{{ $report->status === 'processing' ? '00' : $aqi }}</span>
+                            <span class="status-pill bg-{{ $aqiRes['color'] }} text-white {{ $report->status === 'processing' ? 'skeleton' : '' }}">{{ $report->status === 'processing' ? 'ANALISANDO' : $aqiRes['level'] }}</span>
                         </div>
-                        <p class="small text-muted mb-0 leading-tight">{{ $aqiRes['desc'] }}</p>
+                        <p class="small text-muted mb-0 leading-tight {{ $report->status === 'processing' ? 'skeleton' : '' }}">
+                            {{ $report->status === 'processing' ? 'Aguardando dados da estação climática local...' : $aqiRes['desc'] }}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -998,10 +978,10 @@
                     <div class="mt-4">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="small opacity-75">Cobertura de Esgoto</span>
-                            <span class="small fw-bold">{{ $report->sanitation_rate }}%</span>
+                            <span class="small fw-bold {{ $report->status === 'processing' ? 'skeleton' : '' }}">{{ $report->status === 'processing' ? '--%' : $report->sanitation_rate . '%' }}</span>
                         </div>
                         <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
-                            <div class="progress-bar bg-primary" style="width:{{ $report->sanitation_rate }}%"></div>
+                            <div class="progress-bar bg-primary" style="width:{{ $report->status === 'processing' ? '20' : $report->sanitation_rate }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -1047,7 +1027,9 @@
                                     <circle cx="50" cy="50" r="45" fill="none" stroke="{{ $tierColor }}" stroke-width="7" stroke-dasharray="{{ ($finalScore/100) * 283 }} 283" stroke-linecap="round" transform="rotate(-90 50 50)" style="filter: drop-shadow(0 0 10px {{ $tierColor }}40)"></circle>
                                 </svg>
                                 <div class="score-number">
-                                    <div class="score-val" style="color: {{ $tierColor }}">{{ $finalScore }}</div>
+                                    <div class="score-val {{ $report->status === 'processing' ? 'skeleton' : '' }}" style="color: {{ $tierColor }}">
+                                        {{ $report->status === 'processing' ? '00' : $finalScore }}
+                                    </div>
                                     <div class="text-muted small fw-black text-uppercase tracking-widest">Score Real</div>
                                 </div>
                             </div>
@@ -1096,10 +1078,10 @@
                                             $totalBairros = $results->count();
                                         @endphp
 
-                                        <div class="badge-medal" style="background: var(--primary)10; border-color: var(--primary)30;">
+                                        <div class="badge-medal {{ $report->status === 'processing' ? 'skeleton' : '' }}" style="background: var(--primary)10; border-color: var(--primary)30;">
                                             <div class="badge-icon" style="color: var(--primary);"><i class="fa-solid fa-ranking-star"></i></div>
                                             <div>
-                                                <div class="fw-black small text-primary">#{{ $position }}º Mais Popular</div>
+                                                <div class="fw-black small text-primary">#{{ $report->status === 'processing' ? '0' : $position }}º Mais Popular</div>
                                                 <div class="text-muted" style="font-size: 10px;">{{ $report->cidade }}</div>
                                             </div>
                                         </div>

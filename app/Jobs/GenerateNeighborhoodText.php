@@ -5,9 +5,7 @@ namespace App\Jobs;
 use App\Models\City;
 use App\Models\LocationReport;
 use App\Models\Neighborhood;
-use App\Services\GeminiService;
-use App\Services\GroqService;
-use App\Services\OpenRouterService;
+use App\Services\LlmManagerService;
 use App\Services\TextReviserService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -50,132 +48,155 @@ class GenerateNeighborhoodText implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(GeminiService $gemini, GroqService $groq, OpenRouterService $openRouter, TextReviserService $reviser): void
+    public function handle(LlmManagerService $llm, \App\Services\AactService $aact): void
     {
-        // Delay aleatório inicial (0.2s a 1.5s) para evitar que múltiplos Jobs batam na API ao mesmo tempo
-        usleep(rand(200000, 1500000)); 
+        // Delay aleatório inicial para escalonamento
+        usleep(rand(200000, 1000000)); 
         
-        set_time_limit(180);
         $report = LocationReport::find($this->reportId);
-        if (!$report) {
-            Log::error("TextGenerator Job Failed: Report {$this->reportId} not found.");
-            return;
-        }
+        if (!$report) return;
 
         try {
             $city = $report->cidade;
             $state = $report->uf;
             $bairro = $report->bairro ?? '';
-            $ibgeCode = $report->codigo_ibge;
-
-            // 1. Wikipedia Múltipla Lógica (Bairro ou Cidade)
-            $wikiResult = $this->fetchWikipediaInfo($bairro, $city, $state);
             
-            $sourceType = !empty($wikiResult['full_text']) ? 'FULL_TEXT' : (!empty($wikiResult['extract']) ? 'EXTRACT' : 'NONE');
-            $contentLen = strlen($wikiResult['full_text'] ?? $wikiResult['extract'] ?? '');
+            // Dados da Wikipedia já devem ter sido coletados pela TerritoryEngine ou coletamos agora via WikiAgent
+            // Se o report já tem wiki_json, usamos ele.
+            $wikiResult = $report->wiki_json ?? [];
             
-            Log::info("TextGenerator: Wiki Result [{$sourceType}] para {$bairro}/{$city}. Tamanho: {$contentLen} bytes.");
+            $historyRaw = $wikiResult['full_text'] ?? $wikiResult['extract'] ?? "Local em desenvolvimento. Utilize as informações de infraestrutura para análise.";
             
-            $historyRaw = $wikiResult['full_text'] ?? $wikiResult['extract'] ?? "Local em desenvolvimento. Sobe as informações disponíveis sobre a cidade {$city}.";
+            // Truncar para evitar Payload Too Large (413)
+            $historyRaw = mb_substr($historyRaw, 0, 6000);
 
-            // 2. AACT Context para a IA
-            $poisCount = is_array($report->pois_json) ? count($report->pois_json) : 0;
-            $income = $report->average_income ?? 1500;
-            $classification = $report->territorial_classification ?? 'Misto';
-
+            // Contexto para a IA
             $aactContext = [
-                'categoria' => $classification,
-                'pois_count' => $poisCount,
-                'renda' => $income,
+                'categoria' => $report->territorial_classification ?? 'Misto',
+                'pois_count' => is_array($report->pois_json) ? count($report->pois_json) : 0,
+                'renda' => $report->average_income ?? 1500,
                 'populacao' => $report->populacao ?? 0,
-                'safety_level' => $report->safety_level ?? 'MODERADO'
+                'safety_level' => $report->safety_level ?? 'MODERADO',
+                'sanitation_rate' => $report->sanitation_rate ?? 0,
+                'walk_score' => $report->walkability_score ?? 'N/A'
             ];
 
-            // 3. Gemini Generation (Groq como fallback)
             $locationName = $bairro ? "{$bairro}, {$city}" : $city;
 
-            Log::info("TextGenerator: Disparando Gemini para {$locationName}");
-            $aiSummary = $gemini->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
-
-            if (!$aiSummary) {
-                Log::warning("TextGenerator: Gemini falhou para {$locationName}. Tentando Groq...");
-                $aiSummary = $groq->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
+            // Dados recuperados da Memória Territorial (RAG)
+            $ragContextString = "";
+            if (!empty($this->wikiSearchContext['context_chunks'])) {
+                $chunks = array_map(fn($c) => $c['content'], $this->wikiSearchContext['context_chunks']);
+                $ragContextString = "\nMemória Territorial (Dados anteriores): " . implode(" | ", $chunks);
             }
 
-            if (!$aiSummary) {
-                Log::warning("TextGenerator: Groq falhou para {$locationName}. Tentando OpenRouter...");
-                $aiSummary = $openRouter->generateNeighborhoodSummary($historyRaw, $locationName, $aactContext);
+            // 1. Geração da Narrativa e Dados Estruturados via LlmManager
+            $systemPrompt = "Você é um especialista em análise territorial e urbanismo do sistema Raio-X. "
+                . "Sua tarefa é criar uma análise profunda sobre uma localidade. "
+                . "Você deve retornar APENAS um JSON válido seguindo este formato rigoroso:\n"
+                . "{\n"
+                . "  \"narrative\": \"Texto da narrativa histórica/cultural em 3 parágrafos curtos. Sem markdown.\",\n"
+                . "  \"safety_analysis\": \"Uma frase curta (máx 150 caracteres) descrevendo a percepção de segurança baseada na infraestrutura.\",\n"
+                . "  \"real_estate\": {\n"
+                . "    \"preco_m2\": \"R$ X.XXX a R$ X.XXX\",\n"
+                . "    \"perfil_imoveis\": \"Ex: Residencial horizontal predominante\",\n"
+                . "    \"tendencia_valorizacao\": \"ALTA, MÉDIA ou ESTÁVEL\"\n"
+                . "  }\n"
+                . "}";
+
+            $messages = [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => "Gere uma análise para {$locationName}.{$ragContextString}\nDados históricos: {$historyRaw}. Contexto: " . json_encode($aactContext)]
+            ];
+
+            Log::info("[Job] Solicitando análise estruturada para {$locationName} via LlmManager");
+            
+            $response = $llm->chat($messages, 'creative', [
+                'agent_name' => 'StructuredAnalysisAgent',
+                'agent_version' => '2.1.0'
+            ]);
+
+            $jsonRaw = $response['choices'][0]['message']['content'] ?? null;
+
+            if (!$jsonRaw) {
+                throw new \Exception("Falha ao gerar análise via LlmManager");
             }
 
-            if (!$aiSummary) {
-                $report->update([
-                    'status'          => 'completed',
-                    'history_extract' => 'A narrativa territorial está temporariamente indisponível devido à alta demanda nos satélites de IA. Os dados técnicos abaixo permanecem precisos.',
-                    'error_message'   => 'AI_TIMEOUT'
-                ]);
-                return;
+            // Limpa possíveis backticks de markdown
+            $jsonClean = preg_replace('/```json\s?|```/', '', $jsonRaw);
+            $analysis = json_decode(trim($jsonClean), true);
+
+            if (!$analysis || !isset($analysis['narrative'])) {
+                Log::warning("IA não retornou JSON válido para {$locationName}. Tentando fallback de texto puro.");
+                $analysis = [
+                    'narrative' => str_replace(['**', '*'], '', $jsonRaw),
+                    'safety_analysis' => 'Baseado em infraestrutura local e vigilância monitorada.',
+                    'real_estate' => [
+                        'preco_m2' => 'Sob consulta',
+                        'perfil_imoveis' => 'Misto',
+                        'tendencia_valorizacao' => 'ESTÁVEL'
+                    ]
+                ];
             }
 
-            // Revisão e humanização da narrativa gerada
-            $aiSummary = $reviser->reviseHistoria($aiSummary);
+            // 2. Auditoria e Recalibragem via AACT Service
+            $auditData = [
+                'cep' => $report->cep,
+                'bairro' => $report->bairro,
+                'localidade' => $report->cidade,
+                'average_income' => $report->average_income,
+                'sanitation_rate' => $report->sanitation_rate,
+                'pois_json' => $report->pois_json,
+                'real_estate_json' => $analysis['real_estate']
+            ];
 
-            // 4. Salvar Entidades Locais (Bairro e Cidade) para cache
-            $cityModel = City::where('name', $city)->where('uf', $state)->first();
-            if (!$cityModel) {
-                $cityModel = City::create([
-                    'name' => $city,
-                    'uf' => $state,
-                    'ibge_code' => $ibgeCode,
-                    'population' => $report->populacao,
-                    'idhm' => $report->idhm,
-                    'sanitation_rate' => $report->sanitation_rate,
-                    'average_income' => $income,
-                    'history_extract' => $bairro ? '' : ($aiSummary['historia'] ?? null),
-                    'safety_level' => $bairro ? 'MODERADO' : ($aiSummary['nivel_seguranca'] ?? 'MODERADO'),
-                    'wiki_json' => $bairro ? [] : $wikiResult,
-                    'real_estate_json' => $bairro ? null : ($aiSummary['mercado_imobiliario'] ?? null),
-                ]);
-            }
+            $calibrated = $aact->auditAndRecalibrate($auditData);
 
-            $neighborhoodModel = null;
-            if ($bairro) {
-                $neighborhoodModel = Neighborhood::where('city_id', $cityModel->id)
-                    ->where('name', $bairro)->first();
-
-                if (!$neighborhoodModel) {
-                    $neighborhoodModel = Neighborhood::create([
-                        'city_id' => $cityModel->id,
-                        'name' => $bairro,
-                        'history_extract' => $aiSummary['historia'] ?? null,
-                        'safety_level' => $aiSummary['nivel_seguranca'] ?? 'MODERADO',
-                        'safety_description' => $aiSummary['descricao_seguranca'] ?? null,
-                        'wiki_json' => $wikiResult,
-                        'real_estate_json' => $aiSummary['mercado_imobiliario'] ?? null
-                    ]);
-                }
-            }
-
-            // 5. Concluir o Report
+            // 3. Salvar Resultados
             $report->update([
-                'history_extract' => $aiSummary['historia'] ?? null,
-                'safety_level' => $aiSummary['nivel_seguranca'] ?? 'MODERADO',
-                'safety_description' => $aiSummary['descricao_seguranca'] ?? null,
-                'real_estate_json' => $aiSummary['mercado_imobiliario'] ?? null,
-                'wiki_json' => $wikiResult,
-                'aact_log' => $aactContext,
+                'history_extract' => $analysis['narrative'],
+                'safety_description' => $analysis['safety_analysis'],
+                'real_estate_json' => $calibrated['real_estate_json'],
+                'sanitation_rate' => $calibrated['sanitation_rate'],
+                'territorial_classification' => $calibrated['territorial_classification'],
+                'aact_log' => $calibrated['aact_log'],
                 'status' => 'completed',
                 'error_message' => null
             ]);
 
-            Log::info("TextGenerator Job completed successfully for Report {$this->reportId}");
+            // Cache em City/Neighborhood
+            $this->updateCacheModels($report, $analysis['narrative'], $wikiResult);
 
         } catch (\Exception $e) {
-            Log::error("TextGenerator Job failed for CEP {$this->cep}. Error: " . $e->getMessage());
+            Log::error("TextGenerator Job failed: " . $e->getMessage());
             $report->update([
                 'status' => 'failed',
-                'error_message' => substr($e->getMessage(), 0, 200)
+                'error_message' => 'AI_FAILURE: ' . $e->getMessage()
             ]);
             throw $e;
+        }
+    }
+
+    private function updateCacheModels(LocationReport $report, string $content, array $wikiResult): void
+    {
+        $cityModel = City::updateOrCreate(
+            ['name' => $report->cidade, 'uf' => $report->uf],
+            [
+                'population' => $report->populacao,
+                'average_income' => $report->average_income,
+                'history_extract' => $report->bairro ? null : $content,
+                'wiki_json' => $report->bairro ? [] : $wikiResult,
+            ]
+        );
+
+        if ($report->bairro) {
+            Neighborhood::updateOrCreate(
+                ['city_id' => $cityModel->id, 'name' => $report->bairro],
+                [
+                    'history_extract' => $content,
+                    'wiki_json' => $wikiResult,
+                ]
+            );
         }
     }
 

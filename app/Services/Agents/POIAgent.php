@@ -5,14 +5,16 @@ namespace App\Services\Agents;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class POIAgent
+class POIAgent extends BaseAgent
 {
+    public const VERSION = '1.1.0';
+
     /**
      * Traz os POIs via Overpass usando o HttpClient do Laravel
      */
     public function fetchPOIs(float $lat, float $lng, int $radius = 1000): array
     {
-        Log::info("POIAgent: Iniciando busca de POIs em [{$lat}, {$lng}] com raio {$radius}m");
+        $this->logInfo("Iniciando busca de POIs em [{$lat}, {$lng}] com raio {$radius}m");
         
         $margin = ($radius / 1000) * 0.009;
         $lat_min = $lat - $margin;
@@ -26,7 +28,7 @@ class POIAgent
 
     public function fetchPOIsByBBox(string $bbox, int $limit = 1000): array
     {
-        Log::info("POIAgent: Iniciando busca municipal de POIs via BBox: {$bbox}");
+        $this->logInfo("Iniciando busca municipal de POIs via BBox: {$bbox}");
         return $this->executeQuery($bbox, $limit);
     }
 
@@ -53,7 +55,7 @@ class POIAgent
         ];
 
         $headers = [
-            'User-Agent' => 'RaioXNeighborhood-Agent/1.0',
+            'User-Agent' => 'RaioXNeighborhood-Agent/' . self::VERSION,
             'Referer' => 'https://google.com'
         ];
 
@@ -88,16 +90,16 @@ class POIAgent
                     }
 
                     if (count($elements) > 0) {
-                        Log::info("POIAgent: Sucesso com servidor [{$endpoint}] em {$duration}s. Itens: " . count($elements));
+                        $this->logInfo("Sucesso com servidor [{$endpoint}] em {$duration}s. Itens: " . count($elements));
                         return $elements;
                     } else {
-                        Log::warning("POIAgent: Servidor [{$endpoint}] retornou ZERO elementos em {$duration}s.");
+                        $this->logInfo("Servidor [{$endpoint}] retornou ZERO elementos em {$duration}s.");
                     }
                 } else {
-                    Log::error("POIAgent: Servidor [{$endpoint}] falhou com status {$response->status()} em {$duration}s. Response: " . substr($response->body(), 0, 100));
+                    $this->logError("Servidor [{$endpoint}] falhou com status {$response->status()} em {$duration}s.");
                 }
             } catch (\Exception $e) {
-                Log::warning("POIAgent: Erro fatal no servidor [{$endpoint}]: " . $e->getMessage());
+                $this->logError("Erro fatal no servidor [{$endpoint}]: " . $e->getMessage());
             }
         }
 
@@ -113,12 +115,12 @@ class POIAgent
         $pois = $this->fetchPOIs($lat, $lng, $radius);
 
         if (count($pois) < 15) {
-            Log::info("POIAgent: Poucos resultados em 1km. Escalando para 2.5km");
+            $this->logInfo("Poucos resultados em 1km. Escalando para 2.5km");
             $radius = 2500;
             $pois = $this->fetchPOIs($lat, $lng, $radius);
 
             if (count($pois) < 10) {
-                Log::info("POIAgent: Ainda poucos resultados. Escalando final para 5km");
+                $this->logInfo("Ainda poucos resultados. Escalando final para 5km");
                 $radius = 5000;
                 $pois = $this->fetchPOIs($lat, $lng, $radius);
             }
@@ -126,8 +128,51 @@ class POIAgent
 
         return [
             'pois' => $pois,
-            'radius' => $radius
+            'radius' => $radius,
+            'agent_version' => self::VERSION
         ];
+    }
+
+    public function fetchCityNeighborhoods(string $bbox): array
+    {
+        $this->logInfo("Buscando bairros oficiais via BBox: {$bbox}");
+        $query = "[out:json][timeout:25];(
+            node[\"place\"~\"suburb|neighbourhood|village|hamlet\"]({$bbox});
+            way[\"place\"~\"suburb|neighbourhood|village|hamlet\"]({$bbox});
+            relation[\"place\"~\"suburb|neighbourhood|village|hamlet\"]({$bbox});
+        );out tags center;";
+
+        $endpoints = [
+            'https://lz4.overpass-api.de/api/interpreter',
+            'https://overpass-api.de/api/interpreter'
+        ];
+
+        $names = [];
+
+        foreach ($endpoints as $endpoint) {
+            try {
+                $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                    ->timeout(10) 
+                    ->withHeaders(['User-Agent' => 'RaioX-Neighborhood-Discovery/' . self::VERSION])
+                    ->asForm()
+                    ->post($endpoint, ['data' => $query]);
+
+                if ($response->successful()) {
+                    $json = $response->json();
+                    foreach ($json['elements'] ?? [] as $element) {
+                        $name = $element['tags']['name'] ?? $element['tags']['official_name'] ?? null;
+                        if ($name && !in_array($name, $names)) {
+                            $names[] = $name;
+                        }
+                    }
+                    if (count($names) > 0) return $names;
+                }
+            } catch (\Exception $e) {
+                $this->logError("Discovery Error: " . $e->getMessage());
+            }
+        }
+
+        return $names;
     }
 
     public function calculateWalkabilityScore(array $pois): string

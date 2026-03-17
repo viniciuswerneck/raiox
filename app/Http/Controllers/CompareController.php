@@ -16,22 +16,16 @@ use Illuminate\Support\Facades\Log;
 class CompareController extends Controller
 {
     protected $compareAgent;
-    protected $geminiService;
-    protected $groqService;
-    protected $openRouterService;
+    protected $llm;
     protected $neighborhoodService;
 
     public function __construct(
         CompareAgent $compareAgent,
-        GeminiService $geminiService,
-        GroqService $groqService,
-        OpenRouterService $openRouterService,
+        \App\Services\LlmManagerService $llm,
         NeighborhoodService $neighborhoodService
     ) {
         $this->compareAgent       = $compareAgent;
-        $this->geminiService      = $geminiService;
-        $this->groqService        = $groqService;
-        $this->openRouterService   = $openRouterService;
+        $this->llm                = $llm;
         $this->neighborhoodService = $neighborhoodService;
     }
 
@@ -73,42 +67,59 @@ class CompareController extends Controller
             Log::info("CompareController: Comparação recuperada do banco para {$cepA} vs {$cepB} (Duelo instantâneo)");
         } else {
             // 2. Se não existe no banco, TRABALHO PESADO: Carregar relatórios e gerar
-            $reportA = LocationReport::where('cep', $cepA)->first();
-            $reportB = LocationReport::where('cep', $cepB)->first();
+            // ESTRATÉGIA TURBO: Se algum não existir, processamos em paralelo via NeighborhoodService
+            if (!LocationReport::where('cep', $cepA)->exists() || !LocationReport::where('cep', $cepB)->exists()) {
+                Log::info("CompareController: Um ou ambos os CEPs são novos. Processando em paralelo.");
+                
+                // Disparamos o processamento (que agora é macro-paralelo internamente)
+                // Se o CEP já existir, o NeighborhoodService apenas retorna o cache.
+                $reportA = $this->neighborhoodService->getCachedReport($cepA);
+                $reportB = $this->neighborhoodService->getCachedReport($cepB);
+            } else {
+                $reportA = LocationReport::where('cep', $cepA)->first();
+                $reportB = LocationReport::where('cep', $cepB)->first();
+            }
 
-            // Se algum não existir, redireciona para gerar o base primeiro
-            if (!$reportA) return redirect()->route('report.show', $cepA);
-            if (!$reportB) return redirect()->route('report.show', $cepB);
+            if (!$reportA || !$reportB) {
+                return redirect()->route('home')->withErrors(['cep' => 'Não foi possível processar um dos CEPs para o duelo.']);
+            }
 
             // 3. LAZY UPDATE: Garantir que dados locais estejam atualizados (OSM/Scores)
             $this->ensureDataIsFresh($reportA);
             $this->ensureDataIsFresh($reportB);
 
             // 4. Gerar Análise via IA e Agente de Comparação
-            Log::info("CompareController: Gerando nova comparação entre {$cepA} e {$cepB}");
-
+            Log::info("CompareController: Gerando nova análise de duelo para {$cepA} vs {$cepB}");
+            
             $results = $this->compareAgent->compare($reportA, $reportB);
 
-            $analysis = $this->geminiService->generateComparisonAnalysis(
-                $this->mapReportToAnalysis($reportA),
-                $this->mapReportToAnalysis($reportB)
-            );
+            $analysis = $this->llm->chat([
+                ['role' => 'system', 'content' => "Você é o Analista Master de Territórios do Raio-X, um especialista sênior em planejamento urbano e geolocalização. Sua missão é fornecer uma consultoria de alto nível para alguém que está decidindo onde MORAR.
+                
+                Dadas duas localizações, analise tecnicamente:
+                1. O perfil predominante de cada área (ex: polo de serviços vs reduto residencial).
+                2. O custo-benefício implícito (renda vs infraestrutura).
+                3. A dinâmica de mobilidade (quem depende de carro vs quem pode fazer tudo a pé).
+                4. O veredito para perfis específicos: Famílias com crianças, Jovens Profissionais e Idosos.
+                
+                Seja direto, honesto e evite clichês. Destaque o trade-off real: o que a pessoa ganha e o que ela perde ao escolher uma em detrimento da outra.
+                
+                IMPORTANTE: 
+                - Não use negrito, não use asteriscos, não use markdown.
+                - Use apenas parágrafos fluidos.
+                - Mantenha um tom profissional, consultivo e inspirador."],
+                ['role' => 'user', 'content' => "Dados Comparativos: " . json_encode([
+                    'localidade_a' => array_merge($this->mapReportToAnalysis($reportA), $results['profiles']['a']),
+                    'localidade_b' => array_merge($this->mapReportToAnalysis($reportB), $results['profiles']['b']),
+                    'distancia_entre_pontos' => $results['distance_km'] . " km",
+                    'diferenca_renda' => $results['deltas']['income_diff']
+                ])]
+            ], 'creative', [
+                'agent_name' => 'CompareAgent',
+                'agent_version' => '2.1.0'
+            ]);
 
-            if (!$analysis) {
-                Log::warning("CompareController: Gemini falhou para comparação {$cepA} vs {$cepB}. Tentando Groq...");
-                $analysis = $this->groqService->generateComparisonAnalysis(
-                    $this->mapReportToAnalysis($reportA),
-                    $this->mapReportToAnalysis($reportB)
-                );
-            }
-
-            if (!$analysis) {
-                Log::warning("CompareController: Groq falhou para comparação {$cepA} vs {$cepB}. Tentando OpenRouter...");
-                $analysis = $this->openRouterService->generateComparisonAnalysis(
-                    $this->mapReportToAnalysis($reportA),
-                    $this->mapReportToAnalysis($reportB)
-                );
-            }
+            $analysisText = $analysis['choices'][0]['message']['content'] ?? "Comparação técnica concluída. Observe os indicadores de ruído e infraestrutura abaixo para decidir.";
 
             // 5. Salvar na Pedra (Banco) para nunca mais processar este par
             $comparison = RegionComparison::create([
@@ -121,10 +132,12 @@ class CompareController extends Controller
                 'comparison_data' => [
                     'metrics_a' => $results['metrics_a'],
                     'metrics_b' => $results['metrics_b'],
+                    'distance_km' => $results['distance_km'],
+                    'profiles' => $results['profiles'],
                     'location_a' => "{$reportA->bairro}, {$reportA->cidade}",
                     'location_b' => "{$reportB->bairro}, {$reportB->cidade}"
                 ],
-                'analysis_text' => $analysis
+                'analysis_text' => $analysisText
             ]);
         }
 
