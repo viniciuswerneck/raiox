@@ -58,7 +58,7 @@ Route::get('/api/trigger-queue', function () {
     }
 });
 
-Route::middleware(['throttle:30,1'])->group(function () {
+Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
     Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
 });
@@ -69,7 +69,7 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-Route::middleware(['throttle:10,1'])->group(function () {
+Route::middleware(['throttle:60,1'])->group(function () {
     Route::post('/search', [ReportController::class, 'search'])->name('search');
     Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
     Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');

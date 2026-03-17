@@ -150,6 +150,32 @@
             border-color: rgba(255, 255, 255, 0.1);
             transform: translateY(-5px);
         }
+
+        /* OMNISEARCH OVERLAY (Shared style) */
+        .omnisearch-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            padding: 10vh 1rem;
+        }
+
+        .omnisearch-card {
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 28px;
+            max-width: 700px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-20px);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .omnisearch-active .omnisearch-card { transform: translateY(0); }
+        .omnisearch-active { overflow: hidden; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -866,6 +892,92 @@
 
             nextStep();
             setInterval(nextStep, 2500);
+        }
+    </script>
+    <!-- OMNISEARCH OVERLAY -->
+    <div id="omnisearch" class="omnisearch-overlay" onclick="closeOmnisearch(event)">
+        <div class="omnisearch-card" onclick="event.stopPropagation()">
+            <div class="p-6 border-b border-white/10 bg-slate-900/50 flex items-center gap-4">
+                <i class="fa-solid fa-magnifying-glass text-2xl text-indigo-500"></i>
+                <input type="text" id="omni-input" placeholder="Digite o CEP ou nome do bairro..." class="flex-grow bg-transparent border-none text-xl text-white outline-none placeholder:text-slate-600 font-bold" autocomplete="off">
+                <button class="text-slate-500 hover:text-white transition-colors" onclick="closeOmnisearch(event)"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <div id="omni-results" class="p-2 overflow-auto" style="max-height: 400px; min-height: 100px;">
+                <div class="p-8 text-center text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Digite para buscar em todo o território...</div>
+            </div>
+            <div class="p-4 bg-slate-900/80 border-t border-white/10 flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                <span>Dica: Tente buscar por "Jardim Paulista" ou "01415-000"</span>
+                <span>ESC para fechar</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // OMNISEARCH LOGIC (Shared)
+        function openOmnisearch() {
+            const el = document.getElementById('omnisearch');
+            el.style.display = 'block';
+            setTimeout(() => {
+                document.body.classList.add('omnisearch-active');
+                document.getElementById('omni-input').focus();
+            }, 10);
+        }
+
+        function closeOmnisearch(e) {
+            document.body.classList.remove('omnisearch-active');
+            setTimeout(() => document.getElementById('omnisearch').style.display = 'none', 300);
+        }
+
+        // Shortcut Ctrl + K
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                openOmnisearch();
+            }
+            if (e.key === 'Escape') closeOmnisearch();
+        });
+
+        // Search Input Logic
+        const omniInput = document.getElementById('omni-input');
+        const omniResults = document.getElementById('omni-results');
+
+        if (omniInput) {
+            let debounceTimer;
+            omniInput.addEventListener('input', (e) => {
+                const q = e.target.value.trim();
+                
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    if (q.length < 2) {
+                        omniResults.innerHTML = '<div class="p-8 text-center text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Digite para buscar...</div>';
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/suggestions?q=${encodeURIComponent(q)}`);
+                        const data = await response.json();
+                        
+                        if (data.length === 0) {
+                            omniResults.innerHTML = '<div class="p-4 text-center text-slate-500">Nenhum resultado encontrado.</div>';
+                            return;
+                        }
+
+                        omniResults.innerHTML = data.map(item => `
+                            <a href="/cep/${item.cep.replace(/\D/g, '')}" class="flex items-center gap-4 p-4 text-decoration-none hover:bg-white/5 rounded-2xl transition-all">
+                                <div class="bg-indigo-500/20 text-indigo-400 p-3 rounded-xl">
+                                    <i class="fa-solid fa-location-dot"></i>
+                                </div>
+                                <div>
+                                    <div class="text-white font-bold">${item.details.road || item.details.neighborhood || 'Localização'}</div>
+                                    <div class="text-slate-500 text-xs font-bold uppercase tracking-wider">${item.details.city} - ${item.details.state} • ${item.cep}</div>
+                                </div>
+                            </a>
+                        `).join('');
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }, 300);
+            });
         }
     </script>
 </body>

@@ -93,6 +93,119 @@
             color: #1e293b;
             font-family: var(--font-main);
             overflow-x: hidden;
+            padding-top: 72px; /* Espaço para a navbar fixa */
+        }
+
+        /* NAVBAR & BREADCRUMBS */
+        .nav-glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: "\f105";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 10px;
+            color: var(--secondary);
+            opacity: 0.5;
+        }
+
+        .breadcrumb-custom .breadcrumb-item a {
+            color: var(--secondary);
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb-custom .breadcrumb-item a:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumb-custom .breadcrumb-item.active {
+            color: var(--dark);
+            font-weight: 800;
+        }
+
+        /* OMNISEARCH */
+        .omnisearch-trigger {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 16px;
+            color: #64748b;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 250px;
+        }
+
+        .omnisearch-trigger:hover {
+            background: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+        }
+
+        .omnisearch-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            padding: 10vh 1rem;
+        }
+
+        .omnisearch-card {
+            background: white;
+            border-radius: 28px;
+            max-width: 700px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.5);
+            transform: translateY(-20px);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .omnisearch-active .omnisearch-card {
+            transform: translateY(0);
+        }
+
+        /* SKELETONS PRO */
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+            display: inline-block;
+            color: transparent !important;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-card {
+            height: 200px;
+            width: 100%;
+            border-radius: 24px;
         }
 
         h1, h2, h3, h4, .font-heading {
@@ -696,6 +809,54 @@
     </style>
 </head>
 <body>
+
+    <!-- NAV BAR & BREADCRUMBS -->
+    <nav class="nav-glass no-print">
+        <div class="container-fluid px-lg-5 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-4">
+                <a href="{{ route('home') }}" class="text-decoration-none">
+                    <img src="{{ asset('favicon.png') }}" alt="Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: 8px;">
+                </a>
+                
+                <nav aria-label="breadcrumb" class="d-none d-md-block">
+                    <ol class="breadcrumb breadcrumb-custom mb-0">
+                        <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ $city ? route('city.show', $city->slug) : route('city.show', ['slug' => Str::slug($report->cidade . '-' . $report->uf)]) }}">{{ $report->cidade }}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ $report->bairro ?: 'Relatório' }}</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="omnisearch-trigger" onclick="openOmnisearch()">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span class="d-none d-lg-inline">Buscar outro CEP ou bairro...</span>
+                    <span class="ms-auto d-none d-lg-inline text-muted small" style="background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px;">Ctrl K</span>
+                </div>
+                <a href="{{ route('ranking.index') }}" class="btn btn-dark btn-sm rounded-pill px-3 font-heading d-none d-md-flex align-items-center gap-2" style="font-size: 11px;">
+                    <i class="fa-solid fa-ranking-star"></i> EXPLORAR RANKINGS
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- OMNISEARCH OVERLAY -->
+    <div id="omnisearch" class="omnisearch-overlay" onclick="closeOmnisearch(event)">
+        <div class="omnisearch-card" onclick="event.stopPropagation()">
+            <div class="p-4 border-bottom bg-light d-flex align-items-center gap-3">
+                <i class="fa-solid fa-magnifying-glass fs-4 text-primary"></i>
+                <input type="text" id="omni-input" placeholder="Digite o CEP ou nome do bairro..." class="form-control border-0 bg-transparent fs-4 fw-bold p-0 shadow-none" autocomplete="off">
+                <button class="btn btn-link text-muted p-0" onclick="closeOmnisearch(event)"><i class="fa-solid fa-xmark fs-4"></i></button>
+            </div>
+            <div id="omni-results" class="p-2 overflow-auto" style="max-height: 400px; min-height: 100px;">
+                <div class="p-4 text-center text-muted small uppercase fw-bold tracking-widest">Digite para buscar...</div>
+            </div>
+            <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center small text-muted">
+                <span>Dica: Tente buscar por "Jardim Paulista" ou "01415-000"</span>
+                <span>ESC para fechar</span>
+            </div>
+        </div>
+    </div>
 
     <!-- LOADER / QUEUE OVERLAY (Bloqueia apenas se estiver na fila ou falhar) -->
     @if(in_array($report->status, ['pending', 'failed']) || $report->cidade === 'Localizando...')
@@ -2111,6 +2272,51 @@
 
     </style>
 
+    <!-- OUTRAS REGIÕES NA CIDADE (CROSS-LINKING) -->
+    <section class="container-fluid px-lg-5 mb-10 no-print" style="margin-top: 5rem;">
+        <div class="d-flex align-items-center gap-3 mb-5">
+            <div class="h-px bg-slate-200 flex-grow-1"></div>
+            <h5 class="font-heading text-secondary text-uppercase tracking-widest mb-0" style="font-size: 13px;">Explorar mais em {{ $report->cidade }}</h5>
+            <div class="h-px bg-slate-200 flex-grow-1"></div>
+        </div>
+
+        <div class="row g-4">
+            @php
+                $others = \App\Models\LocationReport::where('cidade', $report->cidade)
+                    ->where('cep', '!=', $report->cep)
+                    ->whereNotNull('bairro')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(4)
+                    ->get();
+            @endphp
+
+            @foreach($others as $other)
+            <div class="col-md-3">
+                <a href="{{ route('report.show', $other->cep) }}" class="text-decoration-none">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="transition: all 0.3s ease;">
+                        <div class="p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3">{{ $other->final_score ?? 0 }} pts</span>
+                                <i class="fa-solid fa-chevron-right text-muted small"></i>
+                            </div>
+                            <h6 class="text-dark fw-bold mb-1">{{ $other->bairro }}</h6>
+                            <p class="text-muted small mb-0">{{ $other->cidade }} / {{ $other->uf }}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            @endforeach
+
+            @if($others->count() > 0)
+            <div class="col-md-12 text-center mt-5">
+                <a href="{{ $city ? route('city.show', $city->slug) : route('city.show', ['slug' => Str::slug($report->cidade . '-' . $report->uf)]) }}" class="btn btn-outline-primary rounded-pill px-5 fw-bold text-uppercase tracking-widest" style="font-size: 11px;">
+                    Ver todos os bairros de {{ $report->cidade }} <i class="fa-solid fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+            @endif
+        </div>
+    </section>
+
     <!-- PREMIUM FOOTER: STATE OF THE ART -->
     <footer class="bg-dark py-14 mt-10 no-print border-top border-white/5 overflow-hidden position-relative">
         <!-- Subtle Background Glow -->
@@ -2162,5 +2368,78 @@
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // OMNISEARCH LOGIC
+        function openOmnisearch() {
+            const el = document.getElementById('omnisearch');
+            el.style.display = 'block';
+            setTimeout(() => {
+                document.body.classList.add('omnisearch-active');
+                document.getElementById('omni-input').focus();
+            }, 10);
+        }
+
+        function closeOmnisearch(e) {
+            if (e && e.key === 'Escape') {
+                document.body.classList.remove('omnisearch-active');
+                setTimeout(() => document.getElementById('omnisearch').style.display = 'none', 300);
+            } else if (e) {
+                document.body.classList.remove('omnisearch-active');
+                setTimeout(() => document.getElementById('omnisearch').style.display = 'none', 300);
+            }
+        }
+
+        // Shortcut Ctrl + K
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                openOmnisearch();
+            }
+        });
+
+        // Search Input Logic
+        const omniInput = document.getElementById('omni-input');
+        const omniResults = document.getElementById('omni-results');
+
+        if (omniInput) {
+            let debounceTimer;
+            omniInput.addEventListener('input', (e) => {
+                const q = e.target.value.trim();
+                
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    if (q.length < 2) {
+                        omniResults.innerHTML = '<div class="p-4 text-center text-muted small uppercase fw-bold tracking-widest">Digite para buscar...</div>';
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/suggestions?q=${encodeURIComponent(q)}`);
+                        const data = await response.json();
+                        
+                        if (data.length === 0) {
+                            omniResults.innerHTML = '<div class="p-4 text-center text-muted">Nenhum resultado encontrado.</div>';
+                            return;
+                        }
+
+                        omniResults.innerHTML = data.map(item => `
+                            <a href="/cep/${item.cep.replace(/\D/g, '')}" class="d-flex align-items-center gap-3 p-3 text-decoration-none hover:bg-light rounded-3 transition-all border-bottom">
+                                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3" style="width: 40px; text-align: center;">
+                                    <i class="fa-solid fa-location-dot"></i>
+                                </div>
+                                <div>
+                                    <div class="text-dark fw-bold">${item.details.road || item.details.neighborhood || 'Localização'}</div>
+                                    <div class="text-muted small">${item.details.city} - ${item.details.state} • ${item.cep}</div>
+                                </div>
+                            </a>
+                        `).join('');
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }, 300);
+            });
+        }
+    </script>
 </body>
 </html>
