@@ -63,6 +63,12 @@ Route::middleware(['throttle:30,1'])->group(function () {
     Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
 });
 
+// Rotas de Autenticação
+use App\Http\Controllers\Auth\LoginController;
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
 Route::middleware(['throttle:10,1'])->group(function () {
     Route::post('/search', [ReportController::class, 'search'])->name('search');
     Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
@@ -74,7 +80,9 @@ Route::middleware(['throttle:10,1'])->group(function () {
     Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
     Route::get('/compare/{cepA}/{cepB}/reprocessar', [CompareController::class, 'reprocess'])->name('report.compare_reprocess');
     Route::get('/cidade/{slug}/pois', [CityPOIController::class, 'getPOIsByCategory'])->name('city.pois');
-    Route::get('/adm', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    
+    // Área Administrativa Protegida
+    Route::get('/adm', [AdminController::class, 'dashboard'])->name('admin.dashboard')->middleware('auth');
 });
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)

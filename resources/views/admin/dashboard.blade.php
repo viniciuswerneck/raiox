@@ -98,6 +98,7 @@
             padding: 1.5rem;
             margin-bottom: 2rem;
             border: 1px solid rgba(0,0,0,0.05);
+            height: 320px;
         }
     </style>
 </head>
@@ -111,8 +112,14 @@
             </div>
             <h5 class="mb-0 fw-bold">Admin IA Telemetry</h5>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-3">
             <span class="badge bg-primary rounded-pill px-3">{{ now()->format('d/m/Y H:i') }}</span>
+            <form action="{{ route('logout') }}" method="POST" class="m-0">
+                @csrf
+                <button type="submit" class="btn btn-link text-danger p-0 text-decoration-none small fw-bold">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i>Sair
+                </button>
+            </form>
         </div>
     </div>
 </nav>
@@ -154,9 +161,13 @@
     <div class="row">
         <!-- CHART -->
         <div class="col-lg-8">
-            <div class="chart-container">
-                <h6 class="fw-bold mb-4">Volume de Requisições (24h)</h6>
-                <canvas id="requestsChart" height="250"></canvas>
+            <div class="chart-container shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Volume de Requisições (24h)</h6>
+                </div>
+                <div style="height: 220px;">
+                    <canvas id="requestsChart"></canvas>
+                </div>
             </div>
 
             <!-- RECENT LOGS -->
