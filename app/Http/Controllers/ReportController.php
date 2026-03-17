@@ -9,10 +9,12 @@ use Illuminate\Http\Request;
 class ReportController extends Controller
 {
     protected $neighborhoodService;
+    protected $integrity;
 
-    public function __construct(NeighborhoodService $neighborhoodService)
+    public function __construct(NeighborhoodService $neighborhoodService, \App\Services\Agents\IntegrityAgent $integrity)
     {
         $this->neighborhoodService = $neighborhoodService;
+        $this->integrity = $integrity;
     }
 
     public function search(Request $request)
@@ -339,8 +341,8 @@ class ReportController extends Controller
             return redirect()->route('home')->withErrors(['cep' => 'CEP não encontrado ou erro nas APIs de terceiros.']);
         }
 
-        // Lazy Update para novos POIs (V1 -> V2) e Scores
-        $this->ensureDataIsFresh($report);
+        // Auditoria e Auto-reparo em tempo real via IntegrityAgent
+        $this->integrity->autoRepairByReport($report);
 
         $city = City::where('name', $report->cidade)
             ->where('uf', $report->uf)
@@ -350,39 +352,6 @@ class ReportController extends Controller
         return view('report.show', compact('report', 'wiki', 'city'));
     }
 
-    private function ensureDataIsFresh(\App\Models\LocationReport $report)
-    {
-        $lock = \Illuminate\Support\Facades\Cache::lock("rehydrate_{$report->cep}", 120);
-        if (!$lock->get()) return;
-
-        try {
-            $needsUpdate = false;
-            if ($report->data_version < 3 && $report->lat && $report->lng) {
-                \Illuminate\Support\Facades\Log::info("ReportController: Reidratando POIs (V2 -> V3) para o CEP {$report->cep}");
-                $poiAgent = app(\App\Services\Agents\POIAgent::class);
-                $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
-                $newPois = $adaptiveData['pois'];
-                
-                if (!empty($newPois)) {
-                    $report->pois_json = $newPois;
-                    $report->search_radius = $adaptiveData['radius'];
-                    $report->data_version = 3;
-                    
-                    $compareAgent = app(\App\Services\Agents\CompareAgent::class);
-                    $metrics = $compareAgent->getRegionMetrics($newPois);
-                    $report->infra_score = $metrics['infra'];
-                    $report->mobility_score = $metrics['mobility'];
-                    $report->leisure_score = $metrics['leisure'];
-                    $report->general_score = $metrics['total_score'];
-                    
-                    $needsUpdate = true;
-                }
-            }
-            if ($needsUpdate) $report->save();
-        } finally {
-            $lock->release();
-        }
-    }
 
     public function compare($cep1, $cep2)
     {
