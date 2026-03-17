@@ -11,15 +11,22 @@ class SitemapController extends Controller
     {
         $reports = LocationReport::select('cep', 'updated_at', 'cidade', 'bairro')
             ->orderBy('updated_at', 'desc')
+            ->limit(1000)
             ->get();
             
         $duels = \App\Models\RegionComparison::select('cep_a', 'cep_b', 'updated_at')
+            ->orderBy('updated_at', 'desc')
+            ->limit(500)
+            ->get();
+
+        $cities = \App\Models\City::select('slug', 'updated_at')
             ->orderBy('updated_at', 'desc')
             ->get();
 
         return response()->view('sitemap', [
             'reports' => $reports,
             'duels' => $duels,
+            'cities' => $cities,
         ])->header('Content-Type', 'text/xml');
     }
 

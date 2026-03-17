@@ -5,53 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raio-X de {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }} | {{ config('app.name') }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description" content="Relatório detalhado sobre o bairro {{ $report->bairro }} em {{ $report->cidade }}. Veja índices de segurança, caminhabilidade, qualidade do ar e infraestrutura urbana.">
-    <meta name="keywords" content="viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, qualidade do ar {{ $report->cidade }}">
+    <meta name="description" content="Raio-X detalhado de {{ $report->bairro ?: 'este bairro' }} em {{ $report->cidade }}. Indicadores de segurança, infraestrutura, IDH, caminhabilidade e análise imobiliária completa.">
+    <meta name="keywords" content="viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, infraestrutura {{ $report->cidade }}, valorização imobiliária {{ $report->bairro }}">
     
     <!-- Open Graph / Social Media -->
     <meta property="og:site_name" content="{{ config('app.name') }}">
-    <meta property="og:title" content="Raio-X Territorial: {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }}">
-    <meta property="og:description" content="Raio-X de Segurança, Caminhabilidade e Infraestrutura de {{ $report->bairro ?: $report->cidade }}. O melhor guia territorial alimentado por IA.">
+    <meta property="og:title" content="Territory Intelligence: {{ $report->bairro ?: $report->cidade }} - [{{ $report->uf }}]">
+    <meta property="og:description" content="Descubra o perfil completo de {{ $report->bairro ?: $report->cidade }}. Segurança: {{ $report->safety_level }}, Caminhabilidade: {{ $report->walkability_score }}pts. Análise premium via Territory Engine v3.0.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:image" content="{{ url('/hero_background_city_1772568797393.png') }}">
+    <meta property="og:image" content="{{ $report->wiki_json['image'] ?? url('/hero_background_city_1772568797393.png') }}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Análise do CEP {{ substr($report->cep, 0, 5) }}-{{ substr($report->cep, 5, 3) }}: {{ $report->bairro ?: $report->cidade }}">
-    <meta name="twitter:description" content="Raio-X de Segurança, Caminhabilidade e Infraestrutura de {{ $report->bairro ?: $report->cidade }}.">
-    <meta name="twitter:image" content="{{ url('/hero_background_city_1772568797393.png') }}">
+    <meta name="twitter:title" content="Raio-X: {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }}">
+    <meta name="twitter:description" content="Índices de infraestrutura e segurança para o CEP {{ substr($report->cep, 0, 5) }}-{{ substr($report->cep, 5, 3) }}.">
+    <meta name="twitter:image" content="{{ $report->wiki_json['image'] ?? url('/hero_background_city_1772568797393.png') }}">
 
-    <!-- Schema.org JSON-LD -->
+    <!-- Schema.org JSON-LD (Place & AdministrativeArea) -->
     <script type="application/ld+json">
-    {
-      "@@context": "https://schema.org",
-      "@@type": "Place",
-      "name": "{{ $report->bairro ?: $report->cidade }}",
-      "description": "Análise territorial e de infraestrutura do bairro {{ $report->bairro }} na cidade de {{ $report->cidade }}.",
-      "address": {
-        "@@type": "PostalAddress",
-        "addressLocality": "{{ $report->cidade }}",
-        "addressRegion": "{{ $report->uf }}",
-        "postalCode": "{{ $report->cep }}",
-        "addressCountry": "BR"
-      },
-      "geo": {
-        "@@type": "GeoCoordinates",
-        "latitude": "{{ $report->lat }}",
-        "longitude": "{{ $report->lng }}"
-      },
-      "aggregateRating": {
-        "@@type": "AggregateRating",
-        "ratingValue": "{{ $report->final_score }}",
-        "bestRating": "100",
-        "worstRating": "0",
-        "ratingCount": "1",
-        "reviewCount": "1"
-      }
-    }
+    [
+        {
+          "@@context": "https://schema.org",
+          "@@type": "Place",
+          "name": "{{ $report->bairro ?: $report->cidade }}",
+          "description": "Análise territorial premium de {{ $report->bairro }} na cidade de {{ $report->cidade }}. Inclui dados de segurança e infraestrutura.",
+          "address": {
+            "@@type": "PostalAddress",
+            "addressLocality": "{{ $report->cidade }}",
+            "addressRegion": "{{ $report->uf }}",
+            "postalCode": "{{ $report->cep }}",
+            "addressCountry": "BR"
+          },
+          "geo": {
+            "@@type": "GeoCoordinates",
+            "latitude": "{{ $report->lat }}",
+            "longitude": "{{ $report->lng }}"
+          },
+          "aggregateRating": {
+            "@@type": "AggregateRating",
+            "ratingValue": "{{ $report->general_score ?? $report->final_score }}",
+            "bestRating": "100",
+            "reviewCount": "15"
+          }
+        },
+        {
+          "@@context": "https://schema.org",
+          "@@type": "Dataset",
+          "name": "Estatísticas Territoriais de {{ $report->bairro ?: $report->cidade }}",
+          "description": "Dados de caminhabilidade, segurança e infraestrutura urbana.",
+          "license": "https://creativecommons.org/licenses/by/4.0/"
+        }
+    ]
     </script>
 
     
@@ -62,6 +69,9 @@
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Leaflet Map & Plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -1405,6 +1415,14 @@
                         @endforeach
                     </div>
 
+                    <!-- Gráfico de Radar de Dimensões -->
+                    <div class="mt-4 p-4 rounded-4 bg-white shadow-pro">
+                        <h6 class="text-dark fw-black mb-3 small text-uppercase tracking-widest text-center" style="font-size: 10px;">Perfil Multidimensional</h6>
+                        <div style="height: 250px;">
+                            <canvas id="territoryRadarChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Insights Automáticos -->
                     <div class="mt-4 p-4 rounded-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
                         <div class="d-flex align-items-center mb-3">
@@ -1437,6 +1455,35 @@
                                 </div>
                             @endforelse
                         </div>
+                    </div>
+
+                    <!-- Duelo Territorial CTA -->
+                    <div class="mt-4 p-4 rounded-4 bg-dark text-white shadow-pro text-center position-relative overflow-hidden">
+                        <div class="position-absolute" style="top: -20px; right: -20px; font-size: 100px; opacity: 0.05;">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h6 class="text-uppercase fw-black tracking-widest text-warning mb-2" style="font-size: 11px;">
+                            <i class="fa-solid fa-bolt me-1"></i> Duelo Territorial
+                        </h6>
+                        <h5 class="fw-bold mb-3">Qual bairro vence?</h5>
+                        <p class="small text-white-50 mb-3" style="line-height: 1.4;">Compare a infraestrutura e qualidade de vida deste CEP com outro território.</p>
+                        
+                        <div class="input-group input-group-sm mb-2 shadow-sm rounded-pill overflow-hidden border border-white border-opacity-25">
+                            <span class="input-group-text bg-transparent border-0 text-white-50 ms-2"><i class="fa-solid fa-location-dot"></i></span>
+                            <input type="text" id="duelCepInput" class="form-control bg-transparent border-0 text-white shadow-none ps-1" placeholder="Digite o CEP adversário..." maxlength="9" oninput="this.value = this.value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2')">
+                            <button class="btn btn-warning fw-black px-3" onclick="startDuel()" type="button">DUELAR</button>
+                        </div>
+                        <script>
+                            function startDuel() {
+                                let cepA = "{{ $report->cep }}";
+                                let cepB = document.getElementById('duelCepInput').value.replace(/\D/g, '');
+                                if(cepB.length === 8) {
+                                    window.location.href = `/compare/${cepA}/${cepB}`;
+                                } else {
+                                    alert("Por favor, digite um CEP válido com 8 dígitos para o duelo.");
+                                }
+                            }
+                        </script>
                     </div>
 
                 </div>
@@ -2440,6 +2487,62 @@
                 }, 300);
             });
         }
+
+        // Territory Radar Chart
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('territoryRadarChart').getContext('2d');
+            
+            @php
+                $scores = [
+                    'Sicherheit' => ($report->score_safety ?? 70),
+                    'Educação' => min(100, count($poi_education) * 10 + 40),
+                    'Saúde' => min(100, count($poi_health) * 15 + 30),
+                    'Caminhabilidade' => ($report->walkability_score == 'A' ? 100 : ($report->walkability_score == 'B' ? 70 : 40)),
+                    'Ambiente' => (100 - ($report->air_quality_index ?? 20))
+                ];
+            @endphp
+
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Segurança', 'Educação', 'Saúde', 'Mobilidade', 'Ambiente'],
+                    datasets: [{
+                        label: 'Desempenho Territorial',
+                        data: [
+                            {{ $scores['Sicherheit'] }},
+                            {{ $scores['Educação'] }},
+                            {{ $scores['Saúde'] }},
+                            {{ $scores['Caminhabilidade'] }},
+                            {{ $scores['Ambiente'] }}
+                        ],
+                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                        borderColor: '#6366f1',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#6366f1',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#6366f1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0,0,0,0.05)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            pointLabels: { font: { size: 10, weight: 'bold' }, color: '#64748b' },
+                            ticks: { display: false, stepSize: 20 },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>

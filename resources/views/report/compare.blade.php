@@ -21,13 +21,20 @@
     <meta property="og:description" content="{{ $desc }}">
     <meta property="og:type" content="article">
     <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
+    
+    @php
+        // Gerando Mapas Estáticos para SEO via OSM Static Maps
+        $centerLat = ($reportA->lat + $reportB->lat) / 2;
+        $centerLng = ($reportA->lng + $reportB->lng) / 2;
+        $staticMapUrl = "https://staticmap.openstreetmap.de/staticmap.php?center={$centerLat},{$centerLng}&zoom=13&size=800x400&markers={$reportA->lat},{$reportA->lng},ol-marker|{$reportB->lat},{$reportB->lng},ol-marker";
+    @endphp
+    <meta property="og:image" content="{{ $staticMapUrl }}">
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Duelo: {{ $locationA }} vs {{ $locationB }}">
     <meta name="twitter:description" content="{{ $desc }}">
-    <meta name="twitter:image" content="{{ asset('hero_background_city_1772568797393.png') }}">
+    <meta name="twitter:image" content="{{ $staticMapUrl }}">
 
     <!-- Schema.org JSON-LD -->
     <script type="application/ld+json">

@@ -75,4 +75,48 @@ class RankingController extends Controller
 
         return view('report.ranking', compact('results', 'category', 'locationType'));
     }
+    public function cityRanking(string $slug, Request $request)
+    {
+        $cityModel = \App\Models\City::where('slug', $slug)->firstOrFail();
+        $category = $request->query('category', 'all');
+
+        $query = LocationReport::where('cidade', $cityModel->name)
+            ->where('uf', $cityModel->uf)
+            ->whereNotNull('bairro')
+            ->where('bairro', '!=', '');
+
+        // Cálculos base em SQL
+        $selects = [
+            'uf', 'cidade', 'bairro', 'cep',
+            DB::raw('AVG(air_quality_index) as avg_aqi'),
+            DB::raw('AVG(sanitation_rate) as avg_sanitation'),
+            DB::raw("AVG(CASE WHEN walkability_score = 'A' THEN 100 WHEN walkability_score = 'B' THEN 70 ELSE 40 END) as score_walk"),
+            DB::raw("AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END) as score_safety")
+        ];
+
+        $sqlFinalScore = "(
+            (AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END) * 0.4) + 
+            (AVG(CASE WHEN walkability_score = 'A' THEN 100 WHEN walkability_score = 'B' THEN 70 ELSE 40 END) * 0.3) + 
+            ((100 - AVG(air_quality_index)) * 0.2) + 
+            (COALESCE(AVG(sanitation_rate), 50) * 0.1)
+        )";
+
+        $results = $query->select($selects)
+            ->addSelect(DB::raw("$sqlFinalScore as final_score_calc"))
+            ->groupBy('uf', 'cidade', 'bairro', 'cep')
+            ->orderByDesc(match($category) {
+                'safety' => DB::raw("score_safety"),
+                'walk'   => DB::raw("score_walk"),
+                default  => DB::raw("final_score_calc")
+            })
+            ->limit(20)
+            ->get();
+
+        $results->transform(function($item) {
+            $item->final_score = round($item->final_score_calc);
+            return $item;
+        });
+
+        return view('report.city-ranking', compact('results', 'cityModel', 'category'));
+    }
 }

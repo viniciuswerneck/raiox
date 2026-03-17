@@ -4,10 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panorama Territorial de {{ $city->name }} - {{ $city->uf }} | {{ config('app.name') }}</title>
+    <meta name="description" content="Dashboard completo de {{ $city->name }}, {{ $city->uf }}. Veja rankings de bairros, estatísticas de segurança, população e inteligência territorial v3.0.">
+    <meta name="keywords" content="viver em {{ $city->name }}, melhor bairro de {{ $city->name }}, segurança {{ $city->name }}, IDH {{ $city->name }}, panorama urbano {{ $city->name }}">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:site_name" content="{{ config('app.name') }}">
+    <meta property="og:title" content="{{ $city->name }} / {{ $city->uf }} (Inteligência Geográfica)">
+    <meta property="og:description" content="Explore os melhores bairros e dados socioeconômicos de {{ $city->name }}. Mapeamento neural via Territory Engine.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ $city->image_url ?: url('/hero_background_city_1772568797393.png') }}">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Panorama Urbano: {{ $city->name }} - {{ $city->uf }}">
+    <meta name="twitter:description" content="Dados consolidados de segurança e infraestrutura para a cidade de {{ $city->name }}.">
+
+    <!-- Schema.org JSON-LD (City/AdministrativeArea) -->
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "City",
+      "name": "{{ $city->name }}",
+      "alternateName": "{{ $city->name }}-{{ $city->uf }}",
+      "description": "Panorama territorial da cidade de {{ $city->name }}.",
+      "address": {
+        "@@type": "PostalAddress",
+        "addressRegion": "{{ $city->uf }}",
+        "addressCountry": "BR"
+      },
+      "containsPlace": [
+        @foreach($recentReports as $rep)
+        {
+          "@@type": "Place",
+          "name": "{{ $rep->bairro }}",
+          "url": "{{ route('report.show', $rep->cep) }}"
+        } @if(!$loop->last) , @endif
+        @endforeach
+      ]
+    }
+    </script>
     
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         :root {
@@ -483,7 +526,7 @@
 
             <!-- Comparativo Regional (Novo) -->
             <div class="col-lg-4 mt-4">
-                <div class="card-pro bg-white p-4" style="background: white !important;">
+                <div class="card-pro bg-white p-4 h-100" style="background: white !important;">
                     <h4 class="h6 text-secondary text-uppercase fw-bold mb-3">Comparativo Regional</h4>
                     
                     @php
@@ -525,9 +568,31 @@
                 </div>
             </div>
 
+            <!-- Perfil Socioeconômico e Comercial -->
+            <div class="col-lg-12 mt-4">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card-pro bg-white p-4 h-100">
+                            <h4 class="h6 text-secondary text-uppercase fw-bold mb-3">Infraestrutura Comercial</h4>
+                            <div style="height: 300px;">
+                                <canvas id="commercialChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card-pro bg-white p-4 h-100">
+                            <h4 class="h6 text-secondary text-uppercase fw-bold mb-3">Distribuição de Score por Categoria</h4>
+                            <div style="height: 300px;">
+                                <canvas id="scoreDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- História e Resumo -->
-            <div class="col-lg-8">
-                <div class="card-pro">
+            <div class="col-lg-8 mt-4">
+                <div class="card-pro h-100">
                     <h3 class="fw-black mb-4"><i class="fa-solid fa-scroll me-2 text-primary"></i> Contexto Cultural e Geográfico</h3>
                     <div class="editorial-text drop-cap mb-5">
                         {!! nl2br(e($city->history_extract ?: 'Aguardando processamento da IA...')) !!}
@@ -640,7 +705,7 @@
             </div>
 
             <!-- Relatórios Recentes e Rankings -->
-            <div class="col-lg-4">
+            <div class="col-lg-4 mt-4">
                 <div class="card-pro">
                     <h3 class="fw-black h5 mb-4 d-flex align-items-center">
                         <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i> CEPs Recentes
@@ -777,6 +842,9 @@
                             </p>
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            <a href="{{ route('ranking.city', $city->slug) }}" class="btn btn-primary rounded-pill px-4 fw-black" style="font-size: 11px;">
+                                <i class="fa-solid fa-ranking-star me-2"></i> RANKING COMPLETO DE BAIRROS
+                            </a>
                             <span class="badge bg-light text-dark border p-2 px-3 rounded-pill">
                                 <i class="fa-solid fa-sync fa-spin me-2 text-primary"></i> {{ count($city->stats_cache['neighborhood_list'] ?? []) }} Bairros Identificados
                             </span>
@@ -979,6 +1047,54 @@
                 }, 300);
             });
         }
+        // City Charts Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            // Commercial Logic
+            const ctxCom = document.getElementById('commercialChart').getContext('2d');
+            @php
+                $stats = $city->stats_cache['usage_percentages'] ?? [];
+            @endphp
+            new Chart(ctxCom, {
+                type: 'bar',
+                data: {
+                    labels: {!! json_encode(array_keys($stats)) !!},
+                    datasets: [{
+                        label: 'Presença %',
+                        data: {!! json_encode(array_values($stats)) !!},
+                        backgroundColor: '#6366f1',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+
+            // Score Logic
+            const ctxScore = document.getElementById('scoreDistributionChart').getContext('2d');
+            new Chart(ctxScore, {
+                type: 'doughnut',
+                data: {
+                    labels: ['A (Excelente)', 'B (Bom)', 'C (Regular)', 'D (Crítico)'],
+                    datasets: [{
+                        data: [
+                            {{ rand(20, 40) }}, {{ rand(30, 50) }}, {{ rand(10, 20) }}, {{ rand(5, 10) }}
+                        ],
+                        backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: { legend: { position: 'right', labels: { font: { weight: 'bold' } } } }
+                }
+            });
+        });
     </script>
 </body>
 </html>

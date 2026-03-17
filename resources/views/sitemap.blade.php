@@ -16,6 +16,16 @@
         <priority>0.9</priority>
     </url>
 
+    <!-- Cidades Hub -->
+    @foreach($cities as $city)
+    <url>
+        <loc>{{ route('city.show', $city->slug) }}</loc>
+        <lastmod>{{ $city->updated_at->toAtomString() }}</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.95</priority>
+    </url>
+    @endforeach
+
     <!-- Relatórios Dinâmicos -->
     @foreach($reports as $report)
     <url>

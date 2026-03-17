@@ -233,29 +233,75 @@
         <div class="col-md-3">
             <div class="card-stats">
                 <div class="stat-icon bg-indigo"><i class="fa-solid fa-microchip"></i></div>
-                <div class="text-muted small fw-medium">Requisições Hoje</div>
-                <div class="fs-3 fw-bold">{{ number_format($statsToday->total_requests ?? 0) }}</div>
+                <div class="text-muted small fw-medium">Requisições (7 Dias)</div>
+                <div class="fs-3 fw-bold">{{ number_format($stats->total_requests ?? 0) }}</div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stats">
                 <div class="stat-icon bg-purple"><i class="fa-solid fa-coins"></i></div>
                 <div class="text-muted small fw-medium">Tokens Consumidos</div>
-                <div class="fs-3 fw-bold">{{ number_format($statsToday->total_tokens ?? 0) }}</div>
+                <div class="fs-3 fw-bold">{{ number_format($stats->total_tokens ?? 0) }}</div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stats">
                 <div class="stat-icon bg-green"><i class="fa-solid fa-gauge-high"></i></div>
                 <div class="text-muted small fw-medium">Tempo Médio Resposta</div>
-                <div class="fs-3 fw-bold">{{ number_format($statsToday->avg_response_time ?? 0) }}ms</div>
+                <div class="fs-3 fw-bold">{{ number_format($stats->avg_response_time ?? 0) }}ms</div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card-stats">
                 <div class="stat-icon bg-amber"><i class="fa-solid fa-triangle-exclamation"></i></div>
                 <div class="text-muted small fw-medium">Taxa de Erro</div>
-                <div class="fs-3 fw-bold">{{ $statsToday->total_requests > 0 ? number_format(($statsToday->fail_count / $statsToday->total_requests) * 100, 1) : 0 }}%</div>
+                <div class="fs-3 fw-bold">{{ $stats->total_requests > 0 ? number_format(($stats->fail_count / $stats->total_requests) * 100, 1) : 0 }}%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIFETIME STATS ROW -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card-stats">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fa-solid fa-map-location-dot text-primary me-2"></i>
+                    <span class="text-muted small fw-medium">Relatórios Gerados</span>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="fs-4 fw-bold">{{ number_format($totalReports) }}</div>
+                    <div class="small fw-bold text-success">+{{ $reportsToday }} hoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stats">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fa-solid fa-bolt text-warning me-2"></i>
+                    <span class="text-muted small fw-medium">Duelos Realizados</span>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="fs-4 fw-bold">{{ number_format($totalDuels) }}</div>
+                    <div class="small fw-bold text-success">+{{ $duelsToday }} hoje</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stats">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fa-solid fa-server text-info me-2"></i>
+                    <span class="text-muted small fw-medium">Tokens Total (Histórico)</span>
+                </div>
+                <div class="fs-4 fw-bold">{{ number_format($totalTokensEver) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-stats border-primary bg-primary bg-opacity-10">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fa-solid fa-sack-dollar text-primary me-2"></i>
+                    <span class="text-primary small fw-bold">Custo Est. LLM (API)</span>
+                </div>
+                <div class="fs-4 fw-black text-primary">$ {{ number_format($estimatedCostUsd, 2) }}</div>
             </div>
         </div>
     </div>
@@ -265,7 +311,7 @@
         <div class="col-lg-8">
             <div class="chart-container shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0">Volume de Requisições (24h)</h6>
+                    <h6 class="fw-bold mb-0">Volume de Requisições (7 Dias)</h6>
                 </div>
                 <div style="height: 220px;">
                     <canvas id="requestsChart"></canvas>
@@ -345,6 +391,28 @@
                 </div>
                 @endforeach
             </div>
+
+            <!-- SYSTEM INFO -->
+            <div class="card-stats border-0 mt-4">
+                <h6 class="fw-bold mb-3">Infraestrutura</h6>
+                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
+                    <span class="small fw-medium text-muted">Versão App</span>
+                    <span class="small fw-bold">{{ $appVersion }}</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
+                    <span class="small fw-medium text-muted">Laravel Framework</span>
+                    <span class="small fw-bold">v{{ $laravelVersion }}</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
+                    <span class="small fw-medium text-muted">PHP Version</span>
+                    <span class="small fw-bold">v{{ $phpVersion }}</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
+                    <span class="small fw-medium text-muted">Timezone do Sistema</span>
+                    <span class="small fw-bold">{{ config('app.timezone') }}</span>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -354,7 +422,10 @@
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: {!! json_encode(array_keys($chartData)) !!}.map(h => h + 'h'),
+            labels: {!! json_encode(array_keys($chartData)) !!}.map(d => {
+                let p = d.split('-');
+                return p.length === 3 ? `${p[2]}/${p[1]}` : d;
+            }),
             datasets: [{
                 label: 'Requisições',
                 data: {!! json_encode(array_values($chartData)) !!},
