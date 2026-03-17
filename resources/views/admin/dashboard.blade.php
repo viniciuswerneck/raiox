@@ -92,13 +92,26 @@
         .status-cooldown { background: #fef3c7; color: #b45309; }
         .status-offline { background: #fee2e2; color: #b91c1c; }
 
-        .chart-container {
-            background: white;
-            border-radius: 20px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(0,0,0,0.05);
-            height: 320px;
+        .modal-content {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 24px;
+        }
+        .module-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .module-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
     </style>
 </head>
@@ -113,6 +126,9 @@
             <h5 class="mb-0 fw-bold">Admin IA Telemetry</h5>
         </div>
         <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#aboutModal">
+                <i class="fa-solid fa-circle-info me-1"></i>Sobre o Sistema
+            </button>
             <span class="badge bg-primary rounded-pill px-3">{{ now()->format('d/m/Y H:i') }}</span>
             <form action="{{ route('logout') }}" method="POST" class="m-0">
                 @csrf
@@ -123,6 +139,60 @@
         </div>
     </div>
 </nav>
+
+<!-- Modal Sobre a Arquitetura -->
+<div class="modal fade" id="aboutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-layer-group me-2"></i>Arquitetura Raio-X v3.0</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-white-50 mb-4">O sistema Raio-X opera através de uma malha de microsserviços inteligentes coordenados por um motor de orquestração assíncrona.</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-brain"></i></div>
+                            <h6>LlmRouterService</h6>
+                            <p class="small text-white-50 mb-0">O cérebro central. Gerencia rotação exaustiva de chaves, cooldown de falhas (429) e balanceamento entre provedores (Groq, OpenRouter, Google).</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                            <h6>IntegrityAgent</h6>
+                            <p class="small text-white-50 mb-0">O zelador de dados (Auto-Repair). Audita em tempo real cada acesso, detectando e corrigindo lacunas de informação em background.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                            <h6>TerritoryEngine</h6>
+                            <p class="small text-white-50 mb-0">Orquestrador de contexto. Reúne dados de POIs, Clima, Wiki e Socioeconomia para criar o prompt dimensional de análise territorial.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-chart-line"></i></div>
+                            <h6>AactService</h6>
+                            <p class="small text-white-50 mb-0">Auditor de calibração. Valida a consistência de dados imobiliários e segurança gerados pela IA cruzando com indicadores reais de renda.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25">
+                    <h6 class="fw-bold mb-2 small text-uppercase" style="letter-spacing: 1px;">Fluxo de Inteligência</h6>
+                    <p class="small mb-0">Trigger de CEP &rarr; GeoAgent (Localização) &rarr; TerritoryEngine (Data Gathering) &rarr; LlmRouter (Analysis) &rarr; AactService (Calibration) &rarr; IntegrityAgent (Final Audit).</p>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-4" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="container-fluid px-lg-5">
     
