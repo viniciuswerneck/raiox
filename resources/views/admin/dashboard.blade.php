@@ -143,49 +143,80 @@
 
 <!-- Modal Sobre a Arquitetura -->
 <div class="modal fade" id="aboutModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content shadow-lg">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold"><i class="fa-solid fa-layer-group me-2"></i>Arquitetura Raio-X v3.0</h5>
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-microchip me-2"></i>Territory Engine v3.0 <span class="badge bg-primary ms-2" style="font-size: 10px; vertical-align: middle;">NEURAL CORE</span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="text-white-50 mb-4">O **Ecosystem Raio-X v3.0** é uma plataforma de inteligência territorial de alta fidelidade, operando sobre uma infraestrutura de micro-serviços cognitivos e orquestração assíncrona distribuída.</p>
+                <p class="text-white-50 mb-4">O **Territory Engine** representa o ápice da inteligência geo-analítica, fundindo big-data proprietário com processamento cognitivo de última geração para decodificar o DNA de qualquer território em segundos.</p>
                 
                 <div class="row">
-                    <div class="col-md-6">
+                    <!-- Camada de Gathering -->
+                    <div class="col-md-4">
+                        <div class="small fw-bold text-primary mb-3 text-uppercase" style="letter-spacing: 2px;">Data Gathering Cluster</div>
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-satellite"></i></div>
+                            <h6>Geo & POI Discovery</h6>
+                            <p class="small text-white-50 mb-0">`GeoAgent` & `POIAgent`. Fusão de fontes OSM, Nominatim e ViaCEP para geolocalização precisa e mapeamento de infraestrutura comercial/lazer.</p>
+                        </div>
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-cloud-sun"></i></div>
+                            <h6>Environmental Data</h6>
+                            <p class="small text-white-50 mb-0">`ClimaAgent`. Ingestão de métricas climáticas históricas e em tempo real para análise de qualidade de vida e resiliência ambiental.</p>
+                        </div>
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-landmark"></i></div>
+                            <h6>Socio-History Mesh</h6>
+                            <p class="small text-white-50 mb-0">`WikiAgent` & `SocioAgent`. Extração de DNA histórico e indicadores socioeconômicos (renda/demografia) via Wikipedia e bases IBGE.</p>
+                        </div>
+                    </div>
+
+                    <!-- Camada de Inteligência -->
+                    <div class="col-md-4">
+                        <div class="small fw-bold text-primary mb-3 text-uppercase" style="letter-spacing: 2px;">Cognitive Intelligence Layer</div>
                         <div class="module-card">
                             <div class="module-icon"><i class="fa-solid fa-brain"></i></div>
-                            <h6>Neural Routing Engine</h6>
-                            <p class="small text-white-50 mb-0">Malha de roteamento inteligente (LlmRouter) que gerencia clusters de modelos globais. Executa auto-healing de chaves e balanceamento dinâmico entre provedores de elite (DeepSeek-R1, Gemini 1.5 Pro, Llama 3.3).</p>
+                            <h6>Neural Router Service</h6>
+                            <p class="small text-white-50 mb-0">`LlmRouter`. Orquestração exaustiva de modelos (DeepSeek, Gemini, Llama) com lógica de auto-healing, fallback e balanceamento de carga.</p>
+                        </div>
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-database"></i></div>
+                            <h6>Knowledge RAG Agent</h6>
+                            <p class="small text-white-50 mb-0">`KnowledgeAgent`. Sistema de Recuperação Aumentada por Geração (RAG) que injeta contexto proprietário no processo de análise.</p>
+                        </div>
+                        <div class="module-card">
+                            <div class="module-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                            <h6>Compare & Scoring</h6>
+                            <p class="small text-white-50 mb-0">`CompareAgent`. Algoritmo matemático que pondera milhares de POIs para gerar scores de Mobilidade, Lazer e Infraestrutura.</p>
                         </div>
                     </div>
-                    <div class="col-md-6">
+
+                    <!-- Camada de Orquestração -->
+                    <div class="col-md-4">
+                        <div class="small fw-bold text-primary mb-3 text-uppercase" style="letter-spacing: 2px;">Orchestration & Trust</div>
                         <div class="module-card">
                             <div class="module-icon"><i class="fa-solid fa-shield-halved"></i></div>
-                            <h6>Predictive Integrity Agent</h6>
-                            <p class="small text-white-50 mb-0">Zelador autônomo de dados (IntegrityAgent). Realiza auditoria passiva em tempo real em cada requisição, identificando gaps de informação e disparando jobs de auto-reparo para garantir a integridade perpétua da base.</p>
+                            <h6>Integrity Sentinel</h6>
+                            <p class="small text-white-50 mb-0">`IntegrityAgent`. Auditoria passiva em tempo real com reparação autônoma de dados e re-hidratação de contextos incompletos.</p>
                         </div>
-                    </div>
-                    <div class="col-md-6">
                         <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-                            <h6>Context Fusion Engine</h6>
-                            <p class="small text-white-50 mb-0">Orquestrador multi-dimensional (TerritoryEngine). Sintetiza trilhões de pontos de dados de POIs, clima, demografia e socioeconomia em um hyper-prompt contextualizado para análises territoriais ultra-precisas.</p>
+                            <div class="module-icon"><i class="fa-solid fa-vial-circle-check"></i></div>
+                            <h6>Calibration Guard</h6>
+                            <p class="small text-white-50 mb-0">`AactService`. Camada de confiança que valida narrativas generativas contra indicadores econômicos reais para eliminar alucinações.</p>
                         </div>
-                    </div>
-                    <div class="col-md-6">
                         <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-chart-line"></i></div>
-                            <h6>Metric Calibration Guard</h6>
-                            <p class="small text-white-50 mb-0">Camada de validação paramétrica (AactService). Atua como um auditor matemático que cruza narrativas de IA com indicadores reais de renda e mercado imobiliário, eliminando alucinações e garantindo precisão estatística.</p>
+                            <div class="module-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                            <h6>Pipeline Coordinator</h6>
+                            <p class="small text-white-50 mb-0">`PipelineCoordinator`. O regente da orquestra que gerencia a execução assíncrona paralela e sincronização de estados.</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-3 p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25">
-                    <h6 class="fw-bold mb-2 small text-uppercase" style="letter-spacing: 1px;">Pipeline de Hiper-Inteligência</h6>
-                    <p class="small mb-0">Ingestão Geodata &rarr; Fusão Contextual (RAG) &rarr; Processamento Cognitivo Nativo &rarr; Calibração Métrica &rarr; Auditoria de Integridade Perpétua.</p>
+                    <h6 class="fw-bold mb-2 small text-uppercase" style="letter-spacing: 1px;">Neural Flow Protocol</h6>
+                    <p class="small mb-0">Raw Query &rarr; Context Gathering Mesh &rarr; Knowledge Injection &rarr; Neural Synthesis &rarr; Parametric Calibration &rarr; Final Integrity Audit.</p>
                 </div>
             </div>
             <div class="modal-footer border-0 pt-0">
