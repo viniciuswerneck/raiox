@@ -48,7 +48,7 @@ class GenerateNeighborhoodText implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(LlmManagerService $llm, \App\Services\AactService $aact): void
+    public function handle(LlmManagerService $llm, \App\Services\AactService $aact, \App\Services\RealEstateTrendService $trendService): void
     {
         // Delay aleatório inicial para escalonamento
         usleep(rand(200000, 1000000)); 
@@ -90,13 +90,34 @@ class GenerateNeighborhoodText implements ShouldQueue
                 $ragContextString = "\nMemória Territorial (Dados anteriores): " . implode(" | ", $chunks);
             }
 
+            // [NEW] 1a. Análise de Tendência Regional (Mini-Grafo de Adjacência)
+            $trendData = $trendService->analyzePotential($report);
+            $trendContext = "";
+            if (!empty($trendData['nearby_hubs'])) {
+                $hubs = collect($trendData['nearby_hubs'])->map(fn($h) => "{$h['name']} ({$h['dist']}km - {$h['classification']})")->implode(', ');
+                $trendContext = "\nInteligência de Mercado Local: Este local está próximo de polos de valorização como {$hubs}. "
+                    . "Tendência detectada pelo algoritmo: {$trendData['trend']}. "
+                    . "Análise estratégica: {$trendData['description']}.";
+            }
+
             // 1. Geração da Narrativa e Dados Estruturados via LlmManager
-            $systemPrompt = "Você é um especialista em análise territorial e urbanismo do sistema Raio-X. "
-                . "Sua tarefa é criar uma análise profunda sobre uma localidade. "
+            $systemPrompt = "Você é um especialista sênior em análise territorial, urbanismo e SEO do sistema Raio-X. "
+                . "Sua tarefa é criar uma análise profunda, autoritativa e enciclopédica sobre uma localidade, otimizada para buscadores (SEO). "
+                . "A narrativa deve ser rica em detalhes históricos, culturais, arquitetônicos e geográficos. "
+                . "Combine os dados históricos e de mercado fornecidos com sua base de conhecimento sobre a evolução urbana local. "
+                . "Estrutura OBRIGATÓRIA da narrativa (MÍNIMO DE 4 PARÁGRAFOS extensos e 350 palavras):\n"
+                . "1. Contexto Histórico: Origens e evolução.\n"
+                . "2. Perfil Cultural: Identidade e estilo de vida.\n"
+                . "3. Desenvolvimento Urbano: Infraestrutura e legado regional.\n"
+                . "4. Dinâmica Contemporânea e Projeções: O papel do bairro na cidade hoje e seu potencial de valorização futuro.\n"
+                . "REGRAS EXTRAS:\n"
+                . "- Incorpore inteligentemente a análise de mercado sobre os bairros vizinhos no último parágrafo.\n"
+                . "- Separe os parágrafos obrigatoriamente com DUAS quebras de linha (\\n\\n).\n"
+                . "- Use um tom profissional e envolvente. Evite clichês.\n"
                 . "Você deve retornar APENAS um JSON válido seguindo este formato rigoroso:\n"
                 . "{\n"
-                . "  \"narrative\": \"Texto da narrativa histórica/cultural em 3 parágrafos curtos. Sem markdown.\",\n"
-                . "  \"safety_analysis\": \"Uma frase curta (máx 150 caracteres) descrevendo a percepção de segurança baseada na infraestrutura.\",\n"
+                . "  \"narrative\": \"Texto completo (mínimo 4 parágrafos, separados por \\n\\n). Sem markdown.\",\n"
+                . "  \"safety_analysis\": \"Uma frase curta (máx 150 caracteres) descrevendo a percepção de segurança.\",\n"
                 . "  \"real_estate\": {\n"
                 . "    \"preco_m2\": \"R$ X.XXX a R$ X.XXX\",\n"
                 . "    \"perfil_imoveis\": \"Ex: Residencial horizontal predominante\",\n"
@@ -106,7 +127,7 @@ class GenerateNeighborhoodText implements ShouldQueue
 
             $messages = [
                 ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => "Gere uma análise para {$locationName}.{$ragContextString}\nDados históricos: {$historyRaw}. Contexto: " . json_encode($aactContext)]
+                ['role' => 'user', 'content' => "Gere uma análise para {$locationName}.{$ragContextString}{$trendContext}\nDados históricos: {$historyRaw}. Contexto: " . json_encode($aactContext)]
             ];
 
             Log::info("[Job] Solicitando análise estruturada para {$locationName} via LlmManager");
@@ -144,6 +165,8 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'cep' => $report->cep,
                 'bairro' => $report->bairro,
                 'localidade' => $report->cidade,
+                'lat' => $report->lat,
+                'lng' => $report->lng,
                 'average_income' => $report->average_income,
                 'sanitation_rate' => $report->sanitation_rate,
                 'pois_json' => $report->pois_json,

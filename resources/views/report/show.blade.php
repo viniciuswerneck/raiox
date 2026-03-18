@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raio-X de {{ $report->bairro ?: $report->cidade }} - {{ $report->cidade }}/{{ $report->uf }} | {{ config('app.name') }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description" content="Raio-X detalhado de {{ $report->bairro ?: 'este bairro' }} em {{ $report->cidade }}. Indicadores de segurança, infraestrutura, IDH, caminhabilidade e análise imobiliária completa.">
-    <meta name="keywords" content="viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, infraestrutura {{ $report->cidade }}, valorização imobiliária {{ $report->bairro }}">
+    <meta name="description" content="Explore o legado e a cultura regional de {{ $report->bairro ?: $report->cidade }} em {{ $report->cidade }}. Análise completa com indicadores de segurança, infraestrutura, IDH e valorização imobiliária.">
+    <meta name="keywords" content="legado regional {{ $report->bairro }}, cultura de {{ $report->cidade }}, viver em {{ $report->cidade }}, bairro {{ $report->bairro }}, segurança {{ $report->cidade }}, caminhabilidade {{ $report->bairro }}, infraestrutura {{ $report->cidade }}, valorização imobiliária {{ $report->bairro }}">
     
     <!-- Open Graph / Social Media -->
     <meta property="og:site_name" content="{{ config('app.name') }}">
@@ -270,7 +270,7 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 24px;
+            margin-bottom: 10px; /* Reduced to avoid breaking flex lines */
         }
 
         /* Dashboard Bento Grid Style */
@@ -355,20 +355,28 @@
 
         /* Typography Decorations */
         .editorial-text {
-            line-height: 1.6;
-            font-size: 1rem;
-            color: #475569;
-            text-align: left;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #334155;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+        }
+
+        .editorial-text p {
+            margin-bottom: 1.5rem;
         }
 
         .drop-cap::first-letter {
             float: left;
-            font-size: 4.5rem;
-            line-height: 0.8;
+            font-family: var(--font-heading);
+            font-size: 5rem;
+            line-height: 0.7;
+            padding-top: 10px;
             padding-right: 12px;
+            padding-left: 2px;
             font-weight: 900;
             color: var(--primary);
-            font-family: var(--font-heading);
+            text-transform: uppercase;
         }
 
         /* Animations */
@@ -618,6 +626,103 @@
             to { transform: rotate(360deg); }
         }
 
+        /* --- PRINT ENGINE (Luxury Specialist Edition) --- */
+        @media print {
+            .no-print, .btn, .compare-fab, .omnisearch-trigger, #explorer-overlay, #loader, .reprocess-btn, .modal, .omnisearch-overlay { 
+                display: none !important; 
+            }
+            .d-print-block { display: block !important; }
+            @page { margin: 2cm 2.5cm; size: A4; }
+            
+            body { 
+                background: #fff !important; 
+                color: #0f172a !important; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                padding: 0 !important;
+                font-family: 'Inter', system-ui, sans-serif !important;
+            }
+
+            .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .row { display: flex !important; flex-wrap: wrap !important; }
+            .col-lg-6, .col-md-12, .col-12 { width: 100% !important; float: none !important; }
+            .col-md-4 { width: 33.33% !important; }
+            .col-md-3 { width: 25% !important; }
+
+            .editorial-text { font-size: 11.5pt !important; line-height: 1.7 !important; text-align: justify !important; color: #334155 !important; }
+            .drop-cap::first-letter { font-size: 5rem !important; color: #6366f1 !important; margin-right: 8px !important; margin-top: 10px !important; }
+            
+            .card-pro { 
+                border: 1px solid #e2e8f0 !important; 
+                box-shadow: none !important; 
+                break-inside: avoid !important; 
+                background: #fff !important; 
+                padding: 30px !important; 
+                border-radius: 4px !important; /* Formal square edges for paper */
+            }
+
+            .hero-section { 
+                min-height: auto !important; 
+                padding: 30px 0 !important; 
+                background: white !important; /* White bg for inner pages header in print */
+                color: black !important;
+                border-bottom: 2px solid #e2e8f0 !important;
+                margin-bottom: 40px !important;
+                border-radius: 0 !important;
+                page-break-after: avoid; 
+            }
+            .hero-section h1 { color: black !important; }
+            .hero-section .text-white-50 { color: #64748b !important; }
+
+            #map-container { height: 500px !important; border: 1px solid #cbd5e1 !important; break-inside: avoid; }
+            .page-break { page-break-before: always; height: 1px; }
+            .score-card { break-inside: avoid !important; border: 1.5px solid #0f172a !important; background: #f8fafc !important; }
+            
+            /* --- PDF DOSSIER EXCLUSIVE --- */
+            .pdf-cover {
+                height: 25cm;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                border: 15px solid #0f172a;
+                padding: 40px;
+                position: relative;
+            }
+
+            .pdf-header-meta {
+                position: absolute;
+                top: 40px;
+                display: flex;
+                gap: 15px;
+            }
+
+            .badge-print {
+                padding: 5px 15px;
+                border: 1px solid #0f172a;
+                font-size: 9pt;
+                font-weight: 800;
+                letter-spacing: 2px;
+            }
+
+            .pdf-logo-center { margin-bottom: 80px; }
+            .pdf-title-block { margin-bottom: 150px; }
+            .pdf-title-block h1 { font-size: 50pt !important; line-height: 1; margin-bottom: 10px; }
+            
+            .pdf-footer-meta {
+                width: 100%;
+                border-top: 1px solid #e2e8f0;
+                padding-top: 30px;
+            }
+
+            .pdf-page-header {
+                font-size: 8pt;
+                color: #64748b;
+                letter-spacing: 1px;
+            }
+        }
+
         /* --- MAP EVOLUTION STYLES --- */
         .m-cluster {
             background: white;
@@ -733,10 +838,15 @@
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
             background: #fff;
-            z-index: 100000;
+            z-index: 2147483647; /* Max Possible Z-Index to avoid overlaps */
             display: none;
             flex-direction: column;
             animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Esconder Navbar principal quando o explorador estiver aberto */
+        body.explorer-active .nav-glass {
+            display: none !important;
         }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -749,6 +859,14 @@
             align-items: center;
             padding: 0 30px;
             gap: 20px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 991px) {
+            .explorer-header { height: auto; padding: 15px; flex-wrap: wrap; gap: 10px; }
+            .explorer-header .btn-group { display: none; } /* Show in map controls instead or hide for space */
+            .explorer-header h5 { font-size: 1rem; }
+            .explorer-header p { display: none; }
         }
 
         .explorer-content {
@@ -1013,6 +1131,57 @@
         <i class="fa-solid fa-right-left"></i>
     </div>
 
+    <!-- --- DOSSIÊ PDF (Layout para Especialista) --- -->
+    <div class="d-none d-print-block print-only-dossier">
+        <!-- CAPA DO DOSSIÊ -->
+        <div class="pdf-cover">
+            <div class="pdf-header-meta">
+                <span class="badge-print">PROTOCOLO #{{ substr($report->uuid, 0, 8) }}</span>
+                <span class="badge-print">CONFIDENCIAL</span>
+            </div>
+            
+            <div class="pdf-logo-center">
+                <img src="{{ asset('favicon.png') }}" width="100" alt="Raio-X">
+                <h2 class="text-uppercase tracking-tighter fw-black mb-0">RAIO-X TERRITORIAL</h2>
+                <p class="small opacity-50 fw-bold">INTELIGÊNCIA DE DADOS & VIZINHANÇA</p>
+            </div>
+
+            <div class="pdf-title-block">
+                <h6 class="text-primary text-uppercase tracking-widest fw-black mb-3">Relatório de Diagnóstico Premium</h6>
+                <h1 class="display-2 fw-black mb-1">{{ mb_strtoupper($report->bairro ?: $report->cidade) }}</h1>
+                <div class="h3 fw-light opacity-75">{{ $report->cidade }} / {{ $report->uf }}</div>
+            </div>
+
+            <div class="pdf-footer-meta">
+                <div class="row w-100">
+                    <div class="col-4 border-end">
+                        <div class="small fw-black text-uppercase tracking-widest opacity-50">Data de Emissão</div>
+                        <div class="fw-bold">{{ date('d/m/Y') }}</div>
+                    </div>
+                    <div class="col-4 border-end">
+                        <div class="small fw-black text-uppercase tracking-widest opacity-50">Classificação</div>
+                        <div class="fw-bold text-primary">{{ mb_strtoupper($report->territorial_classification ?: 'Padrão Urbano') }}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="small fw-black text-uppercase tracking-widest opacity-50">ID do Relatório</div>
+                        <div class="fw-bold">{{ $report->cep }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="page-break"></div>
+        
+        <!-- HEADER PARA PÁGINAS INTERNAS -->
+        <div class="pdf-page-header d-flex justify-content-between align-items-center mb-5 border-bottom pb-3">
+             <div class="d-flex align-items-center gap-2">
+                <img src="{{ asset('favicon.png') }}" width="25" alt="X">
+                <span class="fw-black small text-uppercase tracking-tighter">{{ config('app.name') }}</span>
+             </div>
+             <div class="small fw-bold opacity-50 text-uppercase">Dossiê Territorial: {{ $report->bairro ?: $report->cidade }}</div>
+        </div>
+    </div>
+
     <!-- HERO SECTION -->
     <section class="hero-section">
         <!-- Floating Logo Overlay -->
@@ -1035,19 +1204,25 @@
         <div class="container hero-content">
             <div class="row align-items-center">
                 <div class="col-lg-8 reveal">
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <div class="cep-badge no-print">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <div class="cep-badge no-print mb-0">
                             <i class="fa-solid fa-location-crosshairs text-primary"></i>
                             @php $fCep = preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep); @endphp
                             <span>REGIÃO DO CEP {{ $fCep }}</span>
                         </div>
+                        
+                        <button onclick="window.print()" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm no-print d-flex align-items-center gap-2" style="background: var(--primary); border: 2px solid rgba(255,255,255,0.2); height: 42px;">
+                             <i class="fa-solid fa-file-pdf"></i> BAIXAR DOSSIÊ PDF
+                        </button>
+
                         @if($report->territorial_classification)
-                        <div class="cep-badge no-print" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4);">
+                        <div class="cep-badge no-print mb-0" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4);">
                             <i class="fa-solid fa-robot text-primary"></i>
                             <span class="text-white">TURMA AACT: <span class="text-primary fw-black">{{ mb_strtoupper($report->territorial_classification) }}</span></span>
                         </div>
                         @endif
-                    </div>
+                    </div> <!-- d-flex closure -->
+                    
                     <h1 class="display-1 text-white mb-2" style="font-size: clamp(2.5rem, 5vw, 4rem);">
                         @if($report->bairro) {{ $report->bairro }} <br> @endif
                         <span class="{{ $report->bairro ? 'h3 text-white-50 fw-light' : '' }}">
@@ -1314,7 +1489,9 @@
                         <!-- Custom Map Style Controls -->
                         <div class="map-controls-premium no-print">
                             <button class="btn btn-light btn-sm fw-bold shadow-sm border" onclick="toggleHeatmap(this)"><i class="fa-solid fa-fire me-1"></i>Calor</button>
-                            <button class="btn btn-primary btn-sm fw-bold shadow-sm border" onclick="toggleExplorer()"><i class="fa-solid fa-expand-arrows-alt me-1"></i>Explorar Vizinhança</button>
+                            <button class="btn btn-primary btn-sm fw-bold shadow-sm border px-3" onclick="toggleExplorer()">
+                                <i class="fa-solid fa-maximize me-1"></i> MODO TELA CHEIA (EXPLORER)
+                            </button>
                             
                             <div class="btn-group shadow-sm border rounded-pill overflow-hidden bg-white">
                                 <button class="btn btn-light btn-sm fw-bold map-style-btn" data-style="suave">Suave</button>
@@ -1584,6 +1761,7 @@
             @endif
 
         <!-- HISTORY SECTION -->
+        <div class="page-break"></div>
         @if($report->history_extract)
             <div class="row mb-4 reveal">
                 <div class="col-12">
@@ -1611,8 +1789,7 @@
                                 </div>
                             @endif
                             
-                            <div class="editorial-text drop-cap" style="text-align: justify;">
-                                {!! nl2br(e($report->history_extract)) !!}
+                            <div class="editorial-text drop-cap" style="text-align: justify;">{!! nl2br(e(trim($report->history_extract))) !!}
                                 
                                 <div class="mt-4 no-print">
                                     @if($wiki['desktop_url'] ?? null)
@@ -1662,7 +1839,12 @@
     <!-- EXPLORER MODE OVERLAY -->
     <div id="explorer-overlay">
         <div class="explorer-header">
-            <div class="d-flex align-items-center gap-3">
+            <!-- BOTÃO SAIR (Top-Left Visibility) -->
+            <button class="btn btn-dark rounded-pill px-4 fw-bold shadow-sm me-4" onclick="toggleExplorer()">
+                <i class="fa-solid fa-arrow-left-long me-2"></i> VOLTAR (ESC)
+            </button>
+
+            <div class="d-flex align-items-center gap-3 border-start ps-4 d-none d-md-flex">
                 <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
                     <i class="fa-solid fa-map-location-dot"></i>
                 </div>
@@ -1671,23 +1853,21 @@
                     <p class="small text-muted mb-0">{{ $report->bairro ?: $report->cidade }} • Raio de {{ ($report->search_radius / 1000) }}km</p>
                 </div>
             </div>
+
             <div class="ms-auto d-flex align-items-center gap-2">
                 <button class="btn btn-light btn-sm rounded-pill px-3 fw-bold" onclick="toggleExplorerHeatmap(this)">
                     <i class="fa-solid fa-fire me-1"></i>Calor
                 </button>
-                <div class="btn-group border rounded-pill overflow-hidden shadow-sm">
+                <div class="btn-group border rounded-pill overflow-hidden shadow-sm d-none d-lg-flex">
                     <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="suave">Suave</button>
                     <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="padrao">Padrão</button>
                     <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="clara">Clara</button>
                     <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="escura">Escura</button>
                     <button class="btn btn-light btn-sm fw-bold explorer-style-btn" data-style="satelite">Satélite</button>
                 </div>
-                <div class="vr mx-2"></div>
-                <button class="btn btn-outline-dark rounded-pill px-4 fw-bold" onclick="toggleExplorer()">
-                    <i class="fa-solid fa-times me-2"></i>Fechar
-                </button>
             </div>
         </div>
+        
         <div class="explorer-content">
             <div id="explorer-map"></div>
             <div class="explorer-list-side">
@@ -2272,11 +2452,16 @@
                 e.target.value = v;
             });
             
-            // Fechar painel com a tecla ESC
+            // Fechar componentes com a tecla ESC
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
+                    // Fechar Painel Comparativo
                     const panel = document.getElementById('compare-panel');
                     if (panel && panel.classList.contains('active')) toggleCompare();
+                    
+                    // Fechar Modo Explorador
+                    const explorer = document.getElementById('explorer-overlay');
+                    if (explorer && explorer.style.display === 'flex') toggleExplorer();
                 }
             });
         });

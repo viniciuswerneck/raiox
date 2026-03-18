@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\Log;
 
 class AactService
 {
+    protected RealEstateTrendService $trendService;
+
+    public function __construct(RealEstateTrendService $trendService)
+    {
+        $this->trendService = $trendService;
+    }
+
     /**
      * Valida a coerência interna e distorções dos dados do bairro.
      * Retorna os dados atualizados com uma chave 'audit_log' e 'territorial_classification'.
@@ -18,6 +25,8 @@ class AactService
         $sanitation = $data['sanitation_rate'] ?? 50;
         $bairro = strtolower($data['bairro'] ?? '');
         $cidade = strtolower($data['localidade'] ?? '');
+        $lat = $data['lat'] ?? null;
+        $lng = $data['lng'] ?? null;
         
         $log[] = "Iniciada a auditoria territorial AACT para {$data['cep']}.";
 
@@ -88,6 +97,25 @@ class AactService
                     $data['real_estate_json']['preco_m2'] = "R$ " . number_format($newMin, 0, ',', '.') . " a R$ " . number_format($newMax, 0, ',', '.');
                     $data['real_estate_json']['perfil_imoveis'] .= " (Perfil recalibrado pela inteligência territorial)";
                 }
+            }
+        }
+
+        // [NEW] 3b. Auditoria de Adjacência (Efeito Maré)
+        if ($lat && $lng) {
+            // Criamos um objeto fake só para rodar a análise
+            $mockReport = new \App\Models\LocationReport([
+                'lat' => $lat,
+                'lng' => $lng,
+                'territorial_classification' => $classification,
+                'real_estate_json' => $data['real_estate_json'],
+                'bairro' => $data['bairro']
+            ]);
+
+            $trend = $this->trendService->analyzePotential($mockReport);
+            
+            if ($trend['is_strategic'] && !str_contains(strtoupper($data['real_estate_json']['tendencia_valorizacao'] ?? ''), 'ALTA')) {
+                $log[] = "AJUSTE ESTRATÉGICO: Potencial de Catch-up detectado devido à proximidade com {$trend['nearby_hubs'][0]['name']}. Forçando tendência de ALTA.";
+                $data['real_estate_json']['tendencia_valorizacao'] = "ALTA: " . $trend['description'];
             }
         }
 
