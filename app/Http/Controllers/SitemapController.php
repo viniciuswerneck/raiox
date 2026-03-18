@@ -27,7 +27,7 @@ class SitemapController extends Controller
             'reports' => $reports,
             'duels' => $duels,
             'cities' => $cities,
-        ])->header('Content-Type', 'text/xml');
+        ])->header('Content-Type', 'application/xml; charset=utf-8');
     }
 
     public function robots(): Response

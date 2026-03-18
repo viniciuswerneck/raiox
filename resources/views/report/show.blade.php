@@ -627,100 +627,112 @@
         }
 
         /* --- PRINT ENGINE (Luxury Specialist Edition) --- */
+        /* --- PRINT ENGINE (Word Document Specialist Edition) --- */
         @media print {
-            .no-print, .btn, .compare-fab, .omnisearch-trigger, #explorer-overlay, #loader, .reprocess-btn, .modal, .omnisearch-overlay { 
+            /* Hide all screen-only UI and the main dashboard to prevent overlap and blank pages */
+            .no-print, .btn, .compare-fab, .omnisearch-trigger, #explorer-overlay, #loader, 
+            .reprocess-btn, .modal, .omnisearch-overlay, .nav-glass, 
+            .hero-section, .dashboard-container, footer { 
                 display: none !important; 
             }
-            .d-print-block { display: block !important; }
-            @page { margin: 2cm 2.5cm; size: A4; }
             
-            body { 
+            .d-print-block { display: block !important; }
+            
+            @page { 
+                margin: 2cm; 
+                size: A4 portrait; 
+            }
+            
+            html, body { 
+                height: auto !important; 
+                overflow: visible !important; 
                 background: #fff !important; 
-                color: #0f172a !important; 
+                color: #000 !important; 
                 -webkit-print-color-adjust: exact !important; 
                 print-color-adjust: exact !important; 
                 padding: 0 !important;
-                font-family: 'Inter', system-ui, sans-serif !important;
+                margin: 0 !important;
+                font-family: "Calibri", "Candara", "Segoe UI", "Arial", sans-serif !important;
+                font-size: 11pt;
             }
 
-            .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
-            .row { display: flex !important; flex-wrap: wrap !important; }
-            .col-lg-6, .col-md-12, .col-12 { width: 100% !important; float: none !important; }
-            .col-md-4 { width: 33.33% !important; }
-            .col-md-3 { width: 25% !important; }
-
-            .editorial-text { font-size: 11.5pt !important; line-height: 1.7 !important; text-align: justify !important; color: #334155 !important; }
-            .drop-cap::first-letter { font-size: 5rem !important; color: #6366f1 !important; margin-right: 8px !important; margin-top: 10px !important; }
-            
-            .card-pro { 
-                border: 1px solid #e2e8f0 !important; 
-                box-shadow: none !important; 
-                break-inside: avoid !important; 
-                background: #fff !important; 
-                padding: 30px !important; 
-                border-radius: 4px !important; /* Formal square edges for paper */
+            p, table, h1, h2, h3, h4, h5 {
+                break-inside: avoid;
             }
 
-            .hero-section { 
-                min-height: auto !important; 
-                padding: 30px 0 !important; 
-                background: white !important; /* White bg for inner pages header in print */
-                color: black !important;
-                border-bottom: 2px solid #e2e8f0 !important;
-                margin-bottom: 40px !important;
-                border-radius: 0 !important;
-                page-break-after: avoid; 
+            h1, h2, h3, h4, h5 {
+                color: #2F5496 !important;
+                font-family: "Calibri Light", "Segoe UI Light", sans-serif !important;
+                margin-top: 15pt;
+                margin-bottom: 8pt;
+                break-after: avoid;
             }
-            .hero-section h1 { color: black !important; }
-            .hero-section .text-white-50 { color: #64748b !important; }
 
-            #map-container { height: 500px !important; border: 1px solid #cbd5e1 !important; break-inside: avoid; }
-            .page-break { page-break-before: always; height: 1px; }
-            .score-card { break-inside: avoid !important; border: 1.5px solid #0f172a !important; background: #f8fafc !important; }
-            
-            /* --- PDF DOSSIER EXCLUSIVE --- */
+            h1 { font-size: 22pt; border-bottom: 1.5pt solid #2F5496; padding-bottom: 4pt; margin-bottom: 15pt; }
+            h2 { font-size: 16pt; margin-top: 20pt; border-bottom: 0.5pt solid #D6DCE4; padding-bottom: 2pt; }
+
+            /* Formal Word Tables */
+            .word-table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 12pt 0; 
+                break-inside: avoid;
+                border: 0.5pt solid #8496B0;
+            }
+            .word-table th, .word-table td { 
+                border: 0.5pt solid #8496B0; 
+                padding: 6pt 10pt; 
+                text-align: left; 
+                font-size: 10pt;
+            }
+            .word-table th { background-color: #D6DCE4 !important; font-weight: bold; }
+            .word-table tr:nth-child(even) { background-color: #F9F9F9 !important; }
+
+            .editorial-text { font-size: 11pt !important; line-height: 1.5 !important; text-align: justify !important; }
+
+            /* --- WORD-STYLE COVER (Fixed for A4) --- */
             .pdf-cover {
-                height: 25cm;
+                min-height: 23cm; /* Using min-height to stay safe but allow content growth */
+                max-height: 25cm;
                 display: flex;
                 flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                text-align: center;
-                border: 15px solid #0f172a;
-                padding: 40px;
-                position: relative;
+                justify-content: flex-start;
+                padding: 1cm;
+                box-sizing: border-box;
+                page-break-after: always;
+                border: none !important;
             }
 
             .pdf-header-meta {
-                position: absolute;
-                top: 40px;
                 display: flex;
-                gap: 15px;
+                justify-content: space-between;
+                border-bottom: 1.5pt solid #2F5496;
+                padding-bottom: 8pt;
+                margin-bottom: 3cm;
             }
 
-            .badge-print {
-                padding: 5px 15px;
-                border: 1px solid #0f172a;
-                font-size: 9pt;
-                font-weight: 800;
-                letter-spacing: 2px;
+            .pdf-title-block { 
+                flex-grow: 1; 
+                border-left: 5pt solid #2F5496;
+                padding-left: 20pt;
             }
-
-            .pdf-logo-center { margin-bottom: 80px; }
-            .pdf-title-block { margin-bottom: 150px; }
-            .pdf-title-block h1 { font-size: 50pt !important; line-height: 1; margin-bottom: 10px; }
+            .pdf-title-block h1 { font-size: 40pt !important; border: none !important; color: #2E75B6 !important; margin: 0; }
             
             .pdf-footer-meta {
-                width: 100%;
-                border-top: 1px solid #e2e8f0;
-                padding-top: 30px;
+                border-top: 0.5pt solid #D6DCE4;
+                padding-top: 20pt;
             }
 
             .pdf-page-header {
                 font-size: 8pt;
-                color: #64748b;
-                letter-spacing: 1px;
+                color: #999;
+                border-bottom: 0.5pt solid #EEE;
+                padding-bottom: 4pt;
+                margin-bottom: 20pt !important;
             }
+
+            #map-container { height: 400px !important; border: 0.5pt solid #8496B0 !important; break-inside: avoid; }
+            .page-break { page-break-before: always; height: 0; overflow: hidden; margin: 0; padding: 0; }
         }
 
         /* --- MAP EVOLUTION STYLES --- */
@@ -1131,41 +1143,46 @@
         <i class="fa-solid fa-right-left"></i>
     </div>
 
-    <!-- --- DOSSIÊ PDF (Layout para Especialista) --- -->
+    <!-- --- DOSSIÊ WORD-STYLE (Layout para Documento Oficial) --- -->
     <div class="d-none d-print-block print-only-dossier">
         <!-- CAPA DO DOSSIÊ -->
         <div class="pdf-cover">
             <div class="pdf-header-meta">
-                <span class="badge-print">PROTOCOLO #{{ substr($report->uuid, 0, 8) }}</span>
-                <span class="badge-print">CONFIDENCIAL</span>
+                <span class="badge-print">Protocolo #{{ substr($report->uuid, 0, 8) }}</span>
+                <span class="badge-print">Emissão: {{ date('d/m/Y') }}</span>
             </div>
             
             <div class="pdf-logo-center">
-                <img src="{{ asset('favicon.png') }}" width="100" alt="Raio-X">
-                <h2 class="text-uppercase tracking-tighter fw-black mb-0">RAIO-X TERRITORIAL</h2>
-                <p class="small opacity-50 fw-bold">INTELIGÊNCIA DE DADOS & VIZINHANÇA</p>
+                <img src="{{ asset('favicon.png') }}" width="60" alt="Logo">
+                <div>
+                    <h2 class="h4 fw-bold mb-0" style="color: #2F5496 !important;">RAIO-X VIZINHANÇA</h2>
+                    <p class="small text-muted mb-0">Inteligência de Dados e Diagnóstico Territorial</p>
+                </div>
             </div>
 
             <div class="pdf-title-block">
-                <h6 class="text-primary text-uppercase tracking-widest fw-black mb-3">Relatório de Diagnóstico Premium</h6>
-                <h1 class="display-2 fw-black mb-1">{{ mb_strtoupper($report->bairro ?: $report->cidade) }}</h1>
-                <div class="h3 fw-light opacity-75">{{ $report->cidade }} / {{ $report->uf }}</div>
+                <h6 class="text-muted text-uppercase fw-bold mb-2">Relatório Técnico Individual</h6>
+                <h1 class="display-3 fw-bold mb-0">{{ $report->bairro ?: $report->cidade }}</h1>
+                <div class="h3 fw-normal text-muted mb-4">{{ $report->cidade }} / {{ $report->uf }}</div>
             </div>
 
             <div class="pdf-footer-meta">
-                <div class="row w-100">
-                    <div class="col-4 border-end">
-                        <div class="small fw-black text-uppercase tracking-widest opacity-50">Data de Emissão</div>
-                        <div class="fw-bold">{{ date('d/m/Y') }}</div>
+                <div class="row w-100" style="display: flex !important; flex-direction: row !important;">
+                    <div class="col-4" style="width: 33.3%;">
+                        <div class="small fw-bold text-muted text-uppercase">Data do Registro</div>
+                        <div class="fw-bold">{{ $report->created_at->format('d/m/Y') }}</div>
                     </div>
-                    <div class="col-4 border-end">
-                        <div class="small fw-black text-uppercase tracking-widest opacity-50">Classificação</div>
-                        <div class="fw-bold text-primary">{{ mb_strtoupper($report->territorial_classification ?: 'Padrão Urbano') }}</div>
+                    <div class="col-4" style="width: 33.3%;">
+                        <div class="small fw-bold text-muted text-uppercase">Status Regional</div>
+                        <div class="fw-bold">{{ $report->territorial_classification ?: 'Urbano Consolidado' }}</div>
                     </div>
-                    <div class="col-4">
-                        <div class="small fw-black text-uppercase tracking-widest opacity-50">ID do Relatório</div>
-                        <div class="fw-bold">{{ $report->cep }}</div>
+                    <div class="col-4" style="width: 33.3%;">
+                        <div class="small fw-bold text-muted text-uppercase">Identificação</div>
+                        <div class="fw-bold">CEP {{ preg_replace('/^(\d{5})(\d{3})$/', '$1-$2', $report->cep) }}</div>
                     </div>
+                </div>
+                <div class="mt-4 pt-4 border-top">
+                    <p class="small text-muted">Aviso: Os dados aqui apresentados são resultantes do processamento de múltiplas APIs e modelos de análise espacial. Este documento é para fins informativos e de diagnóstico prévio.</p>
                 </div>
             </div>
         </div>
@@ -1173,12 +1190,180 @@
         <div class="page-break"></div>
         
         <!-- HEADER PARA PÁGINAS INTERNAS -->
-        <div class="pdf-page-header d-flex justify-content-between align-items-center mb-5 border-bottom pb-3">
+        <div class="pdf-page-header d-flex justify-content-between align-items-center">
              <div class="d-flex align-items-center gap-2">
-                <img src="{{ asset('favicon.png') }}" width="25" alt="X">
-                <span class="fw-black small text-uppercase tracking-tighter">{{ config('app.name') }}</span>
+                <span class="fw-bold">{{ config('app.name') }}</span>
              </div>
-             <div class="small fw-bold opacity-50 text-uppercase">Dossiê Territorial: {{ $report->bairro ?: $report->cidade }}</div>
+             <div class="fw-bold">LOCALIDADE: {{ mb_strtoupper($report->bairro ?: $report->cidade) }}</div>
+        </div>
+
+        <h1>1. Resumo da Localidade</h1>
+        <p>A região analisada no entorno do CEP {{ $report->cep }} apresenta as seguintes características fundamentais de infraestrutura e qualidade de vida. Este diagnóstico resume os principais indicadores coletados pelo Territory Engine v3.0.</p>
+        
+        <table class="word-table mb-4">
+            <thead>
+                <tr>
+                    <th colspan="2">Dados Descritivos do Território</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td width="40%"><strong>Localização:</strong></td>
+                    <td>{{ $report->bairro ?: 'Centro / Área Central' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Cidade e Estado:</strong></td>
+                    <td>{{ $report->cidade }} - {{ $report->uf }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Ponto de Referência:</strong></td>
+                    <td>{{ $report->logradouro ?: 'Logradouro não informado' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>População Aproximada (Região):</strong></td>
+                    <td>{{ number_format($report->populacao ?: 0, 0, ',', '.') }} habitantes</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h1>2. Indicadores de Performance</h1>
+        <p>Abaixo seguem os índices calculados para a vizinhança, permitindo uma comparação técnica entre diferentes áreas urbanas.</p>
+
+        <table class="word-table mb-4">
+            <thead>
+                <tr>
+                    <th width="40%">Índice Analítico</th>
+                    <th width="30%">Pontuação</th>
+                    <th width="30%">Classificação</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Caminhabilidade:</strong></td>
+                    <td>{{ $report->walkability_score }} / 100</td>
+                    <td>{{ $walkLabel }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Sensação de Segurança:</strong></td>
+                    <td>{{ $report->safety_index ?: ($report->safety_level == 'Baixo' ? 30 : ($report->safety_level == 'Médio' ? 60 : 90)) }} / 100</td>
+                    <td>{{ $report->safety_level }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Infraestrutura Urbana:</strong></td>
+                    <td>{{ $report->infra_score ?: 75 }} / 100</td>
+                    <td>{{ ($report->infra_score ?: 75) >= 80 ? 'Excelente' : (($report->infra_score ?: 75) >= 50 ? 'Adequada' : 'Em desenvolvimento') }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Mobilidade e Acesso:</strong></td>
+                    <td>{{ $report->mobility_score ?: 70 }} / 100</td>
+                    <td>{{ ($report->mobility_score ?: 70) >= 70 ? 'Fluida' : 'Saturada' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h1>3. Mercado Imobiliário e Valorização</h1>
+        <p>Abaixo seguem as projeções e estimativas para o mercado imobiliário nesta região específica, baseadas em tendências de mercado e disponibilidade local.</p>
+
+        <table class="word-table mb-4">
+            <thead>
+                <tr>
+                    <th width="40%">Atributo Imobiliário</th>
+                    <th width="60%">Análise e Preditiva</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Preço Estimado do m²:</strong></td>
+                    <td>{{ $report->real_estate_json['preco_m2'] ?? 'Sob consulta regional' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Tendência de Curto Prazo:</strong></td>
+                    <td>{{ $report->real_estate_json['tendencia_valorizacao'] ?? 'Estabilidade projetada' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Perfil Predominante:</strong></td>
+                    <td>{{ $report->real_estate_json['perfil_imoveis'] ?? 'Imóveis residenciais padrão' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h1>4. Localização Estratégica</h1>
+        <p>Abaixo, a representação cartográfica da região do CEP {{ $report->cep }}. O marcador central indica o ponto de referência principal utilizado para o cálculo dos indicadores de vizinhança.</p>
+        
+        <div id="map-print-container" style="margin: 20pt 0; break-inside: avoid;">
+            <!-- O mapa original será movido ou clonado aqui via JS ou estilo -->
+            <div id="map-container" class="border border-secondary shadow-none"></div>
+        </div>
+
+        <h1>5. Dados Ambientais e Clima</h1>
+        <p>Condições atmosféricas observadas e diagnósticos de qualidade do ar e infraestrutura ambiental.</p>
+
+        <table class="word-table mb-5">
+            <thead>
+                <tr>
+                    <th>Indicador Ambiental</th>
+                    <th>Valor / Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Índice de Qualidade do Ar (AQI):</strong></td>
+                    <td>{{ $report->air_quality_index ?: 'Bom' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Temperatura Média (Sazonal):</strong></td>
+                    <td>{{ $report->climate_json['temperature'] ?? '--' }}°C</td>
+                </tr>
+                <tr>
+                    <td><strong>Sensação Térmica:</strong></td>
+                    <td>{{ $report->climate_json['feels_like'] ?? '--' }}°C</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="page-break"></div>
+        
+        <h1>5. Diagnóstico Narrativo e Histórico</h1>
+        <div class="editorial-text" style="orphans: 4; widows: 4;">
+            {!! nl2br(e($report->history_extract)) !!}
+        </div>
+
+        <h1>6. Equipamentos e Serviços de Vizinhança</h1>
+        <p>Levantamento dos principais pontos de interesse identificados em um raio de 1.5km a partir do centro do CEP.</p>
+
+        <table class="word-table mb-4">
+            <thead>
+                <tr>
+                    <th width="40%">Categoria</th>
+                    <th width="60%">Locais Identificados</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $pois = collect($report->pois_json ?? []);
+                    $groups = $pois->groupBy(fn($p) => $p['tags']['amenity'] ?? $p['tags']['shop'] ?? 'Outros')->take(8);
+                @endphp
+                @foreach($groups as $category => $items)
+                    <tr>
+                        <td><strong>{{ ucfirst($category) }}:</strong></td>
+                        <td>
+                            @foreach($items->take(3) as $item)
+                                {{ $item['tags']['name'] ?? 'Local sem nome' }}{{ !$loop->last ? ', ' : '' }}
+                            @endforeach
+                            {{ $items->count() > 3 ? ' (e outros ' . ($items->count() - 3) . ')' : '' }}
+                        </td>
+                    </tr>
+                @endforeach
+                @if($groups->isEmpty())
+                    <tr>
+                        <td colspan="2" class="text-center italic">Nenhum equipamento de relevância mapeado nesta escala.</td>
+                    </tr>
+                @endif
+            </tbody>
+        </table>
+
+        <div class="mt-5 p-4" style="border: 0.5pt solid #D6DCE4; background: #F8F9FA;">
+            <p class="small mb-0"><strong>Nota Final:</strong> Este dossiê foi gerado automaticamente pelo sistema {{ config('app.name') }}. As informações são consolidadas a partir de dados geográficos, históricos e censitários. Para decisões de investimento robustas, recomenda-se visita técnica in loco.</p>
         </div>
     </div>
 
