@@ -48,6 +48,7 @@ class NeighborhoodService
         }
 
         // 2. Bloqueio Atômico para evitar múltiplas orquestrações simultâneas
+        $lock = null;
         $lock = \Illuminate\Support\Facades\Cache::lock("orchestrate_{$cepClean}", 90);
         
         if (!$lock->get()) {
@@ -99,7 +100,9 @@ class NeighborhoodService
 
             return $report;
         } finally {
-            if (isset($lock)) $lock->release();
+            if ($lock !== null) {
+                $lock->release();
+            }
         }
     }
 
