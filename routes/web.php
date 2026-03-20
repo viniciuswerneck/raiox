@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CompareController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\SitemapController;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 Route::get('/robots.txt', [SitemapController::class, 'robots']);
@@ -64,6 +69,18 @@ Route::middleware(['throttle:10,1'])->group(function () {
     Route::get('/compare/{cepA}/{cepB}', [CompareController::class, 'show'])->name('report.compare');
     Route::get('/compare/{cepA}/{cepB}/reprocessar', [CompareController::class, 'reprocess'])->name('report.compare_reprocess');
     Route::get('/cidade/{slug}/pois', [CityPOIController::class, 'getPOIsByCategory'])->name('city.pois');
+});
+
+Route::prefix('admin')->middleware('auth')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    Route::get('/cep-scan', [CepScanController::class, 'index'])->name('admin.cep-scan');
+    Route::post('/api-keys/{keyId}/reset', [AdminController::class, 'resetApiKey']);
+    Route::post('/api-keys/{keyId}/toggle', [AdminController::class, 'toggleApiKey']);
+    Route::post('/action/clear-cache', [AdminController::class, 'clearCache']);
+    Route::post('/action/clear-cooldowns', [AdminController::class, 'clearAiCooldowns']);
+    Route::post('/action/restart-queue', [AdminController::class, 'restartQueue']);
+    Route::post('/action/clear-failed', [AdminController::class, 'clearFailedJobs']);
+    Route::get('/export', [AdminController::class, 'exportLogs'])->name('admin.export');
 });
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)
