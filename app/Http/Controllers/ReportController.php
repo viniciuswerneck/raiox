@@ -364,6 +364,14 @@ class ReportController extends Controller
             return redirect()->route('home')->withErrors(['cep' => 'CEP não encontrado ou erro nas APIs de terceiros.']);
         }
 
+        // Se status for pending/processing/processing_text, gerar relatório AI SINCRONAMENTE
+        // (processing_text pode ter sido Disparado mas nunca processado sem queue worker)
+        if (in_array($report->status, ['pending', 'processing', 'processing_text'])) {
+            if (! $report->wiki_json || ! $report->history_extract) {
+                $report = $this->neighborhoodService->generateReportSync($cep);
+            }
+        }
+
         // Auditoria e Auto-reparo em tempo real via IntegrityAgent
         $this->integrity->autoRepairByReport($report);
 

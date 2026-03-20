@@ -79,6 +79,7 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <div class="btn-group">
+                <a href="{{ route('admin.cep-scan') }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-satellite-dish me-1"></i>CEP Scan</a>
                 <a href="?period=7d" class="btn btn-sm {{ $period === '7d' ? 'btn-primary' : 'btn-outline-light' }}">7D</a>
                 <a href="?period=30d" class="btn btn-sm {{ $period === '30d' ? 'btn-primary' : 'btn-outline-light' }}">30D</a>
                 <a href="?period=90d" class="btn btn-sm {{ $period === '90d' ? 'btn-primary' : 'btn-outline-light' }}">90D</a>

@@ -50,17 +50,29 @@ class NeighborhoodService
         $lock = \Illuminate\Support\Facades\Cache::lock("orchestrate_{$cepClean}", 90);
 
         if (! $lock->get()) {
-            // Se não conseguiu o lock, espera um pouco e tenta ler o cache de novo
-            // (outro processo deve estar terminando a orquestração)
-            usleep(1500000); // 1.5s
+            usleep(1500000);
 
             return $this->cacheAgent->getCachedReport($cepClean);
         }
 
         try {
+            // 3. VERIFICAR SE JÁ TEM DADOS BÁSICOS DO SCANNER (Status: pending)
+            $pendingReport = \App\Models\LocationReport::where('cep', $cepClean)
+                ->where('status', 'pending')
+                ->whereNotNull('cidade')
+                ->whereNotNull('uf')
+                ->first();
+
+            if ($pendingReport) {
+                Log::info("NeighborhoodService: CEP {$cepClean} encontrado via scanner (pending). Retornando para geração sob demanda.");
+
+                // NÃO dispara job - a geração será feita no show() de forma síncrona
+                return $pendingReport;
+            }
+
             Log::info("NeighborhoodService: Iniciando Orquestração ASYNC para CEP {$cepClean}");
 
-            // 3. FAST-PATH: Resolver apenas GEOGRAFIA (Síncrono, ~500ms)
+            // 4. FAST-PATH: Resolver apenas GEOGRAFIA (Síncrono, ~500ms)
             $fastData = $this->territory->resolveFast($cepClean);
 
             if ($fastData['status'] === 'failed') {
@@ -78,7 +90,7 @@ class NeighborhoodService
 
             $location = $fastData['location'];
 
-            // 4. SALVAR PLACEHOLDER NO BANCO (Status: processing)
+            // 5. SALVAR PLACEHOLDER NO BANCO (Status: processing)
             $reportData = [
                 'cep' => $cepClean,
                 'logradouro' => $location['address'],
@@ -94,8 +106,7 @@ class NeighborhoodService
 
             $report = $this->cacheAgent->upsertBasicData($cepClean, $reportData);
 
-            // 5. DISPARAR JOB DE PROCESSAMENTO COMPLETO (Background)
-            // Este Job fará o trabalho pesado de Wiki, POIs, Clima, etc.
+            // 6. DISPARAR JOB DE PROCESSAMENTO COMPLETO (Background)
             \App\Jobs\ProcessLocationReport::dispatch($cepClean, $location);
 
             return $report;
@@ -109,5 +120,131 @@ class NeighborhoodService
     public function getFullReport(string $cep): array
     {
         return [];
+    }
+
+    /**
+     * Gera relatório AI SINCRONAMENTE (sem queue worker)
+     */
+    public function generateReportSync(string $cep): \App\Models\LocationReport
+    {
+        set_time_limit(120);
+        $cepClean = preg_replace('/\D/', '', $cep);
+
+        $report = \App\Models\LocationReport::where('cep', $cepClean)->first();
+
+        if (! $report) {
+            throw new \Exception('Relatório não encontrado para CEP: '.$cepClean);
+        }
+
+        Log::info("NeighborhoodService: Gerando relatório SYNC para CEP {$cepClean}");
+
+        $report->update(['status' => 'processing']);
+
+        $lat = $report->lat;
+        $lng = $report->lng;
+
+        if (! $lat || ! $lng) {
+            $geoData = $this->resolveCoordinates($report->cidade, $report->uf, $report->bairro);
+            $lat = $geoData['lat'];
+            $lng = $geoData['lng'];
+
+            $report->update(['lat' => $lat, 'lng' => $lng]);
+        }
+
+        $location = [
+            'address' => $report->logradouro,
+            'neighborhood' => $report->bairro,
+            'city' => $report->cidade,
+            'state' => $report->uf,
+            'ibge' => $report->codigo_ibge,
+            'coordinates' => [
+                'lat' => $lat,
+                'lng' => $lng,
+            ],
+        ];
+
+        $territoryData = $this->territory->resolve($cepClean, $location);
+
+        if ($territoryData['status'] === 'failed') {
+            $report->update([
+                'status' => 'failed',
+                'error_message' => $territoryData['error'] ?? 'Erro na resolução territorial.',
+            ]);
+
+            return $report;
+        }
+
+        $agents = $territoryData['agents'];
+        $categorization = $territoryData['categorization'];
+
+        $report->update([
+            'populacao' => $agents['socio']['population'] ?? 0,
+            'idhm' => $agents['socio']['idhm'] ?? 0,
+            'pois_json' => $agents['poi']['data'] ?? [],
+            'search_radius' => $agents['poi']['radius'] ?? 0,
+            'climate_json' => $agents['clima']['climate_json'] ?? [],
+            'air_quality_index' => $agents['clima']['air_quality_index'] ?? 0,
+            'walkability_score' => $agents['poi']['walk_score'] ?? 0,
+            'infra_score' => $agents['poi']['metrics']['infra'] ?? 0,
+            'mobility_score' => $agents['poi']['metrics']['mobility'] ?? 0,
+            'leisure_score' => $agents['poi']['metrics']['leisure'] ?? 0,
+            'general_score' => $agents['poi']['metrics']['total_score'] ?? 0,
+            'average_income' => $agents['socio']['average_income'] ?? 0,
+            'sanitation_rate' => $categorization['sanitation_rate'] ?? 0,
+            'territorial_classification' => $categorization['classification'] ?? 'Desconhecido',
+            'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
+            'raw_ibge_data' => $agents['socio']['raw_ibge_data'] ?? null,
+            'wiki_json' => $agents['wiki'] ?? [],
+            'status' => 'processing_text',
+            'data_version' => 3,
+            'error_message' => null,
+        ]);
+
+        $this->territory->ensureCityExists($location, $agents['socio'] ?? []);
+
+        $this->llmAgent->dispatchTextGeneration($cepClean, $report->id, $agents['knowledge_base'] ?? []);
+
+        $report->update(['status' => 'completed']);
+
+        Log::info("NeighborhoodService: Relatório SYNC completo para CEP {$cepClean}");
+
+        return $report->fresh();
+    }
+
+    private function resolveCoordinates(string $city, string $state, ?string $neighborhood): array
+    {
+        $query = $neighborhood
+            ? "{$neighborhood}, {$city}, {$state}"
+            : "{$city}, {$state}";
+
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) RaioX/1.0',
+            'Referer' => 'https://raiox.app/',
+        ];
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders($headers)
+                ->withoutVerifying()
+                ->timeout(10)
+                ->get('https://nominatim.openstreetmap.org/search', [
+                    'q' => $query,
+                    'format' => 'json',
+                    'limit' => 1,
+                    'countrycodes' => 'br',
+                ]);
+
+            if ($response->successful() && ! empty($response->json())) {
+                $result = $response->json()[0];
+
+                return [
+                    'lat' => (float) $result['lat'],
+                    'lng' => (float) $result['lon'],
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning("Failed to resolve coordinates for {$query}: ".$e->getMessage());
+        }
+
+        return ['lat' => 0.0, 'lng' => 0.0];
     }
 }

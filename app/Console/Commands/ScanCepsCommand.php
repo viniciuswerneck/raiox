@@ -5,96 +5,78 @@ namespace App\Console\Commands;
 use App\Models\CepScanLog;
 use App\Models\CepScanSession;
 use App\Models\LocationReport;
-use App\Services\ViaCepService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ScanCepsCommand extends Command
 {
     protected $signature = 'cep:scan 
                             {--limit=100 : Número de CEPs por execução}
-                            {--delay=2000 : Delay entre requisições (ms)}
+                            {--delay=1000 : Delay entre requisições (ms)}
                             {--state= : Filtrar por estado (ex: SP, RJ, MG)}
+                            {--city= : Filtrar por cidade específica}
                             {--dry-run : Apenas simular sem salvar}
-                            {--aggressive : Usar delay mínimo (500ms) para max speed}';
+                            {--reset : Resetar cache de progresso}';
 
-    protected $description = 'Escaneia CEPs do Brasil para alimentar o banco de dados';
+    protected $description = 'Escaneia CEPs do Brasil usando Nominatim para descobrir CEPs reais';
 
-    private array $statePrefixes = [
-        'AC' => ['69'], 'AL' => ['57'], 'AP' => ['68', '69', '89'],
-        'AM' => ['69', '70', '73', '76', '77', '78', '79', '80', '83', '84', '85', '86', '87', '92', '93', '94', '95', '96', '97'],
-        'BA' => ['40', '41', '42', '43', '44', '45', '46', '47', '48', '49'],
-        'CE' => ['60', '61', '62', '63', '64', '65', '66', '67'],
-        'DF' => ['70', '71', '72', '73'],
-        'ES' => ['29'],
-        'GO' => ['72', '73', '74', '75', '76', '77', '78', '79'],
-        'MA' => ['65', '66', '67', '68', '69'],
-        'MT' => ['78', '79', '88'],
-        'MS' => ['79', '88', '89'],
-        'MG' => ['30', '31', '32', '33', '34', '35', '36', '37', '38', '39'],
-        'PA' => ['66', '67', '68', '69', '87', '88'],
-        'PB' => ['58', '59', '60', '61', '62', '63', '64'],
-        'PR' => ['80', '81', '82', '83', '84', '85', '86', '87', '88', '89'],
-        'PE' => ['50', '51', '52', '53', '54', '55', '56', '57'],
-        'PI' => ['64', '65', '66', '67', '68'],
-        'RJ' => ['20', '21', '22', '23', '24', '25', '26', '27', '28', '29'],
-        'RN' => ['59', '64', '65', '66', '67'],
-        'RS' => ['90', '91', '92', '93', '94', '95', '96', '97', '98', '99'],
-        'RO' => ['76', '77', '78', '79'],
-        'RR' => ['69', '83', '84', '85', '86', '87'],
-        'SC' => ['88', '89', '90', '91', '92', '93', '94'],
-        'SP' => ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19'],
-        'SE' => ['49', '50'],
-        'TO' => ['77', '78', '79', '86', '87'],
+    private array $majorCities = [
+        'SP' => ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo', 'Osasco', 'Piracicaba'],
+        'RJ' => ['Rio de Janeiro', 'Niterói', 'São Gonçalo', 'Duque de Caxias', 'Nova Iguaçu', 'Cabo Frio', 'Petrópolis', 'Volta Redonda', 'Campos dos Goytacazes'],
+        'MG' => ['Belo Horizonte', 'Uberlândia', 'Contagem', 'Juiz de Fora', 'Betim', 'Montes Claros', 'Curvelo'],
+        'BA' => ['Salvador', 'Feira de Santana', 'Vitória da Conquista', 'Camaçari', 'Itabuna', 'Juazeiro'],
+        'RS' => ['Porto Alegre', 'Caxias do Sul', 'Pelotas', 'Canoas', 'Santa Maria', 'Gravataí'],
+        'PR' => ['Curitiba', 'Londrina', 'Maringá', 'Ponta Grossa', 'Cascavel', 'São José dos Pinhais'],
+        'PE' => ['Recife', 'Olinda', 'Jaboatão dos Guararapes', 'Caruaru', 'Petrolina'],
+        'CE' => ['Fortaleza', 'Caucaia', 'Juazeiro do Norte', 'Maracanaú', 'Sobral'],
+        'GO' => ['Goiânia', 'Aparecida de Goiânia', 'Anápolis', 'Rio Verde', 'Luziânia'],
+        'DF' => ['Brasília', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Planaltina'],
     ];
 
-    public function handle(ViaCepService $viaCepService): int
+    private array $neighborhoodTypes = [
+        'Centro', 'Jardim', 'Vila', 'Parque', 'Residencial', 'Alphaville',
+        'Zona Sul', 'Zona Norte', 'Zona Leste', 'Zona Oeste',
+    ];
+
+    public function handle(): int
     {
         $limit = (int) $this->option('limit');
-        $delay = $this->option('aggressive') ? 500 : (int) $this->option('delay');
+        $delay = (int) $this->option('delay');
         $state = $this->option('state');
+        $city = $this->option('city');
         $dryRun = $this->option('dry-run');
+        $reset = $this->option('reset');
 
         $this->info('══════════════════════════════════════════');
         $this->info('🚀 ROBÔ DE SCAN DE CEPs');
         $this->info('══════════════════════════════════════════');
         $this->info("📊 Limite: {$limit} | Delay: {$delay}ms");
 
-        if ($state) {
-            $stateUpper = strtoupper($state);
-            $this->info("📍 Estado: {$stateUpper}");
-            if (! isset($this->statePrefixes[$stateUpper])) {
-                $this->error("❌ Estado {$stateUpper} não encontrado!");
+        if ($reset) {
+            $this->resetProgress();
+        }
 
-                return self::FAILURE;
-            }
+        if ($state) {
+            $this->info("📍 Estado: ".strtoupper($state));
+        }
+
+        if ($city) {
+            $this->info("🏙️ Cidade: {$city}");
         }
 
         if ($dryRun) {
             $this->warn('⚠️ MODO SIMULAÇÃO (dry-run)');
         }
 
-        $lockKey = 'cep_scan_lock';
-        $lock = Cache::lock($lockKey, 3600);
-
-        if (! $lock->get()) {
-            $this->error('❌ Scanner já está rodando!');
-
-            return self::FAILURE;
-        }
-
-        $session = null;
-
-        if (! $dryRun) {
-            $session = CepScanSession::create([
-                'state' => $state ? strtoupper($state) : null,
-                'status' => 'running',
-                'limit_planned' => $limit,
-                'delay_ms' => $delay,
-                'started_at' => now(),
-            ]);
-        }
+        $session = CepScanSession::create([
+            'state' => $state ? strtoupper($state) : null,
+            'status' => 'running',
+            'limit_planned' => $limit,
+            'delay_ms' => $delay,
+            'started_at' => now(),
+        ]);
 
         try {
             $existingCeps = LocationReport::pluck('cep')
@@ -104,28 +86,58 @@ class ScanCepsCommand extends Command
 
             $this->info('📦 CEPs já existentes: '.count($existingCeps));
 
-            $prefixes = $state
-                ? ($this->statePrefixes[strtoupper($state)] ?? [])
-                : $this->getAllPrefixes();
+            $queries = $this->buildQueries($state, $city);
 
-            $ceps = $this->generateCeps($prefixes, $existingCeps, $limit);
+            $this->info("📋 {$limit} CEPs para buscar\n");
 
-            $this->info("📋 {$this->count} novos CEPs para processar\n");
-
-            $progressBar = $this->output->createProgressBar($this->count);
+            $progressBar = $this->output->createProgressBar($limit);
             $progressBar->start();
 
-            foreach ($ceps as $cep) {
-                $this->processCep($cep, $viaCepService, $dryRun, $session, $delay);
-                $progressBar->advance();
+            $processed = 0;
+            $queryIndex = 0;
+
+            while ($processed < $limit && $queryIndex < count($queries)) {
+                $query = $queries[$queryIndex];
+                $queryKey = $this->getCacheKey($query);
+                $queryIndex++;
+
+                if ($this->isQueryProcessed($queryKey)) {
+                    continue;
+                }
+
+                $cepsFound = $this->searchCepsFromNominatim($query);
+
+                if (empty($cepsFound)) {
+                    $this->markQueryProcessed($queryKey);
+                    continue;
+                }
+
+                foreach ($cepsFound as $cep) {
+                    if ($processed >= $limit) {
+                        break;
+                    }
+
+                    if (isset($existingCeps[$cep])) {
+                        continue;
+                    }
+
+                    if ($this->isCepProcessed($cep)) {
+                        continue;
+                    }
+
+                    $this->processCep($cep, $existingCeps, $dryRun, $session, $delay);
+                    $this->markCepProcessed($cep);
+                    $progressBar->advance();
+                    $processed++;
+                }
+
+                $this->markQueryProcessed($queryKey);
             }
 
             $progressBar->finish();
             $this->newLine(2);
 
-            if (! $dryRun && $session) {
-                $session->update(['status' => 'completed', 'finished_at' => now()]);
-            }
+            $session->update(['status' => 'completed', 'finished_at' => now()]);
 
             $this->showSummary();
 
@@ -134,21 +146,156 @@ class ScanCepsCommand extends Command
             $this->error('❌ Erro: '.$e->getMessage());
             Log::error('Scan CEP error: '.$e->getMessage());
 
-            if ($session) {
-                $session->update([
-                    'status' => 'failed',
-                    'finished_at' => now(),
-                    'notes' => $e->getMessage(),
-                ]);
-            }
+            $session->update([
+                'status' => 'failed',
+                'finished_at' => now(),
+                'notes' => $e->getMessage(),
+            ]);
 
             return self::FAILURE;
-        } finally {
-            $lock->release();
         }
     }
 
-    private int $count = 0;
+    private function resetProgress(): void
+    {
+        $keys = ['scan_progress_queries', 'scan_progress_ceps'];
+        foreach ($keys as $key) {
+            Cache::forget($key);
+        }
+        $this->info('🧹 Cache de progresso resetado!');
+    }
+
+    private function getCacheKey(string $query): string
+    {
+        return md5($query);
+    }
+
+    private function isQueryProcessed(string $key): bool
+    {
+        $processed = Cache::get('scan_progress_queries', []);
+
+        return in_array($key, $processed);
+    }
+
+    private function markQueryProcessed(string $key): void
+    {
+        $processed = Cache::get('scan_progress_queries', []);
+        $processed[] = $key;
+        Cache::put('scan_progress_queries', $processed, now()->addDays(30));
+    }
+
+    private function isCepProcessed(string $cep): bool
+    {
+        $processed = Cache::get('scan_progress_ceps', []);
+
+        return in_array($cep, $processed);
+    }
+
+    private function markCepProcessed(string $cep): void
+    {
+        $processed = Cache::get('scan_progress_ceps', []);
+        $processed[] = $cep;
+        Cache::put('scan_progress_ceps', $processed, now()->addDays(30));
+    }
+
+    private function buildQueries(?string $state, ?string $city): array
+    {
+        $queries = [];
+
+        if ($city) {
+            $stateToUse = $state ?? $this->guessState($city);
+            foreach ($this->neighborhoodTypes as $type) {
+                $queries[] = "{$type}, {$city}, {$stateToUse}";
+            }
+
+            return $queries;
+        }
+
+        if ($state) {
+            $stateUpper = strtoupper($state);
+            $cities = $this->majorCities[$stateUpper] ?? [];
+        } else {
+            $cities = [];
+            foreach ($this->majorCities as $stateCities) {
+                $cities = array_merge($cities, $stateCities);
+            }
+        }
+
+        foreach ($cities as $cityName) {
+            $stateForCity = $this->getStateForCity($cityName);
+            foreach ($this->neighborhoodTypes as $type) {
+                $queries[] = "{$type}, {$cityName}, {$stateForCity}";
+            }
+        }
+
+        shuffle($queries);
+
+        return $queries;
+    }
+
+    private function guessState(string $city): string
+    {
+        return $this->getStateForCity($city) ?? 'SP';
+    }
+
+    private function getStateForCity(string $city): ?string
+    {
+        foreach ($this->majorCities as $state => $cities) {
+            if (in_array($city, $cities)) {
+                return $state;
+            }
+        }
+
+        return null;
+    }
+
+    private function searchCepsFromNominatim(string $query): array
+    {
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 RaioX/1.0',
+            'Referer' => 'https://raiox.app/',
+        ];
+
+        try {
+            $this->info("\n  🔍 Buscando: {$query}");
+
+            $response = Http::withHeaders($headers)
+                ->withoutVerifying()
+                ->timeout(10)
+                ->get('https://nominatim.openstreetmap.org/search', [
+                    'q' => $query,
+                    'format' => 'json',
+                    'addressdetails' => 1,
+                    'limit' => 20,
+                    'countrycodes' => 'br',
+                ]);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $ceps = [];
+            foreach ($response->json() as $result) {
+                $postcode = $result['address']['postcode'] ?? null;
+                if ($postcode) {
+                    $cep = preg_replace('/\D/', '', $postcode);
+                    if (strlen($cep) === 8 && ! in_array($cep, $ceps)) {
+                        $ceps[] = $cep;
+                    }
+                }
+            }
+
+            if (! empty($ceps)) {
+                $this->info("     ✅ Encontrados: ".implode(', ', $ceps));
+            }
+
+            return $ceps;
+        } catch (\Exception $e) {
+            Log::warning("Nominatim search failed for [{$query}]: ".$e->getMessage());
+
+            return [];
+        }
+    }
 
     private int $successCount = 0;
 
@@ -156,65 +303,27 @@ class ScanCepsCommand extends Command
 
     private int $errorCount = 0;
 
-    private function generateCeps(array $prefixes, array $existing, int $limit): array
-    {
-        $ceps = [];
-        $attempts = 0;
-        $maxAttempts = $limit * 10;
-
-        while (count($ceps) < $limit && $attempts < $maxAttempts) {
-            $attempts++;
-
-            $prefix = $prefixes[array_rand($prefixes)];
-            $suffix = str_pad(random_int(0, 999), 3, '0', STR_PAD_LEFT);
-            $cep = $prefix.$suffix;
-
-            if (! isset($existing[$cep]) && ! in_array($cep, $ceps)) {
-                $ceps[] = $cep;
-            }
-        }
-
-        $this->count = count($ceps);
-
-        return $ceps;
-    }
-
-    private function getAllPrefixes(): array
-    {
-        return [
-            '010', '011', '012', '013', '014', '015', '016', '017', '018', '019',
-            '020', '021', '022', '023', '024', '025', '026', '027', '028', '029',
-            '030', '031', '032', '033', '034', '035', '036', '037', '038', '039',
-            '040', '041', '042', '043', '044', '045', '046', '047', '048', '049',
-            '050', '051', '052', '053', '054', '055', '056', '057', '058', '059',
-            '060', '061', '062', '063', '064', '065', '066', '067', '068', '069',
-            '070', '071', '072', '073', '074', '075', '076', '077', '078', '079',
-            '080', '081', '082', '083', '084', '085', '086', '087', '088', '089',
-            '090', '091', '092', '093', '094', '095', '096', '097', '098', '099',
-        ];
-    }
-
     private function processCep(
         string $cep,
-        ViaCepService $viaCepService,
+        array $existingCeps,
         bool $dryRun,
         ?CepScanSession $session,
         int $delay
     ): void {
         if ($dryRun) {
-            $this->info("\n  [DRY-RUN] {$cep} - seria processado");
+            $this->info("     📝 [DRY] {$cep}");
             $this->successCount++;
 
             return;
         }
 
-        $startTime = microtime(true);
-
         try {
-            $data = $viaCepService->getAddressByCep($cep);
+            $response = Http::withoutVerifying()
+                ->timeout(8)
+                ->get("https://viacep.com.br/ws/{$cep}/json/");
 
-            if ($data) {
-                $this->saveReport($cep, $data, $session);
+            if ($response->successful() && ! isset($response['erro'])) {
+                $this->saveReport($cep, $response->json(), $session);
                 $this->successCount++;
             } else {
                 $this->notFoundCount++;
@@ -229,25 +338,20 @@ class ScanCepsCommand extends Command
 
     private function saveReport(string $cep, array $data, ?CepScanSession $session): void
     {
-        $lat = $data['latitude'] ?? null;
-        $lng = $data['longitude'] ?? null;
-
-        $report = LocationReport::updateOrCreate(
+        LocationReport::updateOrCreate(
             ['cep' => $cep],
             [
-                'logradouro' => $data['logradouro'] ?? $data['address'] ?? null,
-                'bairro' => $data['bairro'] ?? $data['district'] ?? null,
-                'cidade' => $data['localidade'] ?? $data['city'] ?? null,
-                'uf' => $data['uf'] ?? $data['state'] ?? null,
+                'logradouro' => $data['logradouro'] ?? null,
+                'bairro' => $data['bairro'] ?? null,
+                'cidade' => $data['localidade'] ?? null,
+                'uf' => $data['uf'] ?? null,
                 'codigo_ibge' => $data['ibge'] ?? null,
-                'lat' => $lat,
-                'lng' => $lng,
+                'lat' => null,
+                'lng' => null,
                 'status' => 'pending',
                 'data_version' => 1,
             ]
         );
-
-        $responseTime = (int) ((microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'] ?? 0) * 1000);
 
         CepScanLog::create([
             'cep' => $cep,
@@ -257,11 +361,11 @@ class ScanCepsCommand extends Command
             'cidade' => $data['localidade'] ?? null,
             'uf' => $data['uf'] ?? null,
             'codigo_ibge' => $data['ibge'] ?? null,
-            'lat' => $lat,
-            'lng' => $lng,
-            'source' => 'viacep',
+            'lat' => null,
+            'lng' => null,
+            'source' => 'nominatim+viacep',
             'state_target' => $session?->state,
-            'response_time_ms' => $responseTime,
+            'response_time_ms' => 0,
         ]);
 
         if ($session) {
@@ -276,7 +380,7 @@ class ScanCepsCommand extends Command
             'cep' => $cep,
             'status' => 'failed',
             'error_message' => $error,
-            'source' => 'viacep',
+            'source' => 'nominatim+viacep',
             'state_target' => $session?->state,
         ]);
 
@@ -303,7 +407,7 @@ class ScanCepsCommand extends Command
         }
 
         $this->info('');
+        $this->info('💡 Use --reset para limpar o cache e recomeçar');
         $this->info('📝 Acesse /admin/cep-scan para ver os logs detalhados');
-        $this->info('🔄 Os novos CEPs já estão no sitemap.xml');
     }
 }
