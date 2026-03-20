@@ -87,6 +87,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
     // Área Administrativa Protegida
     Route::prefix('admin')->middleware('auth')->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+        Route::get('/cep-scan', [CepScanController::class, 'index'])->name('admin.cep-scan');
         Route::post('/api-keys/{keyId}/reset', [AdminController::class, 'resetApiKey']);
         Route::post('/api-keys/{keyId}/toggle', [AdminController::class, 'toggleApiKey']);
         Route::post('/action/clear-cache', [AdminController::class, 'clearCache']);
