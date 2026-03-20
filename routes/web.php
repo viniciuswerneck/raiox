@@ -87,7 +87,16 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/cidade/{slug}/pois', [CityPOIController::class, 'getPOIsByCategory'])->name('city.pois');
     
     // Área Administrativa Protegida
-    Route::get('/adm', [AdminController::class, 'dashboard'])->name('admin.dashboard')->middleware('auth');
+    Route::prefix('admin')->middleware('auth')->group(function () {
+        Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+        Route::post('/api-keys/{keyId}/reset', [AdminController::class, 'resetApiKey']);
+        Route::post('/api-keys/{keyId}/toggle', [AdminController::class, 'toggleApiKey']);
+        Route::post('/action/clear-cache', [AdminController::class, 'clearCache']);
+        Route::post('/action/clear-cooldowns', [AdminController::class, 'clearAiCooldowns']);
+        Route::post('/action/restart-queue', [AdminController::class, 'restartQueue']);
+        Route::post('/action/clear-failed', [AdminController::class, 'clearFailedJobs']);
+        Route::get('/export', [AdminController::class, 'exportLogs'])->name('admin.export');
+    });
 });
 
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)

@@ -3,453 +3,793 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Controle IA - Raio-X</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <title>Painel Admin - Raio-X Vizinhança</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <style>
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.3);
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            --dark-bg: #0f172a;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #0f172a;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
         }
 
         body {
-            background-color: #f8fafc;
-            font-family: 'Inter', sans-serif;
-            color: #1e293b;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
         }
 
-        .navbar-top {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--glass-border);
+        .navbar-admin {
+            background: linear-gradient(135deg, var(--dark) 0%, #1e293b 100%);
             padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
 
-        .card-stats {
-            background: white;
-            border-radius: 20px;
-            border: 1px solid rgba(0,0,0,0.05);
-            padding: 1.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
+        .card-metric {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+            height: 100%;
         }
 
-        .card-stats:hover {
-            transform: translateY(-5px);
+        .card-metric:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
         }
 
-        .stat-icon {
+        .metric-icon {
             width: 48px;
             height: 48px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1rem;
+            font-size: 1.25rem;
         }
 
-        .bg-indigo { background: #e0e7ff; color: #4338ca; }
-        .bg-purple { background: #f3e8ff; color: #7e22ce; }
-        .bg-green { background: #dcfce7; color: #15803d; }
-        .bg-amber { background: #fef3c7; color: #b45309; }
+        .metric-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
 
-        .table-custom {
-            background: white;
+        .metric-change {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .change-positive { color: var(--success); }
+        .change-negative { color: var(--danger); }
+        .change-neutral { color: #64748b; }
+
+        .card-section {
+            background: var(--card-bg);
             border-radius: 16px;
+            border: 1px solid var(--card-border);
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.05);
         }
 
-        .table-custom th {
-            background: #f1f5f9;
+        .card-section-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--card-border);
+            background: #f8fafc;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .card-section-title {
+            font-weight: 600;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        .table-admin {
+            margin: 0;
+        }
+
+        .table-admin thead th {
+            background: #f8fafc;
             font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: #64748b;
-            padding: 1rem;
-        }
-
-        .table-custom td {
+            font-weight: 600;
             padding: 0.75rem 1rem;
-            font-size: 0.875rem;
-            vertical-align: middle;
+            border: none;
         }
 
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
+        .table-admin tbody td {
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+            border-color: var(--card-border);
+        }
+
+        .badge-status {
+            padding: 0.35rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
             font-weight: 600;
         }
 
-        .status-online { background: #dcfce7; color: #15803d; }
-        .status-cooldown { background: #fef3c7; color: #b45309; }
-        .status-offline { background: #fee2e2; color: #b91c1c; }
+        .badge-online { background: #dcfce7; color: #15803d; }
+        .badge-cooldown { background: #fef3c7; color: #b45309; }
+        .badge-offline { background: #fee2e2; color: #b91c1c; }
+        .badge-success { background: #dcfce7; color: #15803d; }
+        .badge-failed { background: #fee2e2; color: #b91c1c; }
+        .badge-processing { background: #dbeafe; color: #1d4ed8; }
 
-        .modal-content {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .btn-action {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.75rem;
+            border-radius: 8px;
+        }
+
+        .period-selector .btn {
+            padding: 0.4rem 1rem;
+            font-size: 0.8rem;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: white;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .period-selector .btn:hover {
+            background: #f1f5f9;
+        }
+
+        .period-selector .btn.active {
+            background: var(--primary);
             color: white;
-            border-radius: 24px;
+            border-color: var(--primary);
         }
-        .module-card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+
+        .progress-rate {
+            height: 8px;
+            border-radius: 4px;
+            background: #e2e8f0;
         }
-        .module-icon {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+
+        .progress-bar-usage {
+            border-radius: 4px;
+            transition: width 0.5s ease;
         }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .info-item:last-child { border-bottom: none; }
+
+        .info-label { color: #64748b; font-size: 0.85rem; }
+        .info-value { font-weight: 600; font-size: 0.85rem; }
+
+        .alert-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-state {
+            padding: 3rem;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .chart-container { position: relative; height: 220px; }
+        .chart-container-sm { position: relative; height: 180px; }
     </style>
 </head>
 <body>
 
-<nav class="navbar-top mb-4">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-            <div class="p-2 bg-dark rounded-3 text-white">
-                <i class="fa-solid fa-bolt-lightning"></i>
+<nav class="navbar-admin">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-white bg-opacity-10 p-2 rounded-3">
+                <i class="fas fa-bolt text-white"></i>
             </div>
-            <h5 class="mb-0 fw-bold">Admin IA Telemetry</h5>
+            <div>
+                <h5 class="mb-0 text-white fw-bold">Raio-X Admin</h5>
+                <small class="text-white text-opacity-50">Territory Engine v3.0</small>
+            </div>
         </div>
         <div class="d-flex align-items-center gap-3">
-            <button class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#aboutModal">
-                <i class="fa-solid fa-circle-info me-1"></i>Sobre o Sistema
+            <div class="period-selector d-flex gap-1">
+                <a href="?period=7d" class="btn {{ $period === '7d' ? 'active' : '' }}">7D</a>
+                <a href="?period=30d" class="btn {{ $period === '30d' ? 'active' : '' }}">30D</a>
+                <a href="?period=90d" class="btn {{ $period === '90d' ? 'active' : '' }}">90D</a>
+            </div>
+            <button class="btn btn-outline-light btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#actionsModal">
+                <i class="fas fa-server me-1"></i>Ações
             </button>
-            <span class="badge bg-primary rounded-pill px-3">{{ now()->format('d/m/Y H:i') }}</span>
-            <form action="{{ route('logout') }}" method="POST" class="m-0">
-                @csrf
-                <button type="submit" class="btn btn-link text-danger p-0 text-decoration-none small fw-bold">
-                    <i class="fa-solid fa-right-from-bracket me-1"></i>Sair
-                </button>
-            </form>
+            <a href="{{ route('logout') }}" method="POST" class="btn btn-outline-light btn-sm rounded-pill">
+                <i class="fas fa-sign-out-alt me-1"></i>Sair
+            </a>
         </div>
     </div>
 </nav>
 
-<!-- Modal Sobre a Arquitetura -->
-<div class="modal fade" id="aboutModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content shadow-lg">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold"><i class="fa-solid fa-microchip me-2"></i>Territory Engine v3.0 <span class="badge bg-primary ms-2" style="font-size: 10px; vertical-align: middle;">NEURAL CORE</span></h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="container-fluid py-4 px-4">
+    @if($overviewStats['error_rate'] > 5)
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4 rounded-3">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span><strong>Alerta:</strong> Taxa de erro está em {{ $overviewStats['error_rate'] }}% - acima do threshold de 5%</span>
+    </div>
+    @endif
+
+    @if(!empty($queueMetrics['failed_jobs']) && $queueMetrics['failed_jobs'] > 0)
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4 rounded-3">
+        <i class="fas fa-clock"></i>
+        <span><strong>Atenção:</strong> {{ $queueMetrics['failed_jobs'] }} jobs falharam e aguardam retry</span>
+    </div>
+    @endif
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card-metric">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small fw-medium mb-1">Requisições</div>
+                        <div class="metric-value">{{ number_format($overviewStats['total_requests']) }}</div>
+                        <div class="metric-change {{ $overviewStats['requests_change'] >= 0 ? 'change-positive' : 'change-negative' }}">
+                            <i class="fas fa-arrow-{{ $overviewStats['requests_change'] >= 0 ? 'up' : 'down' }}"></i>
+                            {{ abs($overviewStats['requests_change']) }}% vs período anterior
+                        </div>
+                    </div>
+                    <div class="metric-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body p-4">
-                <p class="text-white-50 mb-4">O **Territory Engine** representa o ápice da inteligência geo-analítica, fundindo big-data proprietário com processamento cognitivo de última geração para decodificar o DNA de qualquer território em segundos.</p>
-                
-                <div class="row">
-                    <!-- Camada de Gathering -->
-                    <div class="col-md-4">
-                        <div class="small fw-bold text-primary mb-3 text-uppercase" style="letter-spacing: 2px;">Data Gathering Cluster</div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-satellite"></i></div>
-                            <h6>Geo & POI Discovery</h6>
-                            <p class="small text-white-50 mb-0">`GeoAgent` & `POIAgent`. Fusão de fontes OSM, Nominatim e ViaCEP para geolocalização precisa e mapeamento de infraestrutura comercial/lazer.</p>
-                        </div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-cloud-sun"></i></div>
-                            <h6>Environmental Data</h6>
-                            <p class="small text-white-50 mb-0">`ClimaAgent`. Ingestão de métricas climáticas históricas e em tempo real para análise de qualidade de vida e resiliência ambiental.</p>
-                        </div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-landmark"></i></div>
-                            <h6>Socio-History Mesh</h6>
-                            <p class="small text-white-50 mb-0">`WikiAgent` & `SocioAgent`. Extração de DNA histórico e indicadores socioeconômicos (renda/demografia) via Wikipedia e bases IBGE.</p>
+        </div>
+        <div class="col-md-3">
+            <div class="card-metric">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small fw-medium mb-1">Tokens Consumidos</div>
+                        <div class="metric-value">{{ number_format($overviewStats['total_tokens']) }}</div>
+                        <div class="metric-change {{ $overviewStats['tokens_change'] >= 0 ? 'change-positive' : 'change-negative' }}">
+                            <i class="fas fa-arrow-{{ $overviewStats['tokens_change'] >= 0 ? 'up' : 'down' }}"></i>
+                            {{ abs($overviewStats['tokens_change']) }}%
                         </div>
                     </div>
-
-                    <!-- Camada de Inteligência -->
-                    <div class="col-md-4">
-                        <div class="small fw-bold text-primary mb-3 text-uppercase" style="letter-spacing: 2px;">Cognitive Intelligence Layer</div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-brain"></i></div>
-                            <h6>Neural Router Service</h6>
-                            <p class="small text-white-50 mb-0">`LlmRouter`. Orquestração exaustiva de modelos (DeepSeek, Gemini, Llama) com lógica de auto-healing, fallback e balanceamento de carga.</p>
+                    <div class="metric-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-metric">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small fw-medium mb-1">Tempo Médio</div>
+                        <div class="metric-value">{{ number_format($overviewStats['avg_response_time']) }}ms</div>
+                        <div class="metric-change change-neutral">por requisição</div>
+                    </div>
+                    <div class="metric-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card-metric">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small fw-medium mb-1">Taxa de Erro</div>
+                        <div class="metric-value {{ $overviewStats['error_rate'] > 5 ? 'text-danger' : 'text-success' }}">
+                            {{ $overviewStats['error_rate'] }}%
                         </div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-database"></i></div>
-                            <h6>Knowledge RAG Agent</h6>
-                            <p class="small text-white-50 mb-0">`KnowledgeAgent`. Sistema de Recuperação Aumentada por Geração (RAG) que injeta contexto proprietário no processo de análise.</p>
-                        </div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-scale-balanced"></i></div>
-                            <h6>Compare & Scoring</h6>
-                            <p class="small text-white-50 mb-0">`CompareAgent`. Algoritmo matemático que pondera milhares de POIs para gerar scores de Mobilidade, Lazer e Infraestrutura.</p>
+                        <div class="metric-change {{ $overviewStats['error_rate'] > 5 ? 'change-negative' : 'change-positive' }}">
+                            <i class="fas fa-{{ $overviewStats['error_rate'] > 5 ? 'exclamation-circle' : 'check-circle' }}"></i>
+                            {{ $overviewStats['error_rate'] > 5 ? 'Acima do limite' : 'Dentro do normal' }}
                         </div>
                     </div>
+                    <div class="metric-icon {{ $overviewStats['error_rate'] > 5 ? 'bg-danger' : 'bg-success' }} bg-opacity-10 text-{{ $overviewStats['error_rate'] > 5 ? 'danger' : 'success' }}">
+                        <i class="fas fa-{{ $overviewStats['error_rate'] > 5 ? 'exclamation-triangle' : 'shield-check' }}"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <!-- Camada de Orquestração -->
-                    <div class="col-md-4">
-                        <div class="small fw-bold text-primary mb-3 text-uppercase" style="letter-spacing: 2px;">Orchestration & Trust</div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-shield-halved"></i></div>
-                            <h6>Integrity Sentinel</h6>
-                            <p class="small text-white-50 mb-0">`IntegrityAgent`. Auditoria passiva em tempo real com reparação autônoma de dados e re-hidratação de contextos incompletos.</p>
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <div class="card-metric text-center">
+                <div class="metric-icon bg-primary bg-opacity-10 text-primary mx-auto mb-2">
+                    <i class="fas fa-map-marked-alt"></i>
+                </div>
+                <div class="metric-value">{{ number_format($lifetimeStats['total_reports']) }}</div>
+                <div class="text-muted small">Relatórios</div>
+                <div class="text-success small fw-medium">+{{ $lifetimeStats['reports_today'] }} hoje</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card-metric text-center">
+                <div class="metric-icon bg-warning bg-opacity-10 text-warning mx-auto mb-2">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="metric-value">{{ number_format($lifetimeStats['total_duels']) }}</div>
+                <div class="text-muted small">Duelos</div>
+                <div class="text-success small fw-medium">+{{ $lifetimeStats['duels_today'] }} hoje</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card-metric text-center">
+                <div class="metric-icon bg-info bg-opacity-10 text-info mx-auto mb-2">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="metric-value">{{ number_format($lifetimeStats['total_tokens_ever']) }}</div>
+                <div class="text-muted small">Tokens Total</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card-metric text-center">
+                <div class="metric-icon bg-success bg-opacity-10 text-success mx-auto mb-2">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="metric-value">${{ number_format($lifetimeStats['estimated_cost_usd'], 2) }}</div>
+                <div class="text-muted small">Custo Est.</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card-metric text-center">
+                <div class="metric-icon bg-purple bg-opacity-10 mx-auto mb-2" style="color: #7c3aed;">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <div class="metric-value">{{ number_format($reportStatus['completed']) }}</div>
+                <div class="text-muted small">Concluídos</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card-metric text-center">
+                <div class="metric-icon bg-danger bg-opacity-10 text-danger mx-auto mb-2">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-value">{{ $queueMetrics['pending_jobs'] ?? 0 }}</div>
+                <div class="text-muted small">Jobs Pendentes</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-chart-line me-2"></i>Volume de Requisições</h6>
+                    <small class="text-muted">{{ ucfirst($period) }}</small>
+                </div>
+                <div class="p-3">
+                    <div class="chart-container">
+                        <canvas id="requestsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-tasks me-2"></i>Performance por Agente</h6>
+                </div>
+                <div class="p-3">
+                    <div class="table-responsive">
+                        <table class="table table-admin">
+                            <thead>
+                                <tr>
+                                    <th>Agente</th>
+                                    <th>Requisições</th>
+                                    <th>Tempo Médio</th>
+                                    <th>Tokens</th>
+                                    <th>Sucesso</th>
+                                    <th>Taxa Erro</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($agentPerformance as $agent)
+                                <tr>
+                                    <td><span class="badge bg-primary">{{ $agent['agent_name'] }}</span></td>
+                                    <td>{{ number_format($agent['count']) }}</td>
+                                    <td>{{ number_format($agent['avg_time']) }}ms</td>
+                                    <td>{{ number_format($agent['tokens']) }}</td>
+                                    <td>
+                                        <span class="badge badge-success">{{ number_format($agent['success']) }}</span>
+                                    </td>
+                                    <td>
+                                        @php $agentErrorRate = $agent['count'] > 0 ? round(($agent['fails'] / $agent['count']) * 100, 1) : 0; @endphp
+                                        <span class="badge {{ $agentErrorRate > 5 ? 'badge-failed' : 'badge-success' }}">
+                                            {{ $agentErrorRate }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="6" class="text-center text-muted">Nenhum dado disponível</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card-section">
+                        <div class="card-section-header">
+                            <h6 class="card-section-title"><i class="fas fa-map me-2"></i>Top Cidades</h6>
                         </div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-vial-circle-check"></i></div>
-                            <h6>Calibration Guard</h6>
-                            <p class="small text-white-50 mb-0">`AactService`. Camada de confiança que valida narrativas generativas contra indicadores econômicos reais para eliminar alucinações.</p>
-                        </div>
-                        <div class="module-card">
-                            <div class="module-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                            <h6>Pipeline Coordinator</h6>
-                            <p class="small text-white-50 mb-0">`PipelineCoordinator`. O regente da orquestra que gerencia a execução assíncrona paralela e sincronização de estados.</p>
+                        <div class="p-3">
+                            @forelse($topLocations as $index => $location)
+                            <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-light text-dark" style="min-width: 24px;">{{ $index + 1 }}</span>
+                                    <span class="fw-medium">{{ $location['cidade'] }}</span>
+                                    <span class="text-muted small">{{ $location['uf'] }}</span>
+                                </div>
+                                <span class="badge bg-primary">{{ number_format($location['count']) }}</span>
+                            </div>
+                            @empty
+                            <div class="text-center text-muted py-3">Sem dados</div>
+                            @endforelse
                         </div>
                     </div>
                 </div>
-
-                <div class="mt-3 p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25">
-                    <h6 class="fw-bold mb-2 small text-uppercase" style="letter-spacing: 1px;">Neural Flow Protocol</h6>
-                    <p class="small mb-0">Raw Query &rarr; Context Gathering Mesh &rarr; Knowledge Injection &rarr; Neural Synthesis &rarr; Parametric Calibration &rarr; Final Integrity Audit.</p>
+                <div class="col-md-6">
+                    <div class="card-section">
+                        <div class="card-section-header">
+                            <h6 class="card-section-title"><i class="fas fa-fire me-2"></i>Top CEPs</h6>
+                        </div>
+                        <div class="p-3">
+                            @forelse($topCeps as $index => $cep)
+                            <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                                <div>
+                                    <span class="fw-mono fw-medium">{{ substr($cep['cep'], 0, 5) }}-{{ substr($cep['cep'], 5) }}</span>
+                                    <div class="small text-muted">{{ $cep['cidade'] }}, {{ $cep['uf'] }}</div>
+                                </div>
+                                <span class="badge bg-warning text-dark">{{ number_format($cep['views']) }}</span>
+                            </div>
+                            @empty
+                            <div class="text-center text-muted py-3">Sem dados</div>
+                            @endforelse
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-4" data-bs-dismiss="modal">Fechar</button>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-key me-2"></i>API Keys</h6>
+                </div>
+                <div class="p-3">
+                    @forelse($apiKeysStatus as $key)
+                    <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                        <div>
+                            <div class="fw-medium small">{{ $key['provider'] }}</div>
+                            <div class="text-muted" style="font-size: 10px;">Final ...{{ $key['key_preview'] }}</div>
+                            <div class="small text-muted">{{ $key['usage_24h'] }} uso/24h</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge-status badge-{{ $key['status'] }}">{{ strtoupper($key['status']) }}</span>
+                            <button class="btn btn-outline-secondary btn-action btn-reset" data-id="{{ $key['id'] }}" title="Resetar cooldown">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center text-muted py-3">Nenhuma chave configurada</div>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-chart-pie me-2"></i>Uso por Modelo</h6>
+                </div>
+                <div class="p-3">
+                    <div class="chart-container-sm">
+                        <canvas id="modelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-dollar-sign me-2"></i>Projeção de Custos</h6>
+                </div>
+                <div class="p-3">
+                    <div class="info-item">
+                        <span class="info-label">Tokens ({{ ucfirst($period) }})</span>
+                        <span class="info-value">{{ number_format($costProjection['tokens_last_7d']) }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Média Diária</span>
+                        <span class="info-value">{{ number_format($costProjection['daily_average']) }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Custo/Dia</span>
+                        <span class="info-value text-success">${{ $costProjection['cost_per_day'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Projeção Mensal</span>
+                        <span class="info-value text-warning">${{ $costProjection['projected_monthly_cost'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Tokens Mensais</span>
+                        <span class="info-value">{{ number_format($costProjection['projected_monthly_tokens']) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-tachometer-alt me-2"></i>Rate Limits</h6>
+                </div>
+                <div class="p-3">
+                    @foreach($rateLimits as $key => $limit)
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-medium">{{ $limit['name'] }}</span>
+                            <span class="small text-muted">{{ $limit['used'] }}/{{ $limit['max'] }}</span>
+                        </div>
+                        <div class="progress-rate">
+                            <div class="progress-bar-usage {{ $limit['is_limited'] ? 'bg-danger' : 'bg-primary' }}"
+                                 style="width: {{ $limit['percentage'] }}%"></div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-server me-2"></i>Infraestrutura</h6>
+                </div>
+                <div class="p-3">
+                    <div class="info-item">
+                        <span class="info-label">App</span>
+                        <span class="info-value">v{{ $systemInfo['app_version'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Laravel</span>
+                        <span class="info-value">v{{ $systemInfo['laravel_version'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">PHP</span>
+                        <span class="info-value">v{{ $systemInfo['php_version'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Cache</span>
+                        <span class="info-value">{{ $systemInfo['cache_driver'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Queue</span>
+                        <span class="info-value">{{ $systemInfo['queue_driver'] }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Debug</span>
+                        <span class="info-value">
+                            @if($systemInfo['debug_mode'])
+                                <span class="badge badge-failed">ON</span>
+                            @else
+                                <span class="badge badge-success">OFF</span>
+                            @endif
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            @if(!empty($cacheMetrics['stats']))
+            <div class="card-section mb-4">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-memory me-2"></i>Cache Redis</h6>
+                </div>
+                <div class="p-3">
+                    <div class="info-item">
+                        <span class="info-label">Memória</span>
+                        <span class="info-value">{{ $cacheMetrics['stats']['used_memory'] ?? 'N/A' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Clientes</span>
+                        <span class="info-value">{{ $cacheMetrics['stats']['connected_clients'] ?? 0 }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Hit Rate</span>
+                        <span class="info-value {{ ($cacheMetrics['hit_rate'] ?? 0) > 80 ? 'text-success' : 'text-warning' }}">
+                            {{ $cacheMetrics['hit_rate'] ?? 'N/A' }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            <div class="card-section">
+                <div class="card-section-header">
+                    <h6 class="card-section-title"><i class="fas fa-history me-2"></i>Logs Recentes</h6>
+                </div>
+                <div class="p-0">
+                    <table class="table table-admin mb-0">
+                        <tbody>
+                            @foreach($recentLogs as $log)
+                            <tr>
+                                <td>
+                                    <div class="small fw-medium">{{ $log->created_at->format('H:i:s') }}</div>
+                                    <div class="small text-muted">{{ $log->agent_name }}</div>
+                                </td>
+                                <td>
+                                    <div class="small">{{ $log->model }}</div>
+                                    <div class="small text-muted">{{ $log->provider }}</div>
+                                </td>
+                                <td class="text-end">
+                                    @if($log->status === 'success')
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    @else
+                                        <i class="fas fa-times-circle text-danger" title="{{ Str::limit($log->error_message, 30) }}"></i>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="container-fluid px-lg-5">
-    
-    <!-- STATS ROW -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="stat-icon bg-indigo"><i class="fa-solid fa-microchip"></i></div>
-                <div class="text-muted small fw-medium">Requisições (7 Dias)</div>
-                <div class="fs-3 fw-bold">{{ number_format($stats->total_requests ?? 0) }}</div>
+<div class="modal fade" id="actionsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-server me-2"></i>Ações Administrativas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="stat-icon bg-purple"><i class="fa-solid fa-coins"></i></div>
-                <div class="text-muted small fw-medium">Tokens Consumidos</div>
-                <div class="fs-3 fw-bold">{{ number_format($stats->total_tokens ?? 0) }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="stat-icon bg-green"><i class="fa-solid fa-gauge-high"></i></div>
-                <div class="text-muted small fw-medium">Tempo Médio Resposta</div>
-                <div class="fs-3 fw-bold">{{ number_format($stats->avg_response_time ?? 0) }}ms</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="stat-icon bg-amber"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                <div class="text-muted small fw-medium">Taxa de Erro</div>
-                <div class="fs-3 fw-bold">{{ $stats->total_requests > 0 ? number_format(($stats->fail_count / $stats->total_requests) * 100, 1) : 0 }}%</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- LIFETIME STATS ROW -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="fa-solid fa-map-location-dot text-primary me-2"></i>
-                    <span class="text-muted small fw-medium">Relatórios Gerados</span>
-                </div>
-                <div class="d-flex align-items-baseline gap-2">
-                    <div class="fs-4 fw-bold">{{ number_format($totalReports) }}</div>
-                    <div class="small fw-bold text-success">+{{ $reportsToday }} hoje</div>
+            <div class="modal-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-action-admin" data-action="clear-cache">
+                        <i class="fas fa-broom me-2"></i>Limpar Cache
+                    </button>
+                    <button class="btn btn-outline-warning btn-action-admin" data-action="clear-cooldowns">
+                        <i class="fas fa-clock me-2"></i>Limpar Cooldowns de IA
+                    </button>
+                    <button class="btn btn-outline-info btn-action-admin" data-action="restart-queue">
+                        <i class="fas fa-redo me-2"></i>Reiniciar Fila
+                    </button>
+                    <button class="btn btn-outline-danger btn-action-admin" data-action="clear-failed">
+                        <i class="fas fa-trash me-2"></i>Limpar Jobs Falhados
+                    </button>
+                    <hr>
+                    <a href="{{ route('admin.export') }}?period={{ $period }}" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Exportar Logs (CSV)
+                    </a>
                 </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="fa-solid fa-bolt text-warning me-2"></i>
-                    <span class="text-muted small fw-medium">Duelos Realizados</span>
-                </div>
-                <div class="d-flex align-items-baseline gap-2">
-                    <div class="fs-4 fw-bold">{{ number_format($totalDuels) }}</div>
-                    <div class="small fw-bold text-success">+{{ $duelsToday }} hoje</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card-stats">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="fa-solid fa-server text-info me-2"></i>
-                    <span class="text-muted small fw-medium">Tokens Total (Histórico)</span>
-                </div>
-                <div class="fs-4 fw-bold">{{ number_format($totalTokensEver) }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card-stats border-primary bg-primary bg-opacity-10">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="fa-solid fa-sack-dollar text-primary me-2"></i>
-                    <span class="text-primary small fw-bold">Custo Est. LLM (API)</span>
-                </div>
-                <div class="fs-4 fw-black text-primary">$ {{ number_format($estimatedCostUsd, 2) }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- CHART -->
-        <div class="col-lg-8">
-            <div class="chart-container shadow-sm">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0">Volume de Requisições (7 Dias)</h6>
-                </div>
-                <div style="height: 220px;">
-                    <canvas id="requestsChart"></canvas>
-                </div>
-            </div>
-
-            <!-- RECENT LOGS -->
-            <div class="table-custom shadow-sm mb-4">
-                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold">Logs Recentes da Orquestração</h6>
-                    <span class="small text-muted">Últimas 15 operações</span>
-                </div>
-                <table class="table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Horário</th>
-                            <th>Agente</th>
-                            <th>Modelo / Provedor</th>
-                            <th>Tempo</th>
-                            <th>Tokens</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($recentLogs as $log)
-                        <tr>
-                            <td class="text-muted">{{ $log->created_at->format('H:i:s') }}</td>
-                            <td><span class="badge bg-light text-dark">{{ $log->agent_name }}</span></td>
-                            <td>
-                                <div class="fw-medium">{{ $log->model }}</div>
-                                <div class="small text-muted text-uppercase">{{ $log->provider }}</div>
-                            </td>
-                            <td>{{ $log->response_time_ms }}ms</td>
-                            <td>{{ number_format($log->total_tokens) }}</td>
-                            <td>
-                                @if($log->status === 'success')
-                                    <i class="fa-solid fa-circle-check text-success"></i>
-                                @else
-                                    <i class="fa-solid fa-circle-xmark text-danger" title="{{ $log->error_message }}"></i>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- SIDEBAR -->
-        <div class="col-lg-4">
-            <!-- API KEYS -->
-            <div class="card-stats border-0 mb-4">
-                <h6 class="fw-bold mb-3">Status das API Keys</h6>
-                @foreach($apiKeys as $key)
-                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
-                    <div>
-                        <div class="fw-bold small">{{ $key->email ?? $key->provider }}</div>
-                        <div class="text-muted" style="font-size: 10px;">{{ $key->provider }} • Final ...{{ substr($key->key, -4) }}</div>
-                    </div>
-                    <span class="status-badge status-{{ $key->status }}">{{ strtoupper($key->status) }}</span>
-                </div>
-                @endforeach
-            </div>
-
-            <!-- MODELS CONFIGURED -->
-            <div class="card-stats border-0">
-                <h6 class="fw-bold mb-3">Rotas e Modelos Ativos</h6>
-                @foreach($allModels as $profile => $models)
-                <div class="mb-3">
-                    <div class="small fw-bold text-uppercase text-muted mb-2" style="font-size: 10px; letter-spacing: 0.1em;">{{ $profile }}</div>
-                    @foreach($models as $m)
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <i class="fa-solid fa-microchip text-muted" style="font-size: 12px;"></i>
-                        <span class="small">{{ $m['model'] }}</span>
-                    </div>
-                    @endforeach
-                </div>
-                @endforeach
-            </div>
-
-            <!-- SYSTEM INFO -->
-            <div class="card-stats border-0 mt-4">
-                <h6 class="fw-bold mb-3">Infraestrutura</h6>
-                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
-                    <span class="small fw-medium text-muted">Versão App</span>
-                    <span class="small fw-bold">{{ $appVersion }}</span>
-                </div>
-                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
-                    <span class="small fw-medium text-muted">Laravel Framework</span>
-                    <span class="small fw-bold">v{{ $laravelVersion }}</span>
-                </div>
-                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
-                    <span class="small fw-medium text-muted">PHP Version</span>
-                    <span class="small fw-bold">v{{ $phpVersion }}</span>
-                </div>
-                <div class="d-flex align-items-center justify-content-between py-2 border-bottom last-border-0">
-                    <span class="small fw-medium text-muted">Timezone do Sistema</span>
-                    <span class="small fw-bold">{{ config('app.timezone') }}</span>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
 
 <script>
-    const ctx = document.getElementById('requestsChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {!! json_encode(array_keys($chartData)) !!}.map(d => {
-                let p = d.split('-');
-                return p.length === 3 ? `${p[2]}/${p[1]}` : d;
-            }),
-            datasets: [{
-                label: 'Requisições',
-                data: {!! json_encode(array_values($chartData)) !!},
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 4,
-                pointBackgroundColor: '#6366f1'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: { beginAtZero: true, grid: { display: false } },
-                x: { grid: { display: false } }
+const dailyData = {!! json_encode(array_values($dailyRequests)) !!};
+const dailyLabels = {!! json_encode(array_keys($dailyRequests)) !!}.map(d => {
+    const parts = d.split('-');
+    return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
+});
+
+const ctx = document.getElementById('requestsChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: dailyLabels,
+        datasets: [{
+            label: 'Requisições',
+            data: dailyData,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#6366f1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+const modelData = {!! json_encode(collect($modelUsage)->take(5)->pluck('count')->toArray()) !!};
+const modelLabels = {!! json_encode(collect($modelUsage)->take(5)->pluck('model')->toArray()) !!};
+const modelColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+
+const ctx2 = document.getElementById('modelChart').getContext('2d');
+new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: modelLabels,
+        datasets: [{
+            data: modelData,
+            backgroundColor: modelColors,
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: { boxWidth: 12, padding: 10, font: { size: 11 } }
             }
         }
+    }
+});
+
+document.querySelectorAll('.btn-reset').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        try {
+            const res = await fetch(`/admin/api-keys/${id}/reset`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                location.reload();
+            }
+        } catch (e) {
+            alert('Erro ao resetar chave');
+        }
     });
+});
+
+document.querySelectorAll('.btn-action-admin').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const action = btn.dataset.action;
+        let url = '/admin/action/' + action;
+        
+        if (!confirm('Tem certeza que deseja executar esta ação?')) return;
+        
+        try {
+            const res = await fetch(url, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Erro: ' + data.message);
+            }
+        } catch (e) {
+            alert('Erro ao executar ação');
+        }
+    });
+});
+
+setTimeout(() => location.reload(), 60000);
 </script>
 
 </body>

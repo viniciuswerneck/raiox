@@ -2,106 +2,190 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LlmLog;
 use App\Models\AiKey;
-use App\Models\LocationReport;
-use App\Models\RegionComparison;
-use App\Services\LlmRouterService;
+use App\Services\AdminService;
+use App\Services\ExternalApiRateLimiter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class AdminController extends Controller
 {
-    public function dashboard()
+    public function __construct(
+        private AdminService $adminService,
+        private ExternalApiRateLimiter $rateLimiter
+    ) {}
+
+    public function dashboard(Request $request)
     {
-        $now = Carbon::now();
-        $startOfPeriod = $now->copy()->subDays(7)->startOfDay();
+        $period = $request->get('period', '7d');
+        $days = $this->adminService->getPeriodDays($period);
 
-        // 1. Métricas da Semana (Últimos 7 Dias)
-        $stats = LlmLog::where('created_at', '>=', $startOfPeriod)
-            ->select(
-                DB::raw('COUNT(*) as total_requests'),
-                DB::raw('SUM(total_tokens) as total_tokens'),
-                DB::raw('AVG(response_time_ms) as avg_response_time'),
-                DB::raw('SUM(CASE WHEN status = "success" THEN 1 ELSE 0 END) as success_count'),
-                DB::raw('SUM(CASE WHEN status != "success" THEN 1 ELSE 0 END) as fail_count')
-            )
-            ->first();
-            
-        // 1.5 Métricas Históricas de Produção
-        $totalReports = LocationReport::count();
-        $totalDuels = RegionComparison::count();
-        $reportsToday = LocationReport::where('created_at', '>=', $now->copy()->startOfDay())->count();
-        $duelsToday = RegionComparison::where('created_at', '>=', $now->copy()->startOfDay())->count();
-        $totalTokensEver = LlmLog::sum('total_tokens');
-        // Estimativa aproximada de custo (Misto de GPT-4o-mini e Gemini Flash): ~$0.30 por 1M tokens in+out
-        $estimatedCostUsd = ($totalTokensEver / 1000000) * 0.30;
-        
-        // 1.6 Informações de Infraestrutura
-        $appVersion = config('app.version', '3.0.0');
-        $phpVersion = phpversion();
-        $laravelVersion = app()->version();
+        $overviewStats = $this->adminService->getOverviewStats($days);
+        $lifetimeStats = $this->adminService->getLifetimeStats();
+        $modelUsage = $this->adminService->getModelUsage($days);
+        $agentPerformance = $this->adminService->getAgentPerformance($days);
+        $dailyRequests = $this->adminService->getDailyRequests($days);
+        $hourlyDistribution = $this->adminService->getHourlyDistribution($days);
+        $topLocations = $this->adminService->getTopLocations(10);
+        $topCeps = $this->adminService->getTopCeps(10);
+        $reportStatus = $this->adminService->getReportStatusDistribution();
+        $apiKeysStatus = $this->adminService->getApiKeysStatus();
+        $cacheMetrics = $this->adminService->getCacheMetrics();
+        $queueMetrics = $this->adminService->getQueueMetrics();
+        $systemInfo = $this->adminService->getSystemInfo();
+        $rateLimits = $this->adminService->getRateLimitStatus();
+        $costProjection = $this->adminService->getCostProjection($days);
 
-        // 2. Uso por Modelo (Top 5 na semana)
-        $modelUsage = LlmLog::where('created_at', '>=', $startOfPeriod)
-            ->select('model', DB::raw('COUNT(*) as count'))
-            ->groupBy('model')
-            ->orderBy('count', 'desc')
-            ->take(5)
-            ->get();
-
-        // 3. Status das Chaves de API
-        $apiKeys = AiKey::all()->map(function($key) {
-            $cooldown = $key->cooldown_until && $key->cooldown_until->isFuture();
-            $key->status = $key->is_active ? ($cooldown ? 'cooldown' : 'online') : 'offline';
-            return $key;
-        });
-
-        // 4. Logs Recentes
-        $recentLogs = LlmLog::orderBy('created_at', 'desc')->take(15)->get();
-
-        // 5. Gráfico de Requisições por Dia (Últimos 7 dias)
-        $dailyRequests = LlmLog::where('created_at', '>=', $startOfPeriod)
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('COUNT(*) as count')
-            )
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get()
-            ->pluck('count', 'date')
-            ->toArray();
-        
-        $chartData = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $d = $now->copy()->subDays($i)->format('Y-m-d');
-            $chartData[$d] = $dailyRequests[$d] ?? 0;
-        }
-
-        // 6. Modelos Configurador no Router
-        $router = app(LlmRouterService::class);
+        $recentLogs = \App\Models\LlmLog::orderBy('created_at', 'desc')->take(15)->get();
+        $router = app(\App\Services\LlmRouterService::class);
         $reflection = new \ReflectionClass($router);
         $profilesProperty = $reflection->getProperty('profiles');
         $profilesProperty->setAccessible(true);
         $allModels = $profilesProperty->getValue($router);
 
         return view('admin.dashboard', compact(
-            'stats', 
-            'modelUsage', 
-            'apiKeys', 
-            'recentLogs', 
-            'chartData',
-            'allModels',
-            'totalReports',
-            'totalDuels',
-            'reportsToday',
-            'duelsToday',
-            'totalTokensEver',
-            'estimatedCostUsd',
-            'appVersion',
-            'phpVersion',
-            'laravelVersion'
+            'period',
+            'overviewStats',
+            'lifetimeStats',
+            'modelUsage',
+            'agentPerformance',
+            'dailyRequests',
+            'hourlyDistribution',
+            'topLocations',
+            'topCeps',
+            'reportStatus',
+            'apiKeysStatus',
+            'cacheMetrics',
+            'queueMetrics',
+            'systemInfo',
+            'rateLimits',
+            'costProjection',
+            'recentLogs',
+            'allModels'
         ));
+    }
+
+    public function resetApiKey(Request $request, int $keyId)
+    {
+        $key = AiKey::findOrFail($keyId);
+        $key->update([
+            'cooldown_until' => null,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Chave {$key->provider} resetada com sucesso",
+        ]);
+    }
+
+    public function toggleApiKey(Request $request, int $keyId)
+    {
+        $key = AiKey::findOrFail($keyId);
+        $key->update(['is_active' => ! $key->is_active]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Chave {$key->provider} ".($key->is_active ? 'ativada' : 'desativada'),
+        ]);
+    }
+
+    public function clearCache(Request $request)
+    {
+        Cache::flush();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cache limpo com sucesso',
+        ]);
+    }
+
+    public function clearFailedJobs(Request $request)
+    {
+        if (config('queue.default') === 'database') {
+            DB::table('failed_jobs')->truncate();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jobs com falha removidos',
+        ]);
+    }
+
+    public function retryFailedJobs(Request $request)
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('queue:retry', ['--failed' => true]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jobs com falha sendo reprocessados',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function restartQueue(Request $request)
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('queue:restart');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Fila reiniciada',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function clearAiCooldowns(Request $request)
+    {
+        AiKey::query()->update(['cooldown_until' => null]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Todos os cooldowns de IA foram removidos',
+        ]);
+    }
+
+    public function exportLogs(Request $request)
+    {
+        $period = $request->get('period', '7d');
+        $days = $this->adminService->getPeriodDays($period);
+        $startOfPeriod = now()->subDays($days);
+
+        $logs = \App\Models\LlmLog::where('created_at', '>=', $startOfPeriod)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $csv = "Data,Hora,Agente,Modelo,Provedor,Tempo (ms),Tokens,Status,Erro\n";
+        foreach ($logs as $log) {
+            $csv .= sprintf(
+                "%s,%s,%s,%s,%s,%d,%d,%s,%s\n",
+                $log->created_at->format('Y-m-d'),
+                $log->created_at->format('H:i:s'),
+                $log->agent_name,
+                $log->model,
+                $log->provider,
+                $log->response_time_ms ?? 0,
+                $log->total_tokens ?? 0,
+                $log->status,
+                str_replace(',', ';', $log->error_message ?? '')
+            );
+        }
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="llm_logs_'.date('Y-m-d').'.csv"',
+        ]);
     }
 }
