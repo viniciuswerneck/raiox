@@ -33,6 +33,22 @@ class ScanCepsCommand extends Command
         'CE' => ['Fortaleza', 'Caucaia', 'Juazeiro do Norte', 'Maracanaú', 'Sobral'],
         'GO' => ['Goiânia', 'Aparecida de Goiânia', 'Anápolis', 'Rio Verde', 'Luziânia'],
         'DF' => ['Brasília', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Planaltina'],
+        'ES' => ['Vitória', 'Serra', 'Vila Velha', 'Cariacica', 'Cachoeiro de Itapemirim', 'Linhares', 'São José do Calçado'],
+        'SC' => ['Florianópolis', 'Joinville', 'Blumenau', 'Chapecó', 'Criciúma', 'Itajaí', 'Palhoça'],
+        'MT' => ['Cuiabá', 'Várzea Grande', 'Rondonópolis', 'Sinop', 'Tangará da Serra', 'Cáceres'],
+        'MS' => ['Campo Grande', 'Dourados', 'Três Lagoas', 'Corumbá', 'Aquidauana'],
+        'PA' => ['Belém', 'Ananindeua', 'Santarém', 'Marabá', 'Parauapebas', 'Castanhal'],
+        'AM' => ['Manaus', 'Itacoatiara', 'Manacapuru', 'Coari', 'Tefé'],
+        'PB' => ['João Pessoa', 'Campina Grande', 'Santa Rita', 'Patos', 'Bayeux'],
+        'AL' => ['Maceió', 'Arapiraca', 'Rio Largo', 'Palmeira dos Índios', 'Maceió'],
+        'PI' => ['Teresina', 'Parnaíba', 'Picos', 'Floriano', 'Altos'],
+        'MA' => ['São Luís', 'Imperatriz', 'Timon', 'Caxias', 'Codó'],
+        'RO' => ['Porto Velho', 'Ji-Paraná', 'Ariquemes', 'Cacoal', 'Vilhena'],
+        'SE' => ['Aracaju', ' Nossa Senhora do Socorro', 'Lagarto', 'Itabaiana', 'Estância'],
+        'TO' => ['Palmas', 'Araguaína', 'Gurupi', 'Porto Nacional', 'Miracema'],
+        'AP' => ['Macapá', 'Santana', 'Laranjal do Jari', 'Oiapoque'],
+        'AC' => ['Rio Branco', 'Cruzeiro do Sul', 'Sena Madureira', 'Tarauacá'],
+        'RR' => ['Boa Vista', 'Rorainópolis', 'Cantá', 'Mucajaí'],
     ];
 
     private array $neighborhoodTypes = [
