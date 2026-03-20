@@ -193,6 +193,7 @@ class NeighborhoodService
             'sanitation_rate' => $categorization['sanitation_rate'] ?? 0,
             'territorial_classification' => $categorization['classification'] ?? 'Desconhecido',
             'safety_level' => $categorization['safety_level'] ?? 'ANÁLISE',
+            'safety_description' => $categorization['safety_description'] ?? null,
             'raw_ibge_data' => $agents['socio']['raw_ibge_data'] ?? null,
             'wiki_json' => $agents['wiki'] ?? [],
             'status' => 'processing_text',

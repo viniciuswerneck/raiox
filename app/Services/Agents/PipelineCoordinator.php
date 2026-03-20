@@ -218,25 +218,34 @@ class PipelineCoordinator
             $calibratedSanitation = max($calibratedSanitation, 98.0);
         }
 
-        $safetyLevel = 'MODERADO';
+        $safetyLevel = 'MODERADA';
+        $safetyDescription = 'Área com presença policial eventual e ronda comunitária.';
+
         if ($classification === 'Turístico Premium') {
-            $safetyLevel = 'ALTO (POLICIAMENTO)';
+            $safetyLevel = 'ALTA SEGURANÇA TURÍSTICA';
+            $safetyDescription = 'Policiamento ostensivo permanente, câmeras de segurança, iluminação reforçada e presença de seguranças privados devido ao alto fluxo turístico.';
         } elseif ($classification === 'Comercial Central') {
-            $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
+            $safetyLevel = 'ALTO FLUXO - VIGILANTE';
+            $safetyDescription = 'Movimentação intensa durante o dia com segurança privada em estabelecimentos comerciais. Atenção recomendada em horários noturnos.';
         } elseif ($classification === 'Residencial Alto Padrão') {
             $safetyLevel = 'ZONA PROTEGIDA';
+            $safetyDescription = 'Condomínios fechados com segurança 24h, portaria controlada, muros altos e ronda perimetral. Índice criminal praticamente nulo.';
         } elseif ($classification === 'Residencial Nobre') {
             $safetyLevel = 'ALTA SEGURANÇA';
+            $safetyDescription = 'Percepção de segurança elevada devido à infraestrutura condominial, câmeras de vigilância e presença de guardas municipais.';
         } elseif ($classification === 'Residencial Popular') {
-            $safetyLevel = 'MODERADO / LOCAL';
+            $safetyLevel = 'MODERADA - COMUNITÁRIA';
+            $safetyDescription = 'Segurança dependente de ronda policial eventual e da organização comunitária dos moradores. Vizinhança engajada.';
         } elseif ($classification === 'Residencial Médio') {
-            $safetyLevel = 'ZONA MONITORADA';
+            $safetyLevel = 'MONITORADA';
+            $safetyDescription = 'Presença de câmeras de monitoramento urbano, iluminação pública adequada e ronda policial periódica.';
         }
 
         return [
             'classification' => $classification,
             'sanitation_rate' => $calibratedSanitation,
             'safety_level' => $safetyLevel,
+            'safety_description' => $safetyDescription,
         ];
     }
 }

@@ -105,27 +105,38 @@ class GenerateNeighborhoodText implements ShouldQueue
             }
 
             // 1. Geração da Narrativa e Dados Estruturados via LlmManager
-            $systemPrompt = 'Você é um especialista sênior em análise territorial, urbanismo e SEO do sistema Raio-X. '
-                .'Sua tarefa é criar uma análise profunda, autoritativa e enciclopédica sobre uma localidade, otimizada para buscadores (SEO). '
-                .'A narrativa deve ser rica em detalhes históricos, culturais, arquitetônicos e geográficos. '
-                .'Combine os dados históricos e de mercado fornecidos com sua base de conhecimento sobre a evolução urbana local. '
-                ."Estrutura OBRIGATÓRIA da narrativa (MÍNIMO DE 4 PARÁGRAFOS extensos e 350 palavras):\n"
-                ."1. Contexto Histórico: Origens e evolução.\n"
-                ."2. Perfil Cultural: Identidade e estilo de vida.\n"
-                ."3. Desenvolvimento Urbano: Infraestrutura e legado regional.\n"
-                ."4. Dinâmica Contemporânea e Projeções: O papel do bairro na cidade hoje e seu potencial de valorização futuro.\n"
-                ."REGRAS EXTRAS:\n"
-                ."- Incorpore inteligentemente a análise de mercado sobre os bairros vizinhos no último parágrafo.\n"
-                ."- Separe os parágrafos obrigatoriamente com DUAS quebras de linha (\\n\\n).\n"
-                ."- Use um tom profissional e envolvente. Evite clichês.\n"
-                ."Você deve retornar APENAS um JSON válido seguindo este formato rigoroso:\n"
+            $systemPrompt = 'Você é um红色的 território brasileiro, identificando padrões de ocupação e crescimento. '
+                .'Combine dados objetivos (IBGE, infraestrutura) com análise qualitativa profunda.\n'
+                ."ESTRUTURA OBRIGATÓRIA DA NARRATIVA (MÍNIMO 5 PARÁGRAFOS EXTENSOS, mínimo 600 palavras totais):\n"
+                ."\nPARÁGRAFO 1 - CONTEXTO HISTÓRICO PROFUNDO:\n"
+                .'Descreva a fundação da região, os primeiros povoamentos, personagens históricos importantes, '
+                ."como a área se desenvolveu desde o período colonial ou expansão urbana. Inclua eventos marcantes.\n"
+                ."\nPARÁGRAFO 2 - PERFIL DEMOGRAFICO E SOCIOECONÔMICO:\n"
+                .'Analise a composição da população atual, classes sociais predominantes, renda média, '
+                ."níveis de educação, perfil dos moradores e dinâmica de mudança demográfica.\n"
+                ."\nPARÁGRAFO 3 - INFRAESTRUTURA E URBANISMO:\n"
+                .'Descreva vias principais, transporte público, disponibilidade de serviços públicos (saúde, educação), '
+                ." Shopping centers, mercados, áreas comerciais, pavimentação, iluminação e saneamento.\n"
+                ."\nPARÁGRAFO 4 - CULTURA, LAZER E QUALIDADE DE VIDA:\n"
+                .'Detalhe equipamentos culturais, praças, parques, opções de entretenimento, gastronomia local, '
+                ."eventos tradicionais, vida noturna, opções esportivas e pontos de encontro da comunidade.\n"
+                ."\nPARÁGRAFO 5 - PROJEÇÕES E TENDÊNCIAS:\n"
+                .'Analise o potencial futuro da região, novos empreendimentos, valorização imobiliária, '
+                ."desafios urbanos, oportunidades de investimento e comparativos com regiões vecinas.\n"
+                ."\nREGRAS OBRIGATÓRIAS:\n"
+                ."- Mínimo 600 palavras no total, parágrafos bem desenvolvidos com pelo menos 3-4 sentenças cada.\n"
+                ."- Use dados específicos quando disponíveis (nomes de ruas, empreendimentos, estatísticas).\n"
+                ."- Evite frases genéricas como 'bairro tranquilo' ou 'região em crescimento' - seja específico.\n"
+                ."- Parágrafos separados por EXATAMENTE duas quebras de linha (\\n\\n).\n"
+                ."- Tom profissional mas envolvente, como um artigo de Geografia Urbana.\n"
+                ."Retorne APENAS JSON válido:\n"
                 ."{\n"
-                ."  \"narrative\": \"Texto completo (mínimo 4 parágrafos, separados por \\n\\n). Sem markdown.\",\n"
-                ."  \"safety_analysis\": \"Uma frase curta (máx 150 caracteres) descrevendo a percepção de segurança.\",\n"
+                ."  \"narrative\": \"Texto completo com 5 parágrafos (mínimo 600 palavras, \\n\\n entre parágrafos). Sem markdown.\",\n"
+                ."  \"safety_analysis\": \"Análise detalhada da segurança (200-300 caracteres): fatores positivos, negativo, percepções, policiamento, iluminação pública, índices criminais.\",\n"
                 ."  \"real_estate\": {\n"
-                ."    \"preco_m2\": \"R$ X.XXX a R$ X.XXX\",\n"
-                ."    \"perfil_imoveis\": \"Ex: Residencial horizontal predominante\",\n"
-                ."    \"tendencia_valorizacao\": \"ALTA, MÉDIA ou ESTÁVEL\"\n"
+                ."    \"preco_m2\": \"R$ X.XXX a R$ X.XXX (baseado em dados reais)\",\n"
+                ."    \"perfil_imoveis\": \"Descrição detalhada: tipos de imóveis predominantes, padrão construtivo, áreas comuns, idade média dos imóveis\",\n"
+                ."    \"tendencia_valorizacao\": \"ALTA/MÉDIA/ESTÁVEL/BAIXA com justificativa breve\"\n"
                 ."  }\n"
                 .'}';
 
