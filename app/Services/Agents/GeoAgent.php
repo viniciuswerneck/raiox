@@ -45,6 +45,132 @@ class GeoAgent extends BaseAgent
                 'ibge' => '3524402',
                 'lat' => '-23.3050682',
                 'lon' => '-45.9723075'
+            ],
+            '86600010' => [
+                'logradouro' => 'Avenida Interventor Manoel Ribas',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3067',
+                'lon' => '-51.3621'
+            ],
+            '86600020' => [
+                'logradouro' => 'Avenida Interventor Manoel Ribas',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3075',
+                'lon' => '-51.3630'
+            ],
+            '86600030' => [
+                'logradouro' => 'Rua Monteiro Lobato',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3117',
+                'lon' => '-51.3663'
+            ],
+            '86600040' => [
+                'logradouro' => 'Vila Oliveira',
+                'bairro' => 'Vila Oliveira',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3175',
+                'lon' => '-51.3750'
+            ],
+            '86600050' => [
+                'logradouro' => 'Centro',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3080',
+                'lon' => '-51.3640'
+            ],
+            '86600060' => [
+                'logradouro' => 'Centro',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3090',
+                'lon' => '-51.3650'
+            ],
+            '86600070' => [
+                'logradouro' => 'Centro',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3100',
+                'lon' => '-51.3660'
+            ],
+            '86600080' => [
+                'logradouro' => 'Rua Santa Catarina',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3110',
+                'lon' => '-51.3670'
+            ],
+            '86600090' => [
+                'logradouro' => 'Avenida dos Expedicionários',
+                'bairro' => 'Centro',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3120',
+                'lon' => '-51.3680'
+            ],
+            '86601000' => [
+                'logradouro' => 'Rua Maringá',
+                'bairro' => 'Manoel Müller',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3059',
+                'lon' => '-51.3643'
+            ],
+            '86602000' => [
+                'logradouro' => 'Rua Carlos Luz',
+                'bairro' => 'Jardim Rosângelo',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3073',
+                'lon' => '-51.3708'
+            ],
+            '86603000' => [
+                'logradouro' => 'Rua Waldomiro Flauzino da Silva',
+                'bairro' => 'Residencial Portal Arabela',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3150',
+                'lon' => '-51.3800'
+            ],
+            '86604000' => [
+                'logradouro' => 'Vila Oliveira',
+                'bairro' => 'Vila Oliveira',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3180',
+                'lon' => '-51.3760'
+            ],
+            '86605000' => [
+                'logradouro' => 'Rua Aguiar de Lima',
+                'bairro' => 'Jardim Caviúna',
+                'localidade' => 'Rolândia',
+                'uf' => 'PR',
+                'ibge' => '4122404',
+                'lat' => '-23.3210',
+                'lon' => '-51.3790'
             ]
         ];
 

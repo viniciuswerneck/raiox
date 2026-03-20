@@ -138,7 +138,7 @@ class IntegrityAgent extends BaseAgent
         if ($audit['needs_immediate_update']) {
              // Se for crítico (falta lat/lng ou travado), deletamos e forçamos o PipelineCoordinator
              $report->update(['status' => 'pending', 'error_message' => 'Integrity Repair Triggered']);
-             \App\Jobs\ProcessLocationReport::dispatch($report->cep, $report->id);
+             \App\Jobs\ProcessLocationReport::dispatch($report->cep);
         } elseif ($audit['needs_background_update']) {
             // Se for apenas enriquecimento (v3, narrativa, segurança), dispara a narrativa/enriquecimento
             $wikiContext = [

@@ -28,7 +28,9 @@ class RealEstateTrendService
                 'trend' => 'ESTÁVEL',
                 'description' => 'A região mantém um ritmo de valorização estável, acompanhando a média municipal por ser uma área em consolidação isolada.',
                 'nearby_hubs' => [],
-                'score' => 50
+                'neighbor_avg_price' => 0,
+                'appreciation_score' => 50,
+                'is_strategic' => false
             ];
         }
 

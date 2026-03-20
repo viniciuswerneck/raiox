@@ -114,7 +114,8 @@ class AactService
             $trend = $this->trendService->analyzePotential($mockReport);
             
             if ($trend['is_strategic'] && !str_contains(strtoupper($data['real_estate_json']['tendencia_valorizacao'] ?? ''), 'ALTA')) {
-                $log[] = "AJUSTE ESTRATÉGICO: Potencial de Catch-up detectado devido à proximidade com {$trend['nearby_hubs'][0]['name']}. Forçando tendência de ALTA.";
+                $hubName = !empty($trend['nearby_hubs']) ? $trend['nearby_hubs'][0]['name'] : 'principais polos vizinhos';
+                $log[] = "AJUSTE ESTRATÉGICO: Potencial de Catch-up detectado devido à proximidade com {$hubName}. Forçando tendência de ALTA.";
                 $data['real_estate_json']['tendencia_valorizacao'] = "ALTA: " . $trend['description'];
             }
         }

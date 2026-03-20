@@ -137,20 +137,32 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'agent_version' => '2.1.0'
             ]);
 
+            // 1. Extração e Sanitização do JSON via LlmManager
             $jsonRaw = $response['choices'][0]['message']['content'] ?? null;
 
             if (!$jsonRaw) {
                 throw new \Exception("Falha ao gerar análise via LlmManager");
             }
 
-            // Limpa possíveis backticks de markdown
-            $jsonClean = preg_replace('/```json\s?|```/', '', $jsonRaw);
-            $analysis = json_decode(trim($jsonClean), true);
+            $analysis = $this->parseStructuredAnalysis($jsonRaw);
+
+            if ($analysis && isset($analysis['narrative']) && is_array($analysis['narrative'])) {
+                $analysis['narrative'] = implode("\n\n", array_map(function($p) {
+                    if (is_string($p)) return $p;
+                    if (is_array($p)) return $p['texto'] ?? $p['content'] ?? $p['text'] ?? json_encode($p);
+                    return (string)$p;
+                }, $analysis['narrative']));
+            }
+
+            // Normaliza espaçamentos excessivos (evita o "vácuo" entre parágrafos)
+            if ($analysis && isset($analysis['narrative'])) {
+                $analysis['narrative'] = preg_replace("/(\n\s*){3,}/", "\n\n", $analysis['narrative']);
+            }
 
             if (!$analysis || !isset($analysis['narrative'])) {
-                Log::warning("IA não retornou JSON válido para {$locationName}. Tentando fallback de texto puro.");
+                Log::warning("IA não retornou JSON coerente para {$locationName}. Tentando extração via fallback.");
                 $analysis = [
-                    'narrative' => str_replace(['**', '*'], '', $jsonRaw),
+                    'narrative' => $this->fallbackNarrativeExtraction($jsonRaw),
                     'safety_analysis' => 'Baseado em infraestrutura local e vigilância monitorada.',
                     'real_estate' => [
                         'preco_m2' => 'Sob consulta',
@@ -409,5 +421,57 @@ class GenerateNeighborhoodText implements ShouldQueue
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Sanitiza e converte a resposta da IA em um array estruturado
+     */
+    private function parseStructuredAnalysis(string $raw): ?array
+    {
+        // 1. Tentar extrair apenas o que estiver entre a primeira { e a última }
+        if (preg_match('/\{(?:.|\n)*\}/', $raw, $matches)) {
+            $raw = $matches[0];
+        }
+
+        // 2. Limpar markdown de código
+        $json = preg_replace('/```json\s?|```/', '', $raw);
+        $json = trim($json);
+
+        // 3. Primeira tentativa direta
+        $data = json_decode($json, true);
+        if ($data) return $data;
+
+        // 4. Se falhou, pode ser que existam quebras de linha literais dentro das strings
+        // Vamos tentar sanitizar newlines dentro de valores de string
+        $sanitized = preg_replace_callback('/"(.*?)"/s', function ($matches) {
+            return '"' . str_replace(["\n", "\r"], ["\\n", ""], $matches[1]) . '"';
+        }, $json);
+
+        $data = json_decode($sanitized, true);
+        if ($data) return $data;
+
+        return null;
+    }
+
+    /**
+     * Se o JSON falhar, tenta extrair pelo menos a narrativa com Regex
+     */
+    private function fallbackNarrativeExtraction(string $raw): string
+    {
+        // Tenta pegar o valor do campo "narrative" se existir no texto
+        if (preg_match('/"narrative":\s*"(.*?)"/s', $raw, $matches)) {
+            $text = $matches[1];
+            // Desescapar \n se existirem como literais
+            $text = str_replace(['\\n', '\\r'], ["\n", ""], $text);
+            $text = preg_replace("/(\n\s*){3,}/", "\n\n", $text);
+            return trim($text);
+        }
+
+        // Último caso: limpa markdown e retorna o bloco de texto mais relevante
+        $clean = preg_replace('/```json\s?|```|\{|\}|"narrative":|"safety_analysis":|"real_estate":|"preco_m2":|"perfil_imoveis":|"tendencia_valorizacao":/i', '', $raw);
+        $clean = preg_replace('/:[^,]+,/', '', $clean); // Remove outros campos simples
+        $clean = str_replace(['**', '*'], '', $clean);
+        
+        return trim($clean);
     }
 }

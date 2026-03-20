@@ -405,8 +405,15 @@ class CityDashboardService
         if ($summary && !empty($summary['historia'])) {
             // Se a IA retornar historia como array de parágrafos, junta em string
             if (is_array($summary['historia'])) {
-                $summary['historia'] = implode("\n\n", $summary['historia']);
+                $summary['historia'] = implode("\n\n", array_map(function($p) {
+                    if (is_string($p)) return $p;
+                    if (is_array($p)) return $p['texto'] ?? $p['content'] ?? $p['text'] ?? json_encode($p);
+                    return (string)$p;
+                }, $summary['historia']));
             }
+
+            // Normaliza espaçamentos excessivos
+            $summary['historia'] = preg_replace("/(\n\s*){3,}/", "\n\n", $summary['historia']);
 
             // Aplica o revisor para garantir 3 parágrafos e humanização
             $revised = $this->reviser->reviseHistoria($summary);
