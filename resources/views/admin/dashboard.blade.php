@@ -11,114 +11,96 @@
     <style>
         :root {
             --primary: #6366f1;
-            --primary-dark: #4f46e5;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --info: #3b82f6;
             --dark: #0f172a;
             --card-bg: #ffffff;
-            --card-border: #e2e8f0;
         }
 
+        * { box-sizing: border-box; }
+        
         body {
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f1f5f9;
+            font-family: 'Inter', -apple-system, sans-serif;
             min-height: 100vh;
+            margin: 0;
         }
 
         .navbar-admin {
             background: linear-gradient(135deg, var(--dark) 0%, #1e293b 100%);
-            padding: 1rem 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .card-metric {
-            background: var(--card-bg);
-            border-radius: 16px;
-            border: 1px solid var(--card-border);
-            padding: 1.25rem;
-            transition: all 0.3s ease;
-            height: 100%;
-        }
-
-        .card-metric:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-        }
-
-        .metric-icon {
-            width: 48px;
-            height: 48px;
+        .metric-card {
+            background: white;
             border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .metric-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        .mini-stat {
+            background: white;
+            border-radius: 10px;
+            padding: 0.75rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .mini-stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            margin: 0 auto 0.5rem;
         }
 
-        .metric-value {
-            font-size: 1.75rem;
+        .mini-stat-value {
+            font-size: 1.25rem;
             font-weight: 700;
             line-height: 1.2;
         }
 
-        .metric-change {
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .change-positive { color: var(--success); }
-        .change-negative { color: var(--danger); }
-        .change-neutral { color: #64748b; }
-
-        .card-section {
-            background: var(--card-bg);
-            border-radius: 16px;
-            border: 1px solid var(--card-border);
+        .section-card {
+            background: white;
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
-        .card-section-header {
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid var(--card-border);
+        .section-header {
+            padding: 0.75rem 1rem;
             background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 0.85rem;
             display: flex;
-            justify-content: between;
             align-items: center;
+            justify-content: space-between;
         }
 
-        .card-section-title {
-            font-weight: 600;
-            margin: 0;
-            font-size: 0.95rem;
-        }
-
-        .table-admin {
-            margin: 0;
-        }
-
-        .table-admin thead th {
-            background: #f8fafc;
-            font-size: 0.75rem;
+        .table-sm th {
+            font-size: 0.7rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
             color: #64748b;
-            font-weight: 600;
-            padding: 0.75rem 1rem;
-            border: none;
+            padding: 0.5rem 0.75rem;
         }
 
-        .table-admin tbody td {
-            padding: 0.75rem 1rem;
+        .table-sm td {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
             vertical-align: middle;
-            border-color: var(--card-border);
         }
 
         .badge-status {
-            padding: 0.35rem 0.75rem;
-            border-radius: 50px;
-            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
             font-weight: 600;
         }
 
@@ -127,351 +109,337 @@
         .badge-offline { background: #fee2e2; color: #b91c1c; }
         .badge-success { background: #dcfce7; color: #15803d; }
         .badge-failed { background: #fee2e2; color: #b91c1c; }
-        .badge-processing { background: #dbeafe; color: #1d4ed8; }
 
-        .btn-action {
-            padding: 0.4rem 0.75rem;
+        .btn-period {
+            padding: 0.3rem 0.75rem;
             font-size: 0.75rem;
-            border-radius: 8px;
-        }
-
-        .period-selector .btn {
-            padding: 0.4rem 1rem;
-            font-size: 0.8rem;
-            border-radius: 8px;
-            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
             background: white;
             color: #64748b;
+            text-decoration: none;
             transition: all 0.2s;
         }
 
-        .period-selector .btn:hover {
-            background: #f1f5f9;
-        }
+        .btn-period:hover { background: #f1f5f9; color: #1e293b; }
+        .btn-period.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-        .period-selector .btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .progress-rate {
-            height: 8px;
-            border-radius: 4px;
-            background: #e2e8f0;
-        }
-
-        .progress-bar-usage {
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-
-        .info-item {
+        .info-row {
             display: flex;
             justify-content: space-between;
-            padding: 0.6rem 0;
+            padding: 0.4rem 0;
+            font-size: 0.8rem;
             border-bottom: 1px solid #f1f5f9;
         }
 
-        .info-item:last-child { border-bottom: none; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #64748b; }
+        .info-value { font-weight: 600; }
 
-        .info-label { color: #64748b; font-size: 0.85rem; }
-        .info-value { font-weight: 600; font-size: 0.85rem; }
+        .progress-bar-custom {
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+        }
 
-        .alert-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--danger);
-            color: white;
-            font-size: 0.65rem;
+        .rank-item {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .rank-item:last-child { border-bottom: none; }
+        .rank-num { 
+            width: 20px; 
+            height: 20px; 
+            border-radius: 50%; 
+            background: #f1f5f9; 
+            display: flex; 
+            align-items: center; 
             justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
         }
 
-        .empty-state {
-            padding: 3rem;
-            text-align: center;
-            color: #94a3b8;
+        .chart-box { height: 180px; position: relative; }
+
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            border-radius: 4px;
         }
 
-        .chart-container { position: relative; height: 220px; }
-        .chart-container-sm { position: relative; height: 180px; }
+        .g-2 { gap: 0.5rem; }
+        .g-3 { gap: 0.75rem; }
+        .g-4 { gap: 1rem; }
+
+        @media (max-width: 768px) {
+            .hide-mobile { display: none; }
+        }
     </style>
 </head>
 <body>
 
 <nav class="navbar-admin">
     <div class="d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-3">
-            <div class="bg-white bg-opacity-10 p-2 rounded-3">
+        <div class="d-flex align-items-center gap-2">
+            <div class="bg-white bg-opacity-10 p-1.5 rounded-2">
                 <i class="fas fa-bolt text-white"></i>
             </div>
             <div>
-                <h5 class="mb-0 text-white fw-bold">Raio-X Admin</h5>
-                <small class="text-white text-opacity-50">Territory Engine v3.0</small>
+                <h5 class="mb-0 text-white fw-bold" style="font-size: 1rem;">Raio-X Admin</h5>
+                <small class="text-white text-opacity-50" style="font-size: 0.7rem;">Territory Engine v3.0</small>
             </div>
         </div>
-        <div class="d-flex align-items-center gap-3">
-            <div class="period-selector d-flex gap-1">
-                <a href="?period=7d" class="btn {{ $period === '7d' ? 'active' : '' }}">7D</a>
-                <a href="?period=30d" class="btn {{ $period === '30d' ? 'active' : '' }}">30D</a>
-                <a href="?period=90d" class="btn {{ $period === '90d' ? 'active' : '' }}">90D</a>
+        <div class="d-flex align-items-center gap-2">
+            <div class="d-flex gap-1">
+                <a href="?period=7d" class="btn-period {{ $period === '7d' ? 'active' : '' }}">7D</a>
+                <a href="?period=30d" class="btn-period {{ $period === '30d' ? 'active' : '' }}">30D</a>
+                <a href="?period=90d" class="btn-period {{ $period === '90d' ? 'active' : '' }}">90D</a>
             </div>
-            <button class="btn btn-outline-light btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#actionsModal">
-                <i class="fas fa-server me-1"></i>Ações
+            <button class="btn btn-outline-light btn-sm rounded" data-bs-toggle="modal" data-bs-target="#actionsModal" style="font-size: 0.75rem;">
+                <i class="fas fa-cog"></i>
             </button>
-            <a href="{{ route('logout') }}" method="POST" class="btn btn-outline-light btn-sm rounded-pill">
-                <i class="fas fa-sign-out-alt me-1"></i>Sair
+            <a href="{{ route('logout') }}" class="btn btn-outline-light btn-sm rounded" style="font-size: 0.75rem;">
+                <i class="fas fa-sign-out-alt"></i>
             </a>
         </div>
     </div>
 </nav>
 
-<div class="container-fluid py-4 px-4">
+<div class="container-fluid p-3">
     @if($overviewStats['error_rate'] > 5)
-    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4 rounded-3">
+    <div class="alert alert-danger py-2 mb-3 d-flex align-items-center gap-2" style="font-size: 0.85rem; border-radius: 8px;">
         <i class="fas fa-exclamation-triangle"></i>
-        <span><strong>Alerta:</strong> Taxa de erro está em {{ $overviewStats['error_rate'] }}% - acima do threshold de 5%</span>
+        <span><strong>Alerta:</strong> Taxa de erro {{ $overviewStats['error_rate'] }}% (limite: 5%)</span>
     </div>
     @endif
 
     @if(!empty($queueMetrics['failed_jobs']) && $queueMetrics['failed_jobs'] > 0)
-    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4 rounded-3">
+    <div class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2" style="font-size: 0.85rem; border-radius: 8px;">
         <i class="fas fa-clock"></i>
-        <span><strong>Atenção:</strong> {{ $queueMetrics['failed_jobs'] }} jobs falharam e aguardam retry</span>
+        <span>{{ $queueMetrics['failed_jobs'] }} jobs falharam aguardando retry</span>
     </div>
     @endif
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card-metric">
+    <div class="row g-3 mb-3">
+        <div class="col-md-3 col-6">
+            <div class="metric-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="text-muted small fw-medium mb-1">Requisições</div>
-                        <div class="metric-value">{{ number_format($overviewStats['total_requests']) }}</div>
-                        <div class="metric-change {{ $overviewStats['requests_change'] >= 0 ? 'change-positive' : 'change-negative' }}">
+                        <div class="text-muted" style="font-size: 0.7rem;">Requisições</div>
+                        <div class="fw-bold" style="font-size: 1.5rem;">{{ number_format($overviewStats['total_requests']) }}</div>
+                        <div class="text-{{ $overviewStats['requests_change'] >= 0 ? 'success' : 'danger' }}" style="font-size: 0.7rem;">
                             <i class="fas fa-arrow-{{ $overviewStats['requests_change'] >= 0 ? 'up' : 'down' }}"></i>
-                            {{ abs($overviewStats['requests_change']) }}% vs período anterior
+                            {{ abs($overviewStats['requests_change']) }}%
                         </div>
                     </div>
-                    <div class="metric-icon bg-primary bg-opacity-10 text-primary">
-                        <i class="fas fa-sync-alt"></i>
+                    <div class="mini-stat-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-sync-alt" style="font-size: 0.9rem;"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card-metric">
+        <div class="col-md-3 col-6">
+            <div class="metric-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="text-muted small fw-medium mb-1">Tokens Consumidos</div>
-                        <div class="metric-value">{{ number_format($overviewStats['total_tokens']) }}</div>
-                        <div class="metric-change {{ $overviewStats['tokens_change'] >= 0 ? 'change-positive' : 'change-negative' }}">
+                        <div class="text-muted" style="font-size: 0.7rem;">Tokens</div>
+                        <div class="fw-bold" style="font-size: 1.5rem;">{{ number_format($overviewStats['total_tokens']) }}</div>
+                        <div class="text-{{ $overviewStats['tokens_change'] >= 0 ? 'success' : 'danger' }}" style="font-size: 0.7rem;">
                             <i class="fas fa-arrow-{{ $overviewStats['tokens_change'] >= 0 ? 'up' : 'down' }}"></i>
                             {{ abs($overviewStats['tokens_change']) }}%
                         </div>
                     </div>
-                    <div class="metric-icon bg-warning bg-opacity-10 text-warning">
-                        <i class="fas fa-coins"></i>
+                    <div class="mini-stat-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-coins" style="font-size: 0.9rem;"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card-metric">
+        <div class="col-md-3 col-6">
+            <div class="metric-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="text-muted small fw-medium mb-1">Tempo Médio</div>
-                        <div class="metric-value">{{ number_format($overviewStats['avg_response_time']) }}ms</div>
-                        <div class="metric-change change-neutral">por requisição</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Tempo Médio</div>
+                        <div class="fw-bold" style="font-size: 1.5rem;">{{ number_format($overviewStats['avg_response_time']) }}<span style="font-size: 0.7rem;">ms</span></div>
                     </div>
-                    <div class="metric-icon bg-info bg-opacity-10 text-info">
-                        <i class="fas fa-tachometer-alt"></i>
+                    <div class="mini-stat-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-tachometer-alt" style="font-size: 0.9rem;"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card-metric">
+        <div class="col-md-3 col-6">
+            <div class="metric-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <div class="text-muted small fw-medium mb-1">Taxa de Erro</div>
-                        <div class="metric-value {{ $overviewStats['error_rate'] > 5 ? 'text-danger' : 'text-success' }}">
-                            {{ $overviewStats['error_rate'] }}%
-                        </div>
-                        <div class="metric-change {{ $overviewStats['error_rate'] > 5 ? 'change-negative' : 'change-positive' }}">
-                            <i class="fas fa-{{ $overviewStats['error_rate'] > 5 ? 'exclamation-circle' : 'check-circle' }}"></i>
-                            {{ $overviewStats['error_rate'] > 5 ? 'Acima do limite' : 'Dentro do normal' }}
-                        </div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Taxa de Erro</div>
+                        <div class="fw-bold text-{{ $overviewStats['error_rate'] > 5 ? 'danger' : 'success' }}" style="font-size: 1.5rem;">{{ $overviewStats['error_rate'] }}%</div>
                     </div>
-                    <div class="metric-icon {{ $overviewStats['error_rate'] > 5 ? 'bg-danger' : 'bg-success' }} bg-opacity-10 text-{{ $overviewStats['error_rate'] > 5 ? 'danger' : 'success' }}">
-                        <i class="fas fa-{{ $overviewStats['error_rate'] > 5 ? 'exclamation-triangle' : 'shield-check' }}"></i>
+                    <div class="mini-stat-icon {{ $overviewStats['error_rate'] > 5 ? 'bg-danger' : 'bg-success' }} bg-opacity-10 text-{{ $overviewStats['error_rate'] > 5 ? 'danger' : 'success' }}">
+                        <i class="fas fa-{{ $overviewStats['error_rate'] > 5 ? 'exclamation-triangle' : 'check' }}" style="font-size: 0.9rem;"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-2">
-            <div class="card-metric text-center">
-                <div class="metric-icon bg-primary bg-opacity-10 text-primary mx-auto mb-2">
-                    <i class="fas fa-map-marked-alt"></i>
-                </div>
-                <div class="metric-value">{{ number_format($lifetimeStats['total_reports']) }}</div>
-                <div class="text-muted small">Relatórios</div>
-                <div class="text-success small fw-medium">+{{ $lifetimeStats['reports_today'] }} hoje</div>
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-2">
+            <div class="mini-stat">
+                <div class="mini-stat-icon bg-primary bg-opacity-10 text-primary"><i class="fas fa-map-marked-alt"></i></div>
+                <div class="mini-stat-value">{{ number_format($lifetimeStats['total_reports']) }}</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Relatórios</div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card-metric text-center">
-                <div class="metric-icon bg-warning bg-opacity-10 text-warning mx-auto mb-2">
-                    <i class="fas fa-bolt"></i>
-                </div>
-                <div class="metric-value">{{ number_format($lifetimeStats['total_duels']) }}</div>
-                <div class="text-muted small">Duelos</div>
-                <div class="text-success small fw-medium">+{{ $lifetimeStats['duels_today'] }} hoje</div>
+        <div class="col-6 col-md-2">
+            <div class="mini-stat">
+                <div class="mini-stat-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-bolt"></i></div>
+                <div class="mini-stat-value">{{ number_format($lifetimeStats['total_duels']) }}</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Duelos</div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card-metric text-center">
-                <div class="metric-icon bg-info bg-opacity-10 text-info mx-auto mb-2">
-                    <i class="fas fa-database"></i>
-                </div>
-                <div class="metric-value">{{ number_format($lifetimeStats['total_tokens_ever']) }}</div>
-                <div class="text-muted small">Tokens Total</div>
+        <div class="col-6 col-md-2">
+            <div class="mini-stat">
+                <div class="mini-stat-icon bg-success bg-opacity-10 text-success"><i class="fas fa-dollar-sign"></i></div>
+                <div class="mini-stat-value" style="font-size: 1rem;">${{ number_format($lifetimeStats['estimated_cost_usd'], 2) }}</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Custo Total</div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card-metric text-center">
-                <div class="metric-icon bg-success bg-opacity-10 text-success mx-auto mb-2">
-                    <i class="fas fa-dollar-sign"></i>
-                </div>
-                <div class="metric-value">${{ number_format($lifetimeStats['estimated_cost_usd'], 2) }}</div>
-                <div class="text-muted small">Custo Est.</div>
+        <div class="col-6 col-md-2">
+            <div class="mini-stat">
+                <div class="mini-stat-icon bg-success bg-opacity-10 text-success"><i class="fas fa-check-circle"></i></div>
+                <div class="mini-stat-value">{{ number_format($reportStatus['completed']) }}</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Concluídos</div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card-metric text-center">
-                <div class="metric-icon bg-purple bg-opacity-10 mx-auto mb-2" style="color: #7c3aed;">
-                    <i class="fas fa-project-diagram"></i>
-                </div>
-                <div class="metric-value">{{ number_format($reportStatus['completed']) }}</div>
-                <div class="text-muted small">Concluídos</div>
+        <div class="col-6 col-md-2">
+            <div class="mini-stat">
+                <div class="mini-stat-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-clock"></i></div>
+                <div class="mini-stat-value">{{ $queueMetrics['pending_jobs'] ?? 0 }}</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Jobs Pend.</div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card-metric text-center">
-                <div class="metric-icon bg-danger bg-opacity-10 text-danger mx-auto mb-2">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="metric-value">{{ $queueMetrics['pending_jobs'] ?? 0 }}</div>
-                <div class="text-muted small">Jobs Pendentes</div>
+        <div class="col-6 col-md-2">
+            <div class="mini-stat">
+                <div class="mini-stat-icon bg-danger bg-opacity-10 text-danger"><i class="fas fa-times-circle"></i></div>
+                <div class="mini-stat-value">{{ $reportStatus['failed'] }}</div>
+                <div class="text-muted" style="font-size: 0.65rem;">Falhas</div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-3">
         <div class="col-lg-8">
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-chart-line me-2"></i>Volume de Requisições</h6>
-                    <small class="text-muted">{{ ucfirst($period) }}</small>
-                </div>
-                <div class="p-3">
-                    <div class="chart-container">
-                        <canvas id="requestsChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-tasks me-2"></i>Performance por Agente</h6>
-                </div>
-                <div class="p-3">
-                    <div class="table-responsive">
-                        <table class="table table-admin">
-                            <thead>
-                                <tr>
-                                    <th>Agente</th>
-                                    <th>Requisições</th>
-                                    <th>Tempo Médio</th>
-                                    <th>Tokens</th>
-                                    <th>Sucesso</th>
-                                    <th>Taxa Erro</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($agentPerformance as $agent)
-                                <tr>
-                                    <td><span class="badge bg-primary">{{ $agent['agent_name'] }}</span></td>
-                                    <td>{{ number_format($agent['count']) }}</td>
-                                    <td>{{ number_format($agent['avg_time']) }}ms</td>
-                                    <td>{{ number_format($agent['tokens']) }}</td>
-                                    <td>
-                                        <span class="badge badge-success">{{ number_format($agent['success']) }}</span>
-                                    </td>
-                                    <td>
-                                        @php $agentErrorRate = $agent['count'] > 0 ? round(($agent['fails'] / $agent['count']) * 100, 1) : 0; @endphp
-                                        <span class="badge {{ $agentErrorRate > 5 ? 'badge-failed' : 'badge-success' }}">
-                                            {{ $agentErrorRate }}%
-                                        </span>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr><td colspan="6" class="text-center text-muted">Nenhum dado disponível</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card-section">
-                        <div class="card-section-header">
-                            <h6 class="card-section-title"><i class="fas fa-map me-2"></i>Top Cidades</h6>
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <span><i class="fas fa-chart-line me-1"></i> Volume de Requisições</span>
+                            <small class="text-muted">{{ ucfirst($period) }}</small>
                         </div>
-                        <div class="p-3">
+                        <div class="p-2">
+                            <div class="chart-box">
+                                <canvas id="requestsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <span><i class="fas fa-microchip me-1"></i> Performance por Agente</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Agente</th>
+                                        <th class="text-end">Req</th>
+                                        <th class="text-end hide-mobile">Tempo</th>
+                                        <th class="text-end">Erro</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($agentPerformance as $agent)
+                                    <tr>
+                                        <td><span class="badge bg-primary" style="font-size: 0.65rem;">{{ $agent['agent_name'] }}</span></td>
+                                        <td class="text-end">{{ number_format($agent['count']) }}</td>
+                                        <td class="text-end hide-mobile">{{ number_format($agent['avg_time']) }}ms</td>
+                                        <td class="text-end">
+                                            @php $agentErrorRate = $agent['count'] > 0 ? round(($agent['fails'] / $agent['count']) * 100, 1) : 0; @endphp
+                                            <span class="badge {{ $agentErrorRate > 5 ? 'bg-danger' : 'bg-success' }}" style="font-size: 0.65rem;">
+                                                {{ $agentErrorRate }}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="4" class="text-center text-muted">Sem dados</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <span><i class="fas fa-map me-1"></i> Top Cidades</span>
+                        </div>
+                        <div class="p-2">
                             @forelse($topLocations as $index => $location)
-                            <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-light text-dark" style="min-width: 24px;">{{ $index + 1 }}</span>
+                            <div class="rank-item">
+                                <div class="d-flex align-items-center">
+                                    <span class="rank-num">{{ $index + 1 }}</span>
                                     <span class="fw-medium">{{ $location['cidade'] }}</span>
-                                    <span class="text-muted small">{{ $location['uf'] }}</span>
+                                    <span class="text-muted ms-1" style="font-size: 0.7rem;">{{ $location['uf'] }}</span>
                                 </div>
-                                <span class="badge bg-primary">{{ number_format($location['count']) }}</span>
+                                <span class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ number_format($location['count']) }}</span>
                             </div>
                             @empty
-                            <div class="text-center text-muted py-3">Sem dados</div>
+                            <div class="text-center text-muted py-3" style="font-size: 0.8rem;">Sem dados</div>
                             @endforelse
                         </div>
                     </div>
                 </div>
+
                 <div class="col-md-6">
-                    <div class="card-section">
-                        <div class="card-section-header">
-                            <h6 class="card-section-title"><i class="fas fa-fire me-2"></i>Top CEPs</h6>
+                    <div class="section-card">
+                        <div class="section-header">
+                            <span><i class="fas fa-fire me-1"></i> Top CEPs</span>
                         </div>
-                        <div class="p-3">
+                        <div class="p-2">
                             @forelse($topCeps as $index => $cep)
-                            <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                            <div class="rank-item">
                                 <div>
-                                    <span class="fw-mono fw-medium">{{ substr($cep['cep'], 0, 5) }}-{{ substr($cep['cep'], 5) }}</span>
-                                    <div class="small text-muted">{{ $cep['cidade'] }}, {{ $cep['uf'] }}</div>
+                                    <span class="fw-mono" style="font-size: 0.8rem;">{{ substr($cep['cep'], 0, 5) }}-{{ substr($cep['cep'], 5) }}</span>
+                                    <span class="text-muted ms-1" style="font-size: 0.65rem;">{{ $cep['cidade'] }}</span>
                                 </div>
-                                <span class="badge bg-warning text-dark">{{ number_format($cep['views']) }}</span>
+                                <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">{{ number_format($cep['views']) }}</span>
                             </div>
                             @empty
-                            <div class="text-center text-muted py-3">Sem dados</div>
+                            <div class="text-center text-muted py-3" style="font-size: 0.8rem;">Sem dados</div>
                             @endforelse
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <span><i class="fas fa-chart-pie me-1"></i> Uso por Modelo</span>
+                        </div>
+                        <div class="p-2">
+                            <div class="chart-box" style="height: 140px;">
+                                <canvas id="modelChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -479,168 +447,121 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-key me-2"></i>API Keys</h6>
+            <div class="section-card mb-3">
+                <div class="section-header">
+                    <span><i class="fas fa-key me-1"></i> API Keys</span>
+                    <span class="badge bg-light text-dark" style="font-size: 0.6rem;">{{ count($apiKeysStatus) }}</span>
                 </div>
-                <div class="p-3">
+                <div class="p-2">
                     @forelse($apiKeysStatus as $key)
-                    <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                    <div class="d-flex justify-content-between align-items-center py-1" style="border-bottom: 1px solid #f1f5f9;">
                         <div>
-                            <div class="fw-medium small">{{ $key['provider'] }}</div>
-                            <div class="text-muted" style="font-size: 10px;">Final ...{{ $key['key_preview'] }}</div>
-                            <div class="small text-muted">{{ $key['usage_24h'] }} uso/24h</div>
+                            <div class="fw-medium" style="font-size: 0.8rem;">{{ $key['provider'] }}</div>
+                            <div class="text-muted" style="font-size: 0.65rem;">...{{ $key['key_preview'] }} • {{ $key['usage_24h'] }}/24h</div>
                         </div>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-1">
                             <span class="badge-status badge-{{ $key['status'] }}">{{ strtoupper($key['status']) }}</span>
-                            <button class="btn btn-outline-secondary btn-action btn-reset" data-id="{{ $key['id'] }}" title="Resetar cooldown">
+                            <button class="btn btn-outline-secondary action-btn btn-reset" data-id="{{ $key['id'] }}" title="Resetar">
                                 <i class="fas fa-redo"></i>
                             </button>
                         </div>
                     </div>
                     @empty
-                    <div class="text-center text-muted py-3">Nenhuma chave configurada</div>
+                    <div class="text-center text-muted py-3" style="font-size: 0.8rem;">Nenhuma chave</div>
                     @endforelse
                 </div>
             </div>
 
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-chart-pie me-2"></i>Uso por Modelo</h6>
+            <div class="section-card mb-3">
+                <div class="section-header">
+                    <span><i class="fas fa-tachometer-alt me-1"></i> Rate Limits</span>
                 </div>
-                <div class="p-3">
-                    <div class="chart-container-sm">
-                        <canvas id="modelChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-dollar-sign me-2"></i>Projeção de Custos</h6>
-                </div>
-                <div class="p-3">
-                    <div class="info-item">
-                        <span class="info-label">Tokens ({{ ucfirst($period) }})</span>
-                        <span class="info-value">{{ number_format($costProjection['tokens_last_7d']) }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Média Diária</span>
-                        <span class="info-value">{{ number_format($costProjection['daily_average']) }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Custo/Dia</span>
-                        <span class="info-value text-success">${{ $costProjection['cost_per_day'] }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Projeção Mensal</span>
-                        <span class="info-value text-warning">${{ $costProjection['projected_monthly_cost'] }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Tokens Mensais</span>
-                        <span class="info-value">{{ number_format($costProjection['projected_monthly_tokens']) }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-tachometer-alt me-2"></i>Rate Limits</h6>
-                </div>
-                <div class="p-3">
+                <div class="p-2">
                     @foreach($rateLimits as $key => $limit)
-                    <div class="mb-3">
+                    <div class="mb-2">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="small fw-medium">{{ $limit['name'] }}</span>
-                            <span class="small text-muted">{{ $limit['used'] }}/{{ $limit['max'] }}</span>
+                            <span style="font-size: 0.75rem;">{{ $limit['name'] }}</span>
+                            <span class="text-muted" style="font-size: 0.65rem;">{{ $limit['used'] }}/{{ $limit['max'] }}</span>
                         </div>
-                        <div class="progress-rate">
-                            <div class="progress-bar-usage {{ $limit['is_limited'] ? 'bg-danger' : 'bg-primary' }}"
-                                 style="width: {{ $limit['percentage'] }}%"></div>
+                        <div class="progress-bar-custom">
+                            <div class="progress-bar bg-{{ $limit['is_limited'] ? 'danger' : 'primary' }}" style="width: {{ $limit['percentage'] }}%"></div>
                         </div>
                     </div>
                     @endforeach
                 </div>
             </div>
 
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-server me-2"></i>Infraestrutura</h6>
+            <div class="section-card mb-3">
+                <div class="section-header">
+                    <span><i class="fas fa-dollar-sign me-1"></i> Projeção de Custos</span>
                 </div>
-                <div class="p-3">
-                    <div class="info-item">
+                <div class="p-2">
+                    <div class="info-row">
+                        <span class="info-label">Custo/Dia</span>
+                        <span class="info-value text-success">${{ $costProjection['cost_per_day'] }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Proj. Mensal</span>
+                        <span class="info-value text-warning">${{ $costProjection['projected_monthly_cost'] }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Tokens/Mês</span>
+                        <span class="info-value">{{ number_format($costProjection['projected_monthly_tokens']) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card mb-3">
+                <div class="section-header">
+                    <span><i class="fas fa-server me-1"></i> Sistema</span>
+                </div>
+                <div class="p-2">
+                    <div class="info-row">
                         <span class="info-label">App</span>
                         <span class="info-value">v{{ $systemInfo['app_version'] }}</span>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Laravel</span>
-                        <span class="info-value">v{{ $systemInfo['laravel_version'] }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">PHP</span>
+                    <div class="info-row">
+                        <span class="info-label">PHP/Laravel</span>
                         <span class="info-value">v{{ $systemInfo['php_version'] }}</span>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Cache</span>
-                        <span class="info-value">{{ $systemInfo['cache_driver'] }}</span>
+                    <div class="info-row">
+                        <span class="info-label">Cache/Queue</span>
+                        <span class="info-value">{{ $systemInfo['cache_driver'] }}/{{ $systemInfo['queue_driver'] }}</span>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Queue</span>
-                        <span class="info-value">{{ $systemInfo['queue_driver'] }}</span>
-                    </div>
-                    <div class="info-item">
+                    <div class="info-row">
                         <span class="info-label">Debug</span>
                         <span class="info-value">
-                            @if($systemInfo['debug_mode'])
-                                <span class="badge badge-failed">ON</span>
-                            @else
-                                <span class="badge badge-success">OFF</span>
-                            @endif
+                            <span class="badge bg-{{ $systemInfo['debug_mode'] ? 'danger' : 'success' }}" style="font-size: 0.6rem;">
+                                {{ $systemInfo['debug_mode'] ? 'ON' : 'OFF' }}
+                            </span>
                         </span>
                     </div>
-                </div>
-            </div>
-
-            @if(!empty($cacheMetrics['stats']))
-            <div class="card-section mb-4">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-memory me-2"></i>Cache Redis</h6>
-                </div>
-                <div class="p-3">
-                    <div class="info-item">
-                        <span class="info-label">Memória</span>
+                    @if(!empty($cacheMetrics['stats']))
+                    <div class="info-row">
+                        <span class="info-label">Redis Mem</span>
                         <span class="info-value">{{ $cacheMetrics['stats']['used_memory'] ?? 'N/A' }}</span>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Clientes</span>
-                        <span class="info-value">{{ $cacheMetrics['stats']['connected_clients'] ?? 0 }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Hit Rate</span>
-                        <span class="info-value {{ ($cacheMetrics['hit_rate'] ?? 0) > 80 ? 'text-success' : 'text-warning' }}">
-                            {{ $cacheMetrics['hit_rate'] ?? 'N/A' }}%
-                        </span>
-                    </div>
+                    @endif
                 </div>
             </div>
-            @endif
 
-            <div class="card-section">
-                <div class="card-section-header">
-                    <h6 class="card-section-title"><i class="fas fa-history me-2"></i>Logs Recentes</h6>
+            <div class="section-card">
+                <div class="section-header">
+                    <span><i class="fas fa-history me-1"></i> Logs Recentes</span>
+                    <small class="text-muted">{{ $recentLogs->count() }}</small>
                 </div>
-                <div class="p-0">
-                    <table class="table table-admin mb-0">
+                <div class="table-responsive" style="max-height: 200px;">
+                    <table class="table table-sm mb-0">
                         <tbody>
                             @foreach($recentLogs as $log)
                             <tr>
                                 <td>
-                                    <div class="small fw-medium">{{ $log->created_at->format('H:i:s') }}</div>
-                                    <div class="small text-muted">{{ $log->agent_name }}</div>
+                                    <div style="font-size: 0.75rem;">{{ $log->created_at->format('H:i:s') }}</div>
+                                    <div class="text-muted" style="font-size: 0.65rem;">{{ $log->agent_name }}</div>
                                 </td>
-                                <td>
-                                    <div class="small">{{ $log->model }}</div>
-                                    <div class="small text-muted">{{ $log->provider }}</div>
+                                <td class="hide-mobile">
+                                    <div style="font-size: 0.75rem;">{{ $log->model }}</div>
+                                    <div class="text-muted" style="font-size: 0.65rem;">{{ $log->provider }}</div>
                                 </td>
                                 <td class="text-end">
                                     @if($log->status === 'success')
@@ -659,30 +580,30 @@
     </div>
 </div>
 
-<div class="modal fade" id="actionsModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="actionsModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-server me-2"></i>Ações Administrativas</h5>
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="fas fa-cog me-1"></i>Ações</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary btn-action-admin" data-action="clear-cache">
-                        <i class="fas fa-broom me-2"></i>Limpar Cache
+            <div class="modal-body py-2">
+                <div class="d-grid gap-1">
+                    <button class="btn btn-outline-primary btn-sm btn-action-admin" data-action="clear-cache">
+                        <i class="fas fa-broom me-1"></i>Limpar Cache
                     </button>
-                    <button class="btn btn-outline-warning btn-action-admin" data-action="clear-cooldowns">
-                        <i class="fas fa-clock me-2"></i>Limpar Cooldowns de IA
+                    <button class="btn btn-outline-warning btn-sm btn-action-admin" data-action="clear-cooldowns">
+                        <i class="fas fa-clock me-1"></i>Limpar Cooldowns
                     </button>
-                    <button class="btn btn-outline-info btn-action-admin" data-action="restart-queue">
-                        <i class="fas fa-redo me-2"></i>Reiniciar Fila
+                    <button class="btn btn-outline-info btn-sm btn-action-admin" data-action="restart-queue">
+                        <i class="fas fa-redo me-1"></i>Reiniciar Fila
                     </button>
-                    <button class="btn btn-outline-danger btn-action-admin" data-action="clear-failed">
-                        <i class="fas fa-trash me-2"></i>Limpar Jobs Falhados
+                    <button class="btn btn-outline-danger btn-sm btn-action-admin" data-action="clear-failed">
+                        <i class="fas fa-trash me-1"></i>Limpar Falhas
                     </button>
-                    <hr>
-                    <a href="{{ route('admin.export') }}?period={{ $period }}" class="btn btn-success">
-                        <i class="fas fa-download me-2"></i>Exportar Logs (CSV)
+                    <hr class="my-1">
+                    <a href="{{ route('admin.export') }}?period={{ $period }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-download me-1"></i>Exportar CSV
                     </a>
                 </div>
             </div>
@@ -697,20 +618,18 @@ const dailyLabels = {!! json_encode(array_keys($dailyRequests)) !!}.map(d => {
     return parts.length === 3 ? `${parts[2]}/${parts[1]}` : d;
 });
 
-const ctx = document.getElementById('requestsChart').getContext('2d');
-new Chart(ctx, {
+new Chart(document.getElementById('requestsChart'), {
     type: 'line',
     data: {
         labels: dailyLabels,
         datasets: [{
-            label: 'Requisições',
             data: dailyData,
             borderColor: '#6366f1',
             backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            borderWidth: 3,
+            borderWidth: 2,
             fill: true,
             tension: 0.4,
-            pointRadius: 4,
+            pointRadius: 3,
             pointBackgroundColor: '#6366f1'
         }]
     },
@@ -729,63 +648,39 @@ const modelData = {!! json_encode(collect($modelUsage)->take(5)->pluck('count')-
 const modelLabels = {!! json_encode(collect($modelUsage)->take(5)->pluck('model')->toArray()) !!};
 const modelColors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
-const ctx2 = document.getElementById('modelChart').getContext('2d');
-new Chart(ctx2, {
+new Chart(document.getElementById('modelChart'), {
     type: 'doughnut',
     data: {
         labels: modelLabels,
-        datasets: [{
-            data: modelData,
-            backgroundColor: modelColors,
-            borderWidth: 0
-        }]
+        datasets: [{ data: modelData, backgroundColor: modelColors, borderWidth: 0 }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                position: 'right',
-                labels: { boxWidth: 12, padding: 10, font: { size: 11 } }
-            }
+            legend: { position: 'bottom', labels: { boxWidth: 10, padding: 5, font: { size: 10 } } }
         }
     }
 });
 
 document.querySelectorAll('.btn-reset').forEach(btn => {
     btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
         try {
-            const res = await fetch(`/admin/api-keys/${id}/reset`, { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                location.reload();
-            }
-        } catch (e) {
-            alert('Erro ao resetar chave');
-        }
+            const res = await fetch(`/admin/api-keys/${btn.dataset.id}/reset`, { method: 'POST' });
+            if (res.ok) location.reload();
+        } catch (e) { alert('Erro ao resetar'); }
     });
 });
 
 document.querySelectorAll('.btn-action-admin').forEach(btn => {
     btn.addEventListener('click', async () => {
-        const action = btn.dataset.action;
-        let url = '/admin/action/' + action;
-        
-        if (!confirm('Tem certeza que deseja executar esta ação?')) return;
-        
+        if (!confirm('Executar ação?')) return;
         try {
-            const res = await fetch(url, { method: 'POST' });
+            const res = await fetch('/admin/action/' + btn.dataset.action, { method: 'POST' });
             const data = await res.json();
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Erro: ' + data.message);
-            }
-        } catch (e) {
-            alert('Erro ao executar ação');
-        }
+            alert(data.message);
+            if (data.success) location.reload();
+        } catch (e) { alert('Erro'); }
     });
 });
 
