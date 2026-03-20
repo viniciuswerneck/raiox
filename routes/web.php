@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CompareController;
+use App\Http\Controllers\RankingController;
+use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -10,6 +15,10 @@ Route::get('/', function () {
 
 Route::get('/health', [HealthController::class, 'index'])->name('health');
 Route::get('/health/simple', [HealthController::class, 'simple'])->name('health.simple');
+
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 Route::get('/robots.txt', [SitemapController::class, 'robots']);
@@ -31,10 +40,8 @@ Route::get('/api/report-data/{cep}', function ($cep) {
 
 // Rota para disparar a fila manualmente no local (Simulando o Cron)
 Route::get('/api/trigger-queue', function () {
-    // Aumenta o tempo para o worker web não morrer prematuramente
     set_time_limit(180);
 
-    // Evita múltiplos disparos simultâneos (lock simples de 60s)
     $lockKey = 'queue_trigger_lock';
     if (\Illuminate\Support\Facades\Cache::has($lockKey)) {
         return response()->json(['message' => 'Fila já está sendo processada por outro gatilho.']);
@@ -62,16 +69,6 @@ Route::get('/api/trigger-queue', function () {
 Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/explorar', [RankingController::class, 'index'])->name('ranking.index');
     Route::get('/suggestions', [ReportController::class, 'suggestions'])->name('suggestions');
-});
-
-// Rotas de Autenticação
-use App\Http\Controllers\Auth\LoginController;
-
-Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login']);
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
-Route::middleware(['throttle:60,1'])->group(function () {
     Route::post('/search', [ReportController::class, 'search'])->name('search');
     Route::post('/report/{cep}/reprocess-narrative', [ReportController::class, 'reprocessNarrative'])->name('report.reprocess');
     Route::get('/cep/{cep}', [ReportController::class, 'show'])->name('report.show');
@@ -101,16 +98,9 @@ Route::middleware(['throttle:60,1'])->group(function () {
 // Rota para Limpeza Geral (Útil para Produção/Hostinger)
 Route::get('/clear-cache', function () {
     try {
-        // 1. Limpa o Cache da Aplicação
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
-
-        // 2. Limpa o Cache de Configuração
         \Illuminate\Support\Facades\Artisan::call('config:clear');
-
-        // 3. Limpa o Cache das Views
         \Illuminate\Support\Facades\Artisan::call('view:clear');
-
-        // 3. Libera todas as chaves de IA do "castigo" (cooldown)
         \App\Models\AiKey::query()->update(['cooldown_until' => null]);
 
         return response()->json([
