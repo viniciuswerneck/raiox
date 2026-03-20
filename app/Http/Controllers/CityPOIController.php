@@ -19,13 +19,13 @@ class CityPOIController extends Controller
     public function getPOIsByCategory(string $slug, Request $request)
     {
         $city = City::where('slug', $slug)->first();
-        
-        if (!$city) {
+
+        if (! $city) {
             return response()->json(['error' => 'City not found'], 404);
         }
 
         $category = trim($request->query('category'));
-        if (!$category) {
+        if (! $category) {
             return response()->json(['error' => 'Category is required'], 400);
         }
 
@@ -97,7 +97,7 @@ class CityPOIController extends Controller
             'viewpoint' => 'Mirantes/Turismo',
             'stadium' => 'Esportes/Estádios',
             'sports_centre' => 'Centros Esportivos',
-            'swimming_pool' => 'Lazer Aquático'
+            'swimming_pool' => 'Lazer Aquático',
         ];
 
         // Mapeamento de Atalhos (Dashboard Widgets)
@@ -106,7 +106,7 @@ class CityPOIController extends Controller
             'Saúde' => ['Saúde (Hospitais)', 'Clínicas Médicas'],
             'Educação' => ['Educação', 'Educação Infantil'],
             'Mercados' => 'Supermercados',
-            'Farmácias' => 'Farmácias'
+            'Farmácias' => 'Farmácias',
         ];
 
         $cacheKey = "city_pois_full_list_{$city->slug}";
@@ -127,14 +127,17 @@ class CityPOIController extends Controller
                 foreach ($reports as $report) {
                     if (is_array($report->pois_json)) {
                         foreach ($report->pois_json as $poi) {
-                            $poiId = ($poi['type'] ?? '') . '_' . ($poi['id'] ?? '');
-                            if (in_array($poiId, $processedPoisIds)) continue;
+                            $poiId = ($poi['type'] ?? '').'_'.($poi['id'] ?? '');
+                            if (in_array($poiId, $processedPoisIds)) {
+                                continue;
+                            }
                             $processedPoisIds[] = $poiId;
                             $list[] = $poi;
                         }
                     }
                 }
             }
+
             return $list;
         });
 
@@ -146,21 +149,28 @@ class CityPOIController extends Controller
                     $osmVal = $tags[$key];
                     $type = $tagMap[$osmVal] ?? null;
                     if ($type) {
-                        if (strcasecmp(trim($type), $category) === 0) return true;
-                        
+                        if (strcasecmp(trim($type), $category) === 0) {
+                            return true;
+                        }
+
                         $shortcut = $shortcutMap[$category] ?? null;
                         if ($shortcut) {
                             if (is_array($shortcut)) {
                                 foreach ($shortcut as $s) {
-                                    if (strcasecmp(trim($type), trim($s)) === 0) return true;
+                                    if (strcasecmp(trim($type), trim($s)) === 0) {
+                                        return true;
+                                    }
                                 }
                             } else {
-                                if (strcasecmp(trim($type), trim($shortcut)) === 0) return true;
+                                if (strcasecmp(trim($type), trim($shortcut)) === 0) {
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
             }
+
             return false;
         });
 
@@ -177,8 +187,10 @@ class CityPOIController extends Controller
             // Filtro de Segurança: Se temos as coordenadas da cidade, ignoramos o que estiver a mais de 20km do centro
             // Isso evita que o Hospital de Campo Limpo apareça para Jarinu
             if ($cityLat && $cityLng && $poiLat && $poiLng) {
-                $distance = $this->calculateDistance($cityLat, $cityLng, (float)$poiLat, (float)$poiLng);
-                if ($distance > 15) continue; // 15km do centro da cidade é um limite seguro para Jarinu
+                $distance = $this->calculateDistance($cityLat, $cityLng, (float) $poiLat, (float) $poiLng);
+                if ($distance > 15) {
+                    continue;
+                } // 15km do centro da cidade é um limite seguro para Jarinu
             }
 
             $results[] = [
@@ -187,26 +199,27 @@ class CityPOIController extends Controller
                 'number' => $tags['addr:housenumber'] ?? '',
                 'neighborhood' => $tags['addr:suburb'] ?? '',
                 'phone' => $tags['phone'] ?? ($tags['contact:phone'] ?? null),
-                'type' => $tags['amenity'] ?? ($tags['shop'] ?? ($tags['leisure'] ?? ($tags['tourism'] ?? 'outro')))
+                'type' => $tags['amenity'] ?? ($tags['shop'] ?? ($tags['leisure'] ?? ($tags['tourism'] ?? 'outro'))),
             ];
         }
 
-        \Illuminate\Support\Facades\Log::info("CityPOI Modal: Category '$category' found " . count($results) . " items in " . $city->name);
+        \Illuminate\Support\Facades\Log::info("CityPOI Modal: Category '$category' found ".count($results).' items in '.$city->name);
 
         return response()->json([
             'category' => $category,
             'count' => count($results),
-            'items' => $results
+            'items' => $results,
         ]);
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
         $theta = $lon1 - $lon2;
-        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
         $dist = acos($dist);
         $dist = rad2deg($dist);
         $miles = $dist * 60 * 1.1515;
-        return ($miles * 1.609344);
+
+        return $miles * 1.609344;
     }
 }

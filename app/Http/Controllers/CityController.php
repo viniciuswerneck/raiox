@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\City;
 use App\Models\LocationReport;
 use App\Services\CityDashboard\CityDashboardService;
-use Illuminate\Http\Request;
 
 class CityController extends Controller
 {
     protected $cityService;
+
     protected $integrity;
 
     public function __construct(CityDashboardService $cityService, \App\Services\Agents\IntegrityAgent $integrity)
@@ -22,7 +22,7 @@ class CityController extends Controller
     {
         $city = City::where('slug', $slug)->firstOrFail();
 
-        $isFirstLoad = !$city->history_extract || empty($city->stats_cache);
+        $isFirstLoad = ! $city->history_extract || empty($city->stats_cache);
 
         if ($isFirstLoad) {
             // Primeiro carregamento: Auditoria profunda síncrona para não mostrar página vazia
@@ -54,7 +54,7 @@ class CityController extends Controller
             'image_url' => null,
             'stats_cache' => null,
             'last_calculated_at' => null,
-            'wiki_json' => null
+            'wiki_json' => null,
         ]);
 
         return redirect()->route('city.show', $slug);

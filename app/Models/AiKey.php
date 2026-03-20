@@ -12,13 +12,13 @@ class AiKey extends Model
         'key',
         'is_active',
         'last_used_at',
-        'cooldown_until'
+        'cooldown_until',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'last_used_at' => 'datetime',
-        'cooldown_until' => 'datetime'
+        'cooldown_until' => 'datetime',
     ];
 
     public function logs()

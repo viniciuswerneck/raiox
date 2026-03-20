@@ -23,7 +23,7 @@ return new class extends Migration
             $table->json('wiki_json')->nullable();
             $table->json('raw_ibge_data')->nullable();
             $table->timestamps();
-            
+
             $table->unique(['uf', 'name']);
         });
     }

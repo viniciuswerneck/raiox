@@ -2,12 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\File;
 use App\Jobs\ProcessCepJob;
-use Illuminate\Support\Str;
 use App\Models\LocationReport;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class SeedCityCeps extends Command
 {
@@ -31,21 +30,23 @@ class SeedCityCeps extends Command
     public function handle()
     {
         $city = $this->argument('city');
-        $fileName = Str::slug($city, '_') . '_ceps.json';
-        
-        $filePath = storage_path('app/' . $fileName);
+        $fileName = Str::slug($city, '_').'_ceps.json';
 
-        if (!File::exists($filePath)) {
-            $this->error("Erro: Arquivo base não encontrado.");
-            $this->line("Execute o script Python primeiro:");
-            $this->info("python scripts/fetch_ceps.py");
+        $filePath = storage_path('app/'.$fileName);
+
+        if (! File::exists($filePath)) {
+            $this->error('Erro: Arquivo base não encontrado.');
+            $this->line('Execute o script Python primeiro:');
+            $this->info('python scripts/fetch_ceps.py');
+
             return 1;
         }
 
         $ceps = json_decode(File::get($filePath), true);
 
         if (empty($ceps)) {
-            $this->error("O arquivo está vazio ou não possui CEPs válidos.");
+            $this->error('O arquivo está vazio ou não possui CEPs válidos.');
+
             return 1;
         }
 
@@ -61,12 +62,13 @@ class SeedCityCeps extends Command
         $missingCeps = array_diff($cleanCeps, $existingCeps);
 
         if (empty($missingCeps)) {
-            $this->info("Todos os " . count($cleanCeps) . " CEPs já existem no banco de dados. Nenhum trabalho necessário.");
+            $this->info('Todos os '.count($cleanCeps).' CEPs já existem no banco de dados. Nenhum trabalho necessário.');
+
             return 0;
         }
 
-        $this->info("Encontrados " . count($cleanCeps) . " CEPs. Destes, " . count($missingCeps) . " são novos e serão processados.");
-        
+        $this->info('Encontrados '.count($cleanCeps).' CEPs. Destes, '.count($missingCeps).' são novos e serão processados.');
+
         $dispatched = 0;
         $bar = $this->output->createProgressBar(count($missingCeps));
         $bar->start();
@@ -80,11 +82,11 @@ class SeedCityCeps extends Command
         }
 
         $bar->finish();
-        
+
         $this->newLine(2);
         $this->info("Carga de {$dispatched} CEPs enviada para o servidor de Filas com sucesso!");
-        $this->line("Os jobs estão rodando em background para proteger o limite da API do Gemini.");
-        $this->line("Para processá-los, certifique-se de estar rodando: php artisan queue:work");
+        $this->line('Os jobs estão rodando em background para proteger o limite da API do Gemini.');
+        $this->line('Para processá-los, certifique-se de estar rodando: php artisan queue:work');
 
         return 0;
     }

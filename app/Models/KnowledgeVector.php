@@ -30,14 +30,15 @@ class KnowledgeVector extends Model
         $dotProduct = 0;
         $normA = 0;
         $normB = 0;
-        
+
         foreach ($vec1 as $i => $val) {
             $dotProduct += $val * ($vec2[$i] ?? 0);
             $normA += $val * $val;
             $normB += ($vec2[$i] ?? 0) * ($vec2[$i] ?? 0);
         }
-        
+
         $divisor = sqrt($normA) * sqrt($normB);
+
         return $divisor == 0 ? 0 : $dotProduct / $divisor;
     }
 
@@ -50,6 +51,7 @@ class KnowledgeVector extends Model
         foreach ($vector as $val) {
             $sum += $val * $val;
         }
+
         return sqrt($sum);
     }
 }

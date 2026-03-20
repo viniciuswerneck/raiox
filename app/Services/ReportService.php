@@ -8,6 +8,7 @@ use Carbon\Carbon;
 class ReportService
 {
     protected $viaCep;
+
     protected $ibge;
 
     public function __construct(ViaCepService $viaCep, IbgeService $ibge)
@@ -22,7 +23,7 @@ class ReportService
     public function getReportByCep(string $cep): ?LocationReport
     {
         $cepClean = preg_replace('/\D/', '', $cep);
-        
+
         // 1. Check cache (max 30 days old)
         $report = LocationReport::where('cep', $cepClean)->first();
 
@@ -33,7 +34,7 @@ class ReportService
         // 2. Refresh or Create new cache entry
         //    a. Get from ViaCEP
         $address = $this->viaCep->getAddressByCep($cepClean);
-        if (!$address) {
+        if (! $address) {
             return null;
         }
 

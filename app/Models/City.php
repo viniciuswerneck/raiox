@@ -29,7 +29,7 @@ class City extends Model
         parent::boot();
         static::saving(function ($city) {
             if (empty($city->slug)) {
-                $city->slug = Str::slug($city->name . '-' . $city->uf);
+                $city->slug = Str::slug($city->name.'-'.$city->uf);
             }
         });
     }

@@ -1,6 +1,7 @@
 <?php
-require __DIR__ . '/vendor/autoload.php';
-$app = require_once __DIR__ . '/bootstrap/app.php';
+
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Models\City;
@@ -32,7 +33,7 @@ $tagMap = [
     'florist' => 'Floriculturas', 'butcher' => 'Açougues', 'hotel' => 'Hospedagem (Hoteis)',
     'motel' => 'Hospedagem (Moteis)', 'museum' => 'Cultura/Museus', 'attraction' => 'Pontos Turísticos',
     'viewpoint' => 'Mirantes/Turismo', 'stadium' => 'Esportes/Estádios', 'sports_centre' => 'Centros Esportivos',
-    'swimming_pool' => 'Lazer Aquático'
+    'swimming_pool' => 'Lazer Aquático',
 ];
 
 $b = $city->bbox_json;
@@ -41,7 +42,7 @@ echo "BBOX: $overpassBBox\n";
 
 $agent = app(POIAgent::class);
 $pois = $agent->fetchPOIsByBBox($overpassBBox, 5000);
-echo "Total POIs from Overpass: " . count($pois) . "\n";
+echo 'Total POIs from Overpass: '.count($pois)."\n";
 
 $filtered = array_filter($pois, function ($poi) use ($category, $tagMap) {
     $tags = $poi['tags'] ?? [];
@@ -49,13 +50,16 @@ $filtered = array_filter($pois, function ($poi) use ($category, $tagMap) {
         if (isset($tags[$key])) {
             $osmVal = $tags[$key];
             $type = $tagMap[$osmVal] ?? null;
-            if ($type && $type === $category) return true;
+            if ($type && $type === $category) {
+                return true;
+            }
         }
     }
+
     return false;
 });
 
-echo "Filtered POIs for '$category': " . count($filtered) . "\n";
-foreach($filtered as $p) {
-    echo "- " . ($p['tags']['name'] ?? 'Unnamed') . " (ID: " . $p['id'] . ")\n";
+echo "Filtered POIs for '$category': ".count($filtered)."\n";
+foreach ($filtered as $p) {
+    echo '- '.($p['tags']['name'] ?? 'Unnamed').' (ID: '.$p['id'].")\n";
 }

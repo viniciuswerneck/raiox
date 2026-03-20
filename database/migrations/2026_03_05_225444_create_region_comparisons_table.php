@@ -15,17 +15,17 @@ return new class extends Migration
             $table->id();
             $table->string('cep_a')->index();
             $table->string('cep_b')->index();
-            
+
             // Scores Diferenciais
             $table->integer('score_diff')->default(0);
             $table->integer('infra_diff')->default(0);
             $table->integer('mobilidade_diff')->default(0);
             $table->integer('lazer_diff')->default(0);
-            
+
             // Dados Consolidados de Comparação
             $table->json('comparison_data')->nullable(); // Guardar deltas detalhados (ex: +3 hospitais)
             $table->text('analysis_text')->nullable();   // Análise gerada pela IA
-            
+
             $table->index(['cep_a', 'cep_b']);
             $table->timestamps();
         });

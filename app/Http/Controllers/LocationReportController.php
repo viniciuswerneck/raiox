@@ -22,7 +22,7 @@ class LocationReportController extends Controller
     public function search(Request $request)
     {
         $cep = $request->validate([
-            'cep' => 'required|string|regex:/^\d{5}-?\d{3}$/'
+            'cep' => 'required|string|regex:/^\d{5}-?\d{3}$/',
         ])['cep'];
 
         return redirect()->route('report.show', $cep);
@@ -33,7 +33,7 @@ class LocationReportController extends Controller
         // Simple regex check in show too or just rely on service
         $report = $this->reportService->getReportByCep($cep);
 
-        if (!$report) {
+        if (! $report) {
             return redirect()->route('home')->withErrors(['cep' => 'CEP não encontrado ou erro nas APIs de terceiros.']);
         }
 

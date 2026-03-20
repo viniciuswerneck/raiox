@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     protected $apiKey;
+
     protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
     public function __construct()
@@ -18,14 +19,15 @@ class GeminiService
     /**
      * Gera um resumo JSON rico sobre o local (história e nível de segurança), a partir do conteúdo da Wikipedia.
      *
-     * @param string $wikiText  Conteúdo completo extraído da página da Wikipedia
-     * @param string $location  Nome do local para personalizar o texto (ex: "Vila Madalena, São Paulo")
-     * @return array|null       Array com chaves 'historia', 'nivel_seguranca', e 'descricao_seguranca'
+     * @param  string  $wikiText  Conteúdo completo extraído da página da Wikipedia
+     * @param  string  $location  Nome do local para personalizar o texto (ex: "Vila Madalena, São Paulo")
+     * @return array|null Array com chaves 'historia', 'nivel_seguranca', e 'descricao_seguranca'
      */
     public function generateNeighborhoodSummary(string $wikiText, string $location = ''): ?array
     {
         if (empty($this->apiKey)) {
             Log::error('Gemini API Error: API Key is missing.');
+
             return null;
         }
 
@@ -50,19 +52,19 @@ PROMPT;
                     'contents' => [
                         [
                             'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
+                                ['text' => $prompt],
+                            ],
+                        ],
                     ],
                     'generationConfig' => [
-                        'temperature'     => 0.7,
+                        'temperature' => 0.7,
                         'maxOutputTokens' => 2048,
-                        'responseMimeType' => 'application/json'
-                    ]
+                        'responseMimeType' => 'application/json',
+                    ],
                 ]);
 
             if ($response->successful()) {
-                $data   = $response->json();
+                $data = $response->json();
                 $result = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
                 if ($result) {
                     $result = trim($result);
@@ -76,24 +78,27 @@ PROMPT;
                     if (str_ends_with($result, '```')) {
                         $result = substr($result, 0, -3);
                     }
-                    
+
                     $result = trim($result);
-                    Log::info("Gemini JSON Response: " . $result);
-                    
+                    Log::info('Gemini JSON Response: '.$result);
+
                     $json = json_decode($result, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($json)) {
                         return $json;
                     } else {
-                        Log::error("Gemini Parse JSON Error: " . json_last_error_msg() . " - " . $result);
+                        Log::error('Gemini Parse JSON Error: '.json_last_error_msg().' - '.$result);
+
                         return null;
                     }
                 }
             }
 
-            Log::error('Gemini API Error Response: ' . $response->body());
+            Log::error('Gemini API Error Response: '.$response->body());
+
             return null;
         } catch (\Exception $e) {
-            Log::error('Gemini API Exception: ' . $e->getMessage());
+            Log::error('Gemini API Exception: '.$e->getMessage());
+
             return null;
         }
     }

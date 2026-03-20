@@ -3,7 +3,6 @@
 namespace App\Services\Agents;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class POIAgent extends BaseAgent
 {
@@ -15,7 +14,7 @@ class POIAgent extends BaseAgent
     public function fetchPOIs(float $lat, float $lng, int $radius = 1000): array
     {
         $this->logInfo("Iniciando busca de POIs em [{$lat}, {$lng}] com raio {$radius}m");
-        
+
         $margin = ($radius / 1000) * 0.009;
         $lat_min = $lat - $margin;
         $lat_max = $lat + $margin;
@@ -29,6 +28,7 @@ class POIAgent extends BaseAgent
     public function fetchPOIsByBBox(string $bbox, int $limit = 1000): array
     {
         $this->logInfo("Iniciando busca municipal de POIs via BBox: {$bbox}");
+
         return $this->executeQuery($bbox, $limit);
     }
 
@@ -51,19 +51,19 @@ class POIAgent extends BaseAgent
             'https://lz4.overpass-api.de/api/interpreter',
             'https://overpass-api.de/api/interpreter',
             'https://overpass.kumi.systems/api/interpreter',
-            'https://z.overpass-api.de/api/interpreter'
+            'https://z.overpass-api.de/api/interpreter',
         ];
 
         $headers = [
-            'User-Agent' => 'RaioXNeighborhood-Agent/' . self::VERSION,
-            'Referer' => 'https://google.com'
+            'User-Agent' => 'RaioXNeighborhood-Agent/'.self::VERSION,
+            'Referer' => 'https://google.com',
         ];
 
         foreach ($endpoints as $endpoint) {
             try {
                 $startTime = microtime(true);
-                $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
-                    ->timeout(12) 
+                $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
+                    ->timeout(12)
                     ->withHeaders($headers)
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);
@@ -73,15 +73,15 @@ class POIAgent extends BaseAgent
                 if ($response->successful()) {
                     $elements = [];
                     $json = $response->json();
-                    
+
                     if (isset($json['elements'])) {
                         foreach ($json['elements'] as $element) {
                             $item = [
                                 'type' => $element['type'],
-                                'id'   => $element['id'],
+                                'id' => $element['id'],
                                 'tags' => $element['tags'] ?? [],
-                                'lat'  => $element['lat'] ?? ($element['center']['lat'] ?? null),
-                                'lon'  => $element['lon'] ?? ($element['center']['lon'] ?? null),
+                                'lat' => $element['lat'] ?? ($element['center']['lat'] ?? null),
+                                'lon' => $element['lon'] ?? ($element['center']['lon'] ?? null),
                             ];
                             if ($item['lat'] && $item['lon']) {
                                 $elements[] = $item;
@@ -90,7 +90,8 @@ class POIAgent extends BaseAgent
                     }
 
                     if (count($elements) > 0) {
-                        $this->logInfo("Sucesso com servidor [{$endpoint}] em {$duration}s. Itens: " . count($elements));
+                        $this->logInfo("Sucesso com servidor [{$endpoint}] em {$duration}s. Itens: ".count($elements));
+
                         return $elements;
                     } else {
                         $this->logInfo("Servidor [{$endpoint}] retornou ZERO elementos em {$duration}s.");
@@ -99,7 +100,7 @@ class POIAgent extends BaseAgent
                     $this->logError("Servidor [{$endpoint}] falhou com status {$response->status()} em {$duration}s.");
                 }
             } catch (\Exception $e) {
-                $this->logError("Erro fatal no servidor [{$endpoint}]: " . $e->getMessage());
+                $this->logError("Erro fatal no servidor [{$endpoint}]: ".$e->getMessage());
             }
         }
 
@@ -115,12 +116,12 @@ class POIAgent extends BaseAgent
         $pois = $this->fetchPOIs($lat, $lng, $radius);
 
         if (count($pois) < 15) {
-            $this->logInfo("Poucos resultados em 1km. Escalando para 2.5km");
+            $this->logInfo('Poucos resultados em 1km. Escalando para 2.5km');
             $radius = 2500;
             $pois = $this->fetchPOIs($lat, $lng, $radius);
 
             if (count($pois) < 10) {
-                $this->logInfo("Ainda poucos resultados. Escalando final para 5km");
+                $this->logInfo('Ainda poucos resultados. Escalando final para 5km');
                 $radius = 5000;
                 $pois = $this->fetchPOIs($lat, $lng, $radius);
             }
@@ -129,7 +130,7 @@ class POIAgent extends BaseAgent
         return [
             'pois' => $pois,
             'radius' => $radius,
-            'agent_version' => self::VERSION
+            'agent_version' => self::VERSION,
         ];
     }
 
@@ -144,16 +145,16 @@ class POIAgent extends BaseAgent
 
         $endpoints = [
             'https://lz4.overpass-api.de/api/interpreter',
-            'https://overpass-api.de/api/interpreter'
+            'https://overpass-api.de/api/interpreter',
         ];
 
         $names = [];
 
         foreach ($endpoints as $endpoint) {
             try {
-                $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
-                    ->timeout(10) 
-                    ->withHeaders(['User-Agent' => 'RaioX-Neighborhood-Discovery/' . self::VERSION])
+                $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
+                    ->timeout(10)
+                    ->withHeaders(['User-Agent' => 'RaioX-Neighborhood-Discovery/'.self::VERSION])
                     ->asForm()
                     ->post($endpoint, ['data' => $query]);
 
@@ -161,14 +162,16 @@ class POIAgent extends BaseAgent
                     $json = $response->json();
                     foreach ($json['elements'] ?? [] as $element) {
                         $name = $element['tags']['name'] ?? $element['tags']['official_name'] ?? null;
-                        if ($name && !in_array($name, $names)) {
+                        if ($name && ! in_array($name, $names)) {
                             $names[] = $name;
                         }
                     }
-                    if (count($names) > 0) return $names;
+                    if (count($names) > 0) {
+                        return $names;
+                    }
                 }
             } catch (\Exception $e) {
-                $this->logError("Discovery Error: " . $e->getMessage());
+                $this->logError('Discovery Error: '.$e->getMessage());
             }
         }
 
@@ -190,8 +193,13 @@ class POIAgent extends BaseAgent
             }
         }
 
-        if ($commerces > 10 && $mobility > 5) return 'A';
-        if ($commerces > 5 && $mobility > 2) return 'B';
+        if ($commerces > 10 && $mobility > 5) {
+            return 'A';
+        }
+        if ($commerces > 5 && $mobility > 2) {
+            return 'B';
+        }
+
         return 'C';
     }
 }

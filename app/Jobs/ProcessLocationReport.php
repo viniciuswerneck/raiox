@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\LocationReport;
-use App\Services\NeighborhoodService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,6 +15,7 @@ class ProcessLocationReport implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $cep;
+
     protected $preResolvedGeo;
 
     /**
@@ -48,7 +48,7 @@ class ProcessLocationReport implements ShouldQueue
 
         try {
             Log::info("Job ProcessLocationReport started for CEP: {$cepClean}");
-            
+
             // 1. Orquestração Completa
             $territoryData = $territory->resolve($cepClean, $this->preResolvedGeo);
 
@@ -81,7 +81,7 @@ class ProcessLocationReport implements ShouldQueue
                 'wiki_json' => $agents['wiki'],
                 'status' => 'processing_text', // Agora vai para a fase de narrativa
                 'data_version' => 3,
-                'error_message' => null
+                'error_message' => null,
             ];
 
             if ($report) {
@@ -103,7 +103,7 @@ class ProcessLocationReport implements ShouldQueue
             Log::info("Job ProcessLocationReport completed successfully for CEP: {$cepClean}");
 
         } catch (\Exception $e) {
-            Log::error("Job ProcessLocationReport failed for CEP: {$cepClean}. Error: " . $e->getMessage());
+            Log::error("Job ProcessLocationReport failed for CEP: {$cepClean}. Error: ".$e->getMessage());
             if ($report) {
                 $report->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
             }

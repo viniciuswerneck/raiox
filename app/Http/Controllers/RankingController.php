@@ -28,7 +28,7 @@ class RankingController extends Controller
                 DB::raw('COUNT(*) as search_count'),
                 DB::raw('MAX(created_at) as last_updated'),
                 DB::raw("AVG(CASE WHEN walkability_score = 'A' THEN 100 WHEN walkability_score = 'B' THEN 70 ELSE 40 END) as score_walk"),
-                DB::raw("AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END) as score_safety")
+                DB::raw("AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END) as score_safety"),
             ];
 
             if ($locationType === 'bairro') {
@@ -49,32 +49,34 @@ class RankingController extends Controller
             )";
 
             $query->select($selects)->addSelect(DB::raw("HEX($sqlFinalScore) as final_score_hex")); // Usando HEX/Alias para evitar conflitos de AVG em alguns drivers
-            
+
             // Atribuindo o valor limpo para o order by
-            $orderBy = match($category) {
+            $orderBy = match ($category) {
                 'safety' => DB::raw("AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END)"),
-                'walk'   => DB::raw("AVG(CASE WHEN walkability_score = 'A' THEN 100 WHEN walkability_score = 'B' THEN 70 ELSE 40 END)"),
-                'air'    => DB::raw("(100 - AVG(air_quality_index))"),
-                default  => DB::raw($sqlFinalScore)
+                'walk' => DB::raw("AVG(CASE WHEN walkability_score = 'A' THEN 100 WHEN walkability_score = 'B' THEN 70 ELSE 40 END)"),
+                'air' => DB::raw('(100 - AVG(air_quality_index))'),
+                default => DB::raw($sqlFinalScore)
             };
 
             return $query->orderByDesc($orderBy)->paginate(15)->withQueryString();
         });
 
         // Mapeamento pós-cache para garantir que os scores sejam arredondados e limpos
-        $results->getCollection()->transform(function($item) {
+        $results->getCollection()->transform(function ($item) {
             $aqiScore = max(0, 100 - ($item->avg_aqi));
             $item->final_score = round(
-                ($item->score_safety * 0.4) + 
-                ($item->score_walk * 0.3) + 
-                ($aqiScore * 0.2) + 
+                ($item->score_safety * 0.4) +
+                ($item->score_walk * 0.3) +
+                ($aqiScore * 0.2) +
                 ((($item->avg_sanitation ?? 50)) * 0.1)
             );
+
             return $item;
         });
 
         return view('report.ranking', compact('results', 'category', 'locationType'));
     }
+
     public function cityRanking(string $slug, Request $request)
     {
         $cityModel = \App\Models\City::where('slug', $slug)->firstOrFail();
@@ -91,7 +93,7 @@ class RankingController extends Controller
             DB::raw('AVG(air_quality_index) as avg_aqi'),
             DB::raw('AVG(sanitation_rate) as avg_sanitation'),
             DB::raw("AVG(CASE WHEN walkability_score = 'A' THEN 100 WHEN walkability_score = 'B' THEN 70 ELSE 40 END) as score_walk"),
-            DB::raw("AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END) as score_safety")
+            DB::raw("AVG(CASE WHEN safety_level LIKE '%ALTO%' OR safety_level LIKE '%ALTA%' THEN 100 WHEN safety_level LIKE '%MODERADO%' THEN 70 ELSE 40 END) as score_safety"),
         ];
 
         $sqlFinalScore = "(
@@ -104,16 +106,17 @@ class RankingController extends Controller
         $results = $query->select($selects)
             ->addSelect(DB::raw("$sqlFinalScore as final_score_calc"))
             ->groupBy('uf', 'cidade', 'bairro', 'cep')
-            ->orderByDesc(match($category) {
-                'safety' => DB::raw("score_safety"),
-                'walk'   => DB::raw("score_walk"),
-                default  => DB::raw("final_score_calc")
+            ->orderByDesc(match ($category) {
+                'safety' => DB::raw('score_safety'),
+                'walk' => DB::raw('score_walk'),
+                default => DB::raw('final_score_calc')
             })
             ->limit(20)
             ->get();
 
-        $results->transform(function($item) {
+        $results->transform(function ($item) {
             $item->final_score = round($item->final_score_calc);
+
             return $item;
         });
 

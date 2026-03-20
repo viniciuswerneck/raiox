@@ -12,7 +12,7 @@ class GroqService
         'llama-3.1-8b-instant',
         'meta-llama/llama-4-scout-17b-16e-instruct',
         'qwen/qwen3-32b',
-        'moonshotai/kimi-k2-instruct'
+        'moonshotai/kimi-k2-instruct',
     ];
 
     private function getNextKey()
@@ -22,12 +22,12 @@ class GroqService
             ->where(function ($query) {
                 $now = now()->toDateTimeString();
                 $query->whereNull('cooldown_until')
-                      ->orWhere('cooldown_until', '<=', $now);
+                    ->orWhere('cooldown_until', '<=', $now);
             })
             ->orderBy('last_used_at', 'asc')
             ->first();
 
-        if (!$key) {
+        if (! $key) {
             $nextToRelease = \App\Models\AiKey::where('is_active', true)
                 ->where('provider', 'groq')
                 ->whereNotNull('cooldown_until')
@@ -40,10 +40,11 @@ class GroqService
 
                 if ($waitSecs < 10) {
                     $nextToRelease->update(['cooldown_until' => null]);
+
                     return $nextToRelease;
                 }
             } else {
-                Log::error("Groq: Nenhuma chave ATIVA cadastrada no banco de dados.");
+                Log::error('Groq: Nenhuma chave ATIVA cadastrada no banco de dados.');
             }
         }
 
@@ -53,11 +54,11 @@ class GroqService
     private function logUsage($keyId, $model, $success, $error = null, $latency = null)
     {
         \App\Models\AiUsageLog::create([
-            'ai_key_id'     => $keyId,
-            'model'         => $model,
-            'success'       => $success,
+            'ai_key_id' => $keyId,
+            'model' => $model,
+            'success' => $success,
             'error_message' => $error,
-            'latency_ms'    => $latency
+            'latency_ms' => $latency,
         ]);
 
         \App\Models\AiUsageLog::where('created_at', '<', now()->subDay())->delete();
@@ -71,28 +72,29 @@ class GroqService
             Log::info("Groq: Usando chave [{$aiKeyRecord->id}] com modelo [{$model}]");
             $aiKeyRecord->update(['last_used_at' => now()]);
 
-            $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+            $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
                 ->timeout(20)
                 ->withHeaders([
                     'Authorization' => "Bearer {$aiKeyRecord->key}",
-                    'Content-Type'  => 'application/json',
-                    'User-Agent'    => 'RaioXNeighborhood/1.0',
+                    'Content-Type' => 'application/json',
+                    'User-Agent' => 'RaioXNeighborhood/1.0',
                 ])
                 ->post('https://api.groq.com/openai/v1/chat/completions', [
-                    'model'       => $model,
+                    'model' => $model,
                     'temperature' => 0.9,
-                    'max_tokens'  => 4096,
-                    'messages'    => [
-                        ['role' => 'user', 'content' => $prompt]
-                    ]
+                    'max_tokens' => 4096,
+                    'messages' => [
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
                 ]);
 
-            $latency = (int)((microtime(true) - $startTime) * 1000);
-            $status  = $response->status();
+            $latency = (int) ((microtime(true) - $startTime) * 1000);
+            $status = $response->status();
 
             if ($response->successful()) {
                 $result = $response->json()['choices'][0]['message']['content'] ?? null;
                 $this->logUsage($aiKeyRecord->id, $model, true, null, $latency);
+
                 return $result;
             }
 
@@ -101,11 +103,11 @@ class GroqService
                 $aiKeyRecord->update(['cooldown_until' => now()->addMinutes(5)]);
             }
 
-            $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: " . substr($response->body(), 0, 100), $latency);
+            $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: ".substr($response->body(), 0, 100), $latency);
 
         } catch (\Exception $e) {
-            $latency = (int)((microtime(true) - $startTime) * 1000);
-            Log::warning("Groq API Exception: " . $e->getMessage());
+            $latency = (int) ((microtime(true) - $startTime) * 1000);
+            Log::warning('Groq API Exception: '.$e->getMessage());
             $this->logUsage($aiKeyRecord->id, $model, false, $e->getMessage(), $latency);
         }
 
@@ -115,9 +117,15 @@ class GroqService
     private function parseJsonFromText(string $text): ?array
     {
         $text = trim($text);
-        if (str_starts_with($text, '```json')) $text = substr($text, 7);
-        if (str_starts_with($text, '```'))     $text = substr($text, 3);
-        if (str_ends_with($text, '```'))        $text = substr($text, 0, -3);
+        if (str_starts_with($text, '```json')) {
+            $text = substr($text, 7);
+        }
+        if (str_starts_with($text, '```')) {
+            $text = substr($text, 3);
+        }
+        if (str_ends_with($text, '```')) {
+            $text = substr($text, 0, -3);
+        }
         $text = trim($text);
 
         if (preg_match('/\{.*\}/s', $text, $matches)) {
@@ -128,12 +136,14 @@ class GroqService
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-            if (!str_ends_with(trim($text), '}')) {
-                $text       = rtrim(trim($text), " ,\"\n\r\t");
+            if (! str_ends_with(trim($text), '}')) {
+                $text = rtrim(trim($text), " ,\"\n\r\t");
                 $openBraces = substr_count($text, '{') - substr_count($text, '}');
-                for ($i = 0; $i < $openBraces; $i++) $text .= '}';
+                for ($i = 0; $i < $openBraces; $i++) {
+                    $text .= '}';
+                }
             }
-            $text = str_replace(["\r\n", "\r", "\n"], " ", $text);
+            $text = str_replace(["\r\n", "\r", "\n"], ' ', $text);
             $text = preg_replace('/[\x00-\x1F\x7F]+/', '', $text);
             $json = json_decode($text, true);
         }
@@ -148,6 +158,7 @@ class GroqService
     {
         $historia = $json['historia'] ?? '';
         $paragraphs = array_filter(array_map('trim', explode("\n\n", $historia)));
+
         return count($paragraphs) >= $min;
     }
 
@@ -163,14 +174,15 @@ class GroqService
         if (count($lines) >= $min) {
             $chunkSize = (int) ceil(count($lines) / $min);
             $chunks = array_chunk(array_values($lines), $chunkSize);
-            $json['historia'] = implode("\n\n", array_map(fn($c) => implode(' ', $c), $chunks));
+            $json['historia'] = implode("\n\n", array_map(fn ($c) => implode(' ', $c), $chunks));
+
             return $json;
         }
 
         // Último recurso: divide por tamanho de string
-        $len       = mb_strlen($historia);
-        $partSize  = (int) ceil($len / $min);
-        $parts     = [];
+        $len = mb_strlen($historia);
+        $partSize = (int) ceil($len / $min);
+        $parts = [];
         for ($i = 0; $i < $min; $i++) {
             $parts[] = trim(mb_substr($historia, $i * $partSize, $partSize));
         }
@@ -182,8 +194,8 @@ class GroqService
     public function generateNeighborhoodSummary(string $wikiText, string $location = '', array $aactContext = []): ?array
     {
         $categoria = $aactContext['categoria'] ?? 'Não classificada';
-        $income    = $aactContext['renda'] ?? 0;
-        $safety    = $aactContext['safety_level'] ?? 'MODERADO';
+        $income = $aactContext['renda'] ?? 0;
+        $safety = $aactContext['safety_level'] ?? 'MODERADO';
 
         $wikiSub = substr($wikiText, 0, 8000);
 
@@ -224,20 +236,30 @@ PROMPT;
 
         foreach ($models as $model) {
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'groq')->count();
-            if ($maxKeyTries === 0) break;
+            if ($maxKeyTries === 0) {
+                break;
+            }
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
-                if ($i > 0) usleep(800000);
+                if ($i > 0) {
+                    usleep(800000);
+                }
 
                 $aiKeyRecord = $this->getNextKey();
-                if (!$aiKeyRecord) break;
+                if (! $aiKeyRecord) {
+                    break;
+                }
 
                 // Primeira tentativa com o prompt normal
                 $raw = $this->callGroq($prompt, $model, $aiKeyRecord);
-                if (!$raw) continue;
+                if (! $raw) {
+                    continue;
+                }
 
                 $json = $this->parseJsonFromText($raw);
-                if (!$json) continue;
+                if (! $json) {
+                    continue;
+                }
 
                 // Se o JSON é válido, guardamos como último recurso
                 $lastResortJson = $json;
@@ -249,17 +271,19 @@ PROMPT;
 
                 // Se não tem 3 parágrafos, tenta um retry com prompt forçado neste modelo
                 Log::warning("Groq [{$model}]: Narrativa curta. Tentando retry forçado.");
-                $promptForcado = $prompt . "\n\nATENÇÃO: O campo \"historia\" DEVE conter EXATAMENTE 3 parágrafos longos (\n\n).";
+                $promptForcado = $prompt."\n\nATENÇÃO: O campo \"historia\" DEVE conter EXATAMENTE 3 parágrafos longos (\n\n).";
                 $raw2 = $this->callGroq($promptForcado, $model, $aiKeyRecord);
-                
+
                 if ($raw2) {
                     $json2 = $this->parseJsonFromText($raw2);
                     if ($json2 && $this->hasMinParagraphs($json2)) {
                         return $json2;
                     }
-                    if ($json2) $lastResortJson = $json2;
+                    if ($json2) {
+                        $lastResortJson = $json2;
+                    }
                 }
-                
+
                 // Se chegou aqui, este modelo/chave falhou em dar 3 parágrafos.
                 // O loop continua para o PRÓXIMO modelo no foreach ($models)...
             }
@@ -268,11 +292,13 @@ PROMPT;
         // Se passamos por TODOS os modelos e nenhum deu 3 parágrafos,
         // usamos o melhor que conseguimos (enforced)
         if ($lastResortJson) {
-            Log::warning("Groq: Nenhum modelo entregou 3 parágrafos. Usando enforcement manual no melhor resultado.");
+            Log::warning('Groq: Nenhum modelo entregou 3 parágrafos. Usando enforcement manual no melhor resultado.');
+
             return $this->enforceParagraphs($lastResortJson);
         }
 
-        Log::error("Groq: Todas as chaves e modelos falharam totalmente.");
+        Log::error('Groq: Todas as chaves e modelos falharam totalmente.');
+
         return null;
     }
 
@@ -311,16 +337,24 @@ PROMPT;
 
         foreach ($models as $model) {
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'groq')->count();
-            if ($maxKeyTries === 0) break;
+            if ($maxKeyTries === 0) {
+                break;
+            }
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
-                if ($i > 0) usleep(500000);
+                if ($i > 0) {
+                    usleep(500000);
+                }
 
                 $aiKeyRecord = $this->getNextKey();
-                if (!$aiKeyRecord) break;
+                if (! $aiKeyRecord) {
+                    break;
+                }
 
                 $result = $this->callGroq($prompt, $model, $aiKeyRecord);
-                if ($result) return $result;
+                if ($result) {
+                    return $result;
+                }
             }
         }
 

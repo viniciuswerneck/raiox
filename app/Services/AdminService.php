@@ -145,7 +145,7 @@ class AdminService
         $startOfPeriod = Carbon::now()->subDays($days)->startOfDay();
 
         $driver = config('database.default');
-        
+
         if ($driver === 'sqlite') {
             $logs = LlmLog::where('created_at', '>=', $startOfPeriod)->get();
             $hourly = [];
@@ -160,7 +160,7 @@ class AdminService
                 ->orderBy('hour')
                 ->get()
                 ->pluck('count', 'hour')
-                ->map(fn($v) => (int) $v)
+                ->map(fn ($v) => (int) $v)
                 ->toArray();
         }
 

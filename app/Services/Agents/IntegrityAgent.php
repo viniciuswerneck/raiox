@@ -4,8 +4,8 @@ namespace App\Services\Agents;
 
 use App\Models\City;
 use App\Models\LocationReport;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * IntegrityAgent v1.0.0
@@ -34,22 +34,22 @@ class IntegrityAgent extends BaseAgent
         // 2. Verificação de Campos Estruturados (Novos campos de Segurança e Imobiliário)
         if ($report->status === 'completed') {
             if (empty($report->safety_description)) {
-                $issues[] = "Descrição de segurança ausente";
+                $issues[] = 'Descrição de segurança ausente';
                 $needsBackgroundUpdate = true;
             }
             if (empty($report->real_estate_json)) {
-                $issues[] = "Dados imobiliários ausentes";
+                $issues[] = 'Dados imobiliários ausentes';
                 $needsBackgroundUpdate = true;
             }
             if (empty($report->history_extract)) {
-                $issues[] = "Narrativa histórica ausente";
+                $issues[] = 'Narrativa histórica ausente';
                 $needsBackgroundUpdate = true;
             }
         }
 
         // 3. Verificação de Coordenadas
         if (empty($report->lat) || empty($report->lng)) {
-            $issues[] = "Geolocalização (Lat/Lng) ausente";
+            $issues[] = 'Geolocalização (Lat/Lng) ausente';
             $needsImmediateUpdate = true;
         }
 
@@ -64,7 +64,7 @@ class IntegrityAgent extends BaseAgent
             'issues' => $issues,
             'needs_background_update' => $needsBackgroundUpdate,
             'needs_immediate_update' => $needsImmediateUpdate,
-            'agent_version' => self::VERSION
+            'agent_version' => self::VERSION,
         ];
     }
 
@@ -79,14 +79,14 @@ class IntegrityAgent extends BaseAgent
 
         // 1. Verificação de Cache Geral
         if (empty($city->stats_cache)) {
-            $issues[] = "Stats cache vazio";
+            $issues[] = 'Stats cache vazio';
             $needsUpdate = true;
             $isCritical = true;
         }
 
         // 2. Verificação de Proximidade Temporal
         if ($city->last_calculated_at && $city->last_calculated_at->diffInHours(now()) > 48) {
-            $issues[] = "Dados com mais de 48h de idade";
+            $issues[] = 'Dados com mais de 48h de idade';
             $needsUpdate = true;
         }
 
@@ -96,7 +96,7 @@ class IntegrityAgent extends BaseAgent
             ->where('status', 'completed')
             ->count();
         $cachedCount = $city->stats_cache['total_mapped_ceps'] ?? 0;
-        
+
         if ($totalReports > $cachedCount) {
             $issues[] = "Novos CEPs detectados ({$totalReports} > {$cachedCount})";
             $needsUpdate = true;
@@ -106,7 +106,7 @@ class IntegrityAgent extends BaseAgent
         $neighborhoodCount = count($city->stats_cache['neighborhood_list'] ?? []);
         if ($neighborhoodCount < 30 && $city->bbox_json) {
             // Se ainda não atingiu o threshold de 30 bairros e faz tempo que não tenta
-            if (!$city->last_calculated_at || $city->last_calculated_at->diffInHours(now()) > 12) {
+            if (! $city->last_calculated_at || $city->last_calculated_at->diffInHours(now()) > 12) {
                 $issues[] = "Mapeamento de bairros incompleto ({$neighborhoodCount} < 30)";
                 $needsUpdate = true;
             }
@@ -117,7 +117,7 @@ class IntegrityAgent extends BaseAgent
             'issues' => $issues,
             'needs_update' => $needsUpdate,
             'is_critical' => $isCritical,
-            'agent_version' => self::VERSION
+            'agent_version' => self::VERSION,
         ];
     }
 
@@ -127,24 +127,28 @@ class IntegrityAgent extends BaseAgent
     public function autoRepairByReport(LocationReport $report): void
     {
         $audit = $this->auditReport($report);
-        if ($audit['healthy']) return;
+        if ($audit['healthy']) {
+            return;
+        }
 
         $lockKey = "integrity_repair_report_{$report->id}";
-        if (Cache::has($lockKey)) return;
+        if (Cache::has($lockKey)) {
+            return;
+        }
         Cache::put($lockKey, true, 300);
 
-        Log::warning("[IntegrityAgent] Reparando Relatório {$report->cep}: " . implode(", ", $audit['issues']));
+        Log::warning("[IntegrityAgent] Reparando Relatório {$report->cep}: ".implode(', ', $audit['issues']));
 
         if ($audit['needs_immediate_update']) {
-             // Se for crítico (falta lat/lng ou travado), deletamos e forçamos o PipelineCoordinator
-             $report->update(['status' => 'pending', 'error_message' => 'Integrity Repair Triggered']);
-             \App\Jobs\ProcessLocationReport::dispatch($report->cep);
+            // Se for crítico (falta lat/lng ou travado), deletamos e forçamos o PipelineCoordinator
+            $report->update(['status' => 'pending', 'error_message' => 'Integrity Repair Triggered']);
+            \App\Jobs\ProcessLocationReport::dispatch($report->cep);
         } elseif ($audit['needs_background_update']) {
             // Se for apenas enriquecimento (v3, narrativa, segurança), dispara a narrativa/enriquecimento
             $wikiContext = [
                 'bairro' => $report->bairro,
                 'city' => $report->cidade,
-                'state' => $report->uf
+                'state' => $report->uf,
             ];
             \App\Jobs\GenerateNeighborhoodText::dispatch($report->cep, $report->id, $wikiContext);
         }
@@ -158,11 +162,13 @@ class IntegrityAgent extends BaseAgent
         $audit = $this->auditCity($city);
         if ($audit['needs_update']) {
             $lockKey = "integrity_repair_city_{$city->id}";
-            if (Cache::has($lockKey)) return;
+            if (Cache::has($lockKey)) {
+                return;
+            }
             Cache::put($lockKey, true, 600);
 
-            Log::warning("[IntegrityAgent] Reparando Dashboard da Cidade {$city->name}: " . implode(", ", $audit['issues']));
-            
+            Log::warning("[IntegrityAgent] Reparando Dashboard da Cidade {$city->name}: ".implode(', ', $audit['issues']));
+
             \App\Jobs\UpdateCityDataJob::dispatch($city);
         }
     }

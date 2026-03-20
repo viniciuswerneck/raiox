@@ -14,7 +14,7 @@ class RegionComparison extends Model
         'mobilidade_diff',
         'lazer_diff',
         'comparison_data',
-        'analysis_text'
+        'analysis_text',
     ];
 
     protected $casts = [
@@ -30,9 +30,9 @@ class RegionComparison extends Model
      */
     public static function findPair(string $cepA, string $cepB)
     {
-        return self::where(function($q) use ($cepA, $cepB) {
+        return self::where(function ($q) use ($cepA, $cepB) {
             $q->where('cep_a', $cepA)->where('cep_b', $cepB);
-        })->orWhere(function($q) use ($cepA, $cepB) {
+        })->orWhere(function ($q) use ($cepA, $cepB) {
             $q->where('cep_a', $cepB)->where('cep_b', $cepA);
         })->first();
     }

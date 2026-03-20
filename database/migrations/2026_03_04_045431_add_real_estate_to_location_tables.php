@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::table('cities', function (Blueprint $table) {
             $table->json('real_estate_json')->nullable()->after('wiki_json');
         });
-        
+
         Schema::table('neighborhoods', function (Blueprint $table) {
             $table->json('real_estate_json')->nullable()->after('wiki_json');
         });
-        
+
         Schema::table('location_reports', function (Blueprint $table) {
             $table->json('real_estate_json')->nullable()->after('wiki_json');
         });
@@ -32,11 +32,11 @@ return new class extends Migration
         Schema::table('cities', function (Blueprint $table) {
             $table->dropColumn('real_estate_json');
         });
-        
+
         Schema::table('neighborhoods', function (Blueprint $table) {
             $table->dropColumn('real_estate_json');
         });
-        
+
         Schema::table('location_reports', function (Blueprint $table) {
             $table->dropColumn('real_estate_json');
         });

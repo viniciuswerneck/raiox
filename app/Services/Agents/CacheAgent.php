@@ -30,7 +30,7 @@ class CacheAgent
     {
         $report->update([
             'climate_json' => $clima,
-            'air_quality_index' => $aqi
+            'air_quality_index' => $aqi,
         ]);
     }
 
@@ -42,6 +42,7 @@ class CacheAgent
         $report = LocationReport::where('cep', $cep)->first();
         if ($report) {
             $report->update($data);
+
             return $report;
         }
 

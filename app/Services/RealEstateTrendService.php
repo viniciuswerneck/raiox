@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\LocationReport;
-use Illuminate\Support\Facades\Log;
 
 class RealEstateTrendService
 {
@@ -15,7 +14,7 @@ class RealEstateTrendService
     {
         $lat = $report->lat;
         $lng = $report->lng;
-        
+
         // 1. Buscar vizinhos em um raio de ~5km (Aprox. 0.045 graus)
         $neighbors = LocationReport::where('status', 'completed')
             ->where('id', '!=', $report->id)
@@ -30,7 +29,7 @@ class RealEstateTrendService
                 'nearby_hubs' => [],
                 'neighbor_avg_price' => 0,
                 'appreciation_score' => 50,
-                'is_strategic' => false
+                'is_strategic' => false,
             ];
         }
 
@@ -43,29 +42,29 @@ class RealEstateTrendService
         foreach ($neighbors as $n) {
             $classification = $n->territorial_classification;
             $market = $n->real_estate_json;
-            
+
             // Se tem um vizinho Premium ou Comercial Central perto (< 3.5km)
             $dist = $this->calculateDistance($lat, $lng, $n->lat, $n->lng);
-            
+
             if (in_array($classification, ['Turístico Premium', 'Residencial Alto Padrão', 'Comercial Central'])) {
                 if ($dist < 3.5) {
                     $hasPremiumNeighbor = true;
                     $highValueHubs[] = [
                         'name' => $n->bairro ?: $n->logradouro,
                         'dist' => round($dist, 1),
-                        'classification' => $classification
+                        'classification' => $classification,
                     ];
                 }
             }
 
             // Extrair preço m2 médio do vizinho
             if (isset($market['preco_m2'])) {
-                 $price = $this->extractPrice($market['preco_m2']);
-                 if ($price > 0) {
-                     $avgNeighborPrice += $price;
-                     $priceCount++;
-                     $neighborDistortions[] = $price;
-                 }
+                $price = $this->extractPrice($market['preco_m2']);
+                if ($price > 0) {
+                    $avgNeighborPrice += $price;
+                    $priceCount++;
+                    $neighborDistortions[] = $price;
+                }
             }
         }
 
@@ -83,12 +82,12 @@ class RealEstateTrendService
             $score = 85;
             $hubName = $highValueHubs[0]['name'] ?? 'centros vizinhos';
             $description = "Forte potencial de 'Catch-up'. A proximidade com o polo de alto valor ({$hubName}) está pressionando a valorização desta região, tornando-a um alvo estratégico para investimento.";
-        } 
+        }
         // 2. Consolidação por Proximidade
         elseif ($hasPremiumNeighbor) {
             $trend = 'ALTA';
             $score = 75;
-            $description = "Valorização sustentada pela saturação de áreas nobres vizinhas. O bairro absorve a demanda excedente de regiões de alto padrão.";
+            $description = 'Valorização sustentada pela saturação de áreas nobres vizinhas. O bairro absorve a demanda excedente de regiões de alto padrão.';
         }
         // 3. Diferencial Local
         elseif ($currentPrice > ($avgNeighborPrice * 1.2) && $avgNeighborPrice > 0) {
@@ -100,7 +99,7 @@ class RealEstateTrendService
         elseif ($priceCount > 10) {
             $trend = 'ESTÁVEL';
             $score = 55;
-            $description = "O mercado local está em perfeita sincronia com a dinâmica imobiliária da microrregião.";
+            $description = 'O mercado local está em perfeita sincronia com a dinâmica imobiliária da microrregião.';
         }
 
         return [
@@ -109,27 +108,33 @@ class RealEstateTrendService
             'nearby_hubs' => array_slice($highValueHubs, 0, 3),
             'neighbor_avg_price' => round($avgNeighborPrice, 0),
             'appreciation_score' => $score,
-            'is_strategic' => ($score >= 75)
+            'is_strategic' => ($score >= 75),
         ];
     }
 
-    private function calculateDistance($lat1, $lon1, $lat2, $lon2) {
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
         $theta = $lon1 - $lon2;
-        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
         $dist = acos($dist);
         $dist = rad2deg($dist);
         $km = $dist * 60 * 1.1515 * 1.609344;
+
         return $km;
     }
 
-    private function extractPrice(string $priceStr): int {
+    private function extractPrice(string $priceStr): int
+    {
         // Remove R$, pontos e espaços, pega os numeros
         $clean = str_replace(['R$', ' ', '.', ','], ['', '', '', '.'], $priceStr);
         preg_match_all('/\d+\.?\d*/', $clean, $matches);
-        if (empty($matches[0])) return 0;
-        
+        if (empty($matches[0])) {
+            return 0;
+        }
+
         $values = array_map('floatval', $matches[0]);
+
         // Se pegou uma faixa (ex: 5000 a 7000), tira a média
-        return count($values) > 0 ? (int)(array_sum($values) / count($values)) : 0;
+        return count($values) > 0 ? (int) (array_sum($values) / count($values)) : 0;
     }
 }

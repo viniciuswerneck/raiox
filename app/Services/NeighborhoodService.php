@@ -2,19 +2,16 @@
 
 namespace App\Services;
 
-use App\Services\Agents\CacheAgent;
-use App\Services\LlmManagerService;
-use App\Services\TextReviserService;
-use App\Services\Agents\PipelineCoordinator;
-use App\Services\CityDashboard\CityDashboardService;
-use App\Models\City;
 use Illuminate\Support\Facades\Log;
 
 class NeighborhoodService
 {
     protected $territory;
+
     protected $cacheAgent;
+
     protected $llmAgent;
+
     protected $cityService;
 
     public function __construct(
@@ -34,33 +31,35 @@ class NeighborhoodService
      */
     public function getCachedReport(string $cep): ?\App\Models\LocationReport
     {
-        set_time_limit(100); 
-        session_write_close(); 
+        set_time_limit(100);
+        session_write_close();
 
         $cepClean = preg_replace('/\D/', '', $cep);
-        
+
         // 1. CHECAR CACHE E TTL
         $cachedReport = $this->cacheAgent->getCachedReport($cepClean);
 
         if ($cachedReport && in_array($cachedReport->status, ['completed', 'processing_text', 'processing'])) {
             Log::info("NeighborhoodService: Cache Hit para CEP {$cepClean} (Status: {$cachedReport->status})");
+
             return $cachedReport;
         }
 
         // 2. Bloqueio Atômico para evitar múltiplas orquestrações simultâneas
         $lock = null;
         $lock = \Illuminate\Support\Facades\Cache::lock("orchestrate_{$cepClean}", 90);
-        
-        if (!$lock->get()) {
+
+        if (! $lock->get()) {
             // Se não conseguiu o lock, espera um pouco e tenta ler o cache de novo
             // (outro processo deve estar terminando a orquestração)
             usleep(1500000); // 1.5s
+
             return $this->cacheAgent->getCachedReport($cepClean);
         }
 
         try {
             Log::info("NeighborhoodService: Iniciando Orquestração ASYNC para CEP {$cepClean}");
-            
+
             // 3. FAST-PATH: Resolver apenas GEOGRAFIA (Síncrono, ~500ms)
             $fastData = $this->territory->resolveFast($cepClean);
 
@@ -71,8 +70,9 @@ class NeighborhoodService
                     'error_message' => $fastData['error'] ?? 'CEP inválido.',
                     'cidade' => 'Não Localizado',
                     'uf' => '??',
-                    'codigo_ibge' => '0'
+                    'codigo_ibge' => '0',
                 ];
+
                 return $this->cacheAgent->upsertBasicData($cepClean, $errData);
             }
 
@@ -89,7 +89,7 @@ class NeighborhoodService
                 'lat' => $location['coordinates']['lat'],
                 'lng' => $location['coordinates']['lng'],
                 'status' => 'processing',
-                'data_version' => 3
+                'data_version' => 3,
             ];
 
             $report = $this->cacheAgent->upsertBasicData($cepClean, $reportData);
@@ -106,5 +106,8 @@ class NeighborhoodService
         }
     }
 
-    public function getFullReport(string $cep): array { return []; } 
+    public function getFullReport(string $cep): array
+    {
+        return [];
+    }
 }

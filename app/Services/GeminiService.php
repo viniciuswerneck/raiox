@@ -15,7 +15,6 @@ class GeminiService
         'gemini-1.5-flash-8b', // Backup com quota alta
     ];
 
-
     public function __construct()
     {
         // As chaves agora são carregadas sob demanda do banco de dados
@@ -29,12 +28,12 @@ class GeminiService
                 // PHP Now() formatted for SQL comparison
                 $now = now()->toDateTimeString();
                 $query->whereNull('cooldown_until')
-                      ->orWhere('cooldown_until', '<=', $now);
+                    ->orWhere('cooldown_until', '<=', $now);
             })
             ->orderBy('last_used_at', 'asc')
             ->first();
 
-        if (!$key) {
+        if (! $key) {
             // Se não achou nenhuma, vamos ver se tem alguma em cooldown curto (menos de 5 min)
             // e pegar a que vai liberar mais cedo
             $nextToRelease = \App\Models\AiKey::where('is_active', true)
@@ -42,18 +41,19 @@ class GeminiService
                 ->whereNotNull('cooldown_until')
                 ->orderBy('cooldown_until', 'asc')
                 ->first();
-                
+
             if ($nextToRelease) {
                 $waitSecs = now()->diffInSeconds($nextToRelease->cooldown_until, false);
                 Log::warning("Gemini: Nenhuma chave livre. Próxima em {$waitSecs}s (ID: {$nextToRelease->id})");
-                
+
                 if ($waitSecs < 10) {
                     Log::info("Gemini: Forçando uso da chave #{$nextToRelease->id} (Próxima livre em {$waitSecs}s)");
                     $nextToRelease->update(['cooldown_until' => null]);
+
                     return $nextToRelease;
                 }
             } else {
-                Log::error("Gemini: Nenhuma chave ATIVA cadastrada no banco de dados.");
+                Log::error('Gemini: Nenhuma chave ATIVA cadastrada no banco de dados.');
             }
         }
 
@@ -63,11 +63,11 @@ class GeminiService
     private function logUsage($keyId, $model, $success, $error = null, $latency = null)
     {
         \App\Models\AiUsageLog::create([
-            'ai_key_id'     => $keyId,
-            'model'         => $model,
-            'success'       => $success,
+            'ai_key_id' => $keyId,
+            'model' => $model,
+            'success' => $success,
             'error_message' => $error,
-            'latency_ms'    => $latency
+            'latency_ms' => $latency,
         ]);
 
         // Limpeza de logs antigos (manter apenas últimas 24h conforme solicitado)
@@ -84,10 +84,10 @@ class GeminiService
         $categoria = $aactContext['categoria'] ?? 'Não classificada';
         $income = $aactContext['renda'] ?? 0;
         $safety = $aactContext['safety_level'] ?? 'MODERADO';
-        
+
         $contextLength = strlen($wikiText);
         Log::info("GeminiService: Gerando narrativa para {$location}. Contexto Wiki: {$contextLength} bytes.");
-        
+
         $wikiSub = substr($wikiText, 0, 8000); // Aumentado para 8k para pegar mais dados se houver
 
         $prompt = <<<PROMPT
@@ -124,23 +124,25 @@ PROMPT;
         foreach ($this->models as $model) {
             $baseUrl = $this->getBaseUrl($model);
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'gemini')->count();
-            
+
             $availableKeys = \App\Models\AiKey::where('is_active', true)
                 ->where('provider', 'gemini')
                 ->where(function ($query) {
                     $query->whereNull('cooldown_until')
-                          ->orWhere('cooldown_until', '<=', now());
+                        ->orWhere('cooldown_until', '<=', now());
                 })->count();
-            
+
             Log::info("GeminiService: Iniciando loop de modelos. Chaves disponíveis agora: {$availableKeys}");
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
                 // Se não for a primeira tentativa do loop, espera um pouco para não burst
-                if ($i > 0) usleep(800000); // 0.8s de respiro entre chaves
+                if ($i > 0) {
+                    usleep(800000);
+                } // 0.8s de respiro entre chaves
 
                 $aiKeyRecord = $this->getNextKey();
-                if (!$aiKeyRecord) {
-                    Log::error("Gemini Error: Nenhuma chave disponível para uso.");
+                if (! $aiKeyRecord) {
+                    Log::error('Gemini Error: Nenhuma chave disponível para uso.');
                     break;
                 }
 
@@ -149,61 +151,68 @@ PROMPT;
 
                 try {
                     Log::info("Gemini: Usando chave [{$aiKeyRecord->id}] com modelo [{$model}]");
-                    
+
                     // Marcar como usada
                     $aiKeyRecord->update(['last_used_at' => now()]);
 
-                    $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+                    $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
                         ->timeout(15)
                         ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                         ->post("{$baseUrl}?key={$apiKey}", [
                             'contents' => [
                                 [
                                     'parts' => [
-                                        ['text' => $prompt]
-                                    ]
-                                ]
+                                        ['text' => $prompt],
+                                    ],
+                                ],
                             ],
                             'generationConfig' => [
-                                'temperature'     => 0.9,
-                                'maxOutputTokens' => 4096
-                            ]
+                                'temperature' => 0.9,
+                                'maxOutputTokens' => 4096,
+                            ],
                         ]);
 
-                    $latency = (int)((microtime(true) - $startTime) * 1000);
+                    $latency = (int) ((microtime(true) - $startTime) * 1000);
 
                     if ($response->successful()) {
-                        $data   = $response->json();
+                        $data = $response->json();
                         $result = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
                         if ($result) {
                             $result = trim($result);
-                            if (str_starts_with($result, '```json')) $result = substr($result, 7);
-                            if (str_starts_with($result, '```')) $result = substr($result, 3);
-                            if (str_ends_with($result, '```')) $result = substr($result, 0, -3);
+                            if (str_starts_with($result, '```json')) {
+                                $result = substr($result, 7);
+                            }
+                            if (str_starts_with($result, '```')) {
+                                $result = substr($result, 3);
+                            }
+                            if (str_ends_with($result, '```')) {
+                                $result = substr($result, 0, -3);
+                            }
                             $result = trim($result);
-                            
+
                             if (preg_match('/\{.*\}/s', $result, $matches)) {
                                 $result = $matches[0];
                             }
-                            
+
                             $json = json_decode($result, true);
 
                             if (json_last_error() !== JSON_ERROR_NONE) {
-                                $result = mb_convert_encoding($result, 'UTF-8', 'UTF-8'); 
-                                if (!str_ends_with(trim($result), '}')) {
+                                $result = mb_convert_encoding($result, 'UTF-8', 'UTF-8');
+                                if (! str_ends_with(trim($result), '}')) {
                                     $result = rtrim(trim($result), " ,\"\n\r\t");
                                     $openBraces = substr_count($result, '{') - substr_count($result, '}');
                                     for ($braceIdx = 0; $braceIdx < $openBraces; $braceIdx++) {
                                         $result .= '}';
                                     }
                                 }
-                                $result = str_replace(["\r\n", "\r", "\n"], " ", $result);
+                                $result = str_replace(["\r\n", "\r", "\n"], ' ', $result);
                                 $result = preg_replace('/[\x00-\x1F\x7F]+/', '', $result);
                                 $json = json_decode($result, true);
                             }
 
                             if (json_last_error() === JSON_ERROR_NONE && is_array($json)) {
                                 $this->logUsage($aiKeyRecord->id, $model, true, null, $latency);
+
                                 return $json;
                             }
                         }
@@ -211,28 +220,30 @@ PROMPT;
 
                     $status = $response->status();
                     $errorBody = $response->body();
-                    
+
                     if ($status === 429) {
                         Log::warning("Gemini Key #{$aiKeyRecord->id} atingiu limite (429). Suspendendo por 5 minutos.");
                         $aiKeyRecord->update(['cooldown_until' => now()->addMinutes(5)]);
                     }
 
-                    $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: " . substr($errorBody, 0, 100), $latency);
+                    $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: ".substr($errorBody, 0, 100), $latency);
 
                     if ($status === 404) {
                         Log::warning("Gemini: Modelo {$model} não encontrado para chave #{$aiKeyRecord->id} (404).");
-                        continue; 
+
+                        continue;
                     }
 
                 } catch (\Exception $e) {
-                    $latency = (int)((microtime(true) - $startTime) * 1000);
-                    Log::warning("Gemini API Exception: " . $e->getMessage());
+                    $latency = (int) ((microtime(true) - $startTime) * 1000);
+                    Log::warning('Gemini API Exception: '.$e->getMessage());
                     $this->logUsage($aiKeyRecord->id, $model, false, $e->getMessage(), $latency);
                 }
             }
         }
 
-        Log::error("Gemini: Todas as chaves e modelos falharam.");
+        Log::error('Gemini: Todas as chaves e modelos falharam.');
+
         return null;
     }
 
@@ -272,45 +283,51 @@ PROMPT;
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'gemini')->count();
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
-                if ($i > 0) usleep(500000); // 0.5s de respiro entre chaves
+                if ($i > 0) {
+                    usleep(500000);
+                } // 0.5s de respiro entre chaves
 
                 $aiKeyRecord = $this->getNextKey();
-                if (!$aiKeyRecord) break;
+                if (! $aiKeyRecord) {
+                    break;
+                }
 
                 $startTime = microtime(true);
                 try {
                     $aiKeyRecord->update(['last_used_at' => now()]);
-                    
-                    $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+
+                    $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
                         ->timeout(15)
                         ->withHeaders(['User-Agent' => 'RaioXNeighborhood/1.0'])
                         ->post("{$baseUrl}?key={$aiKeyRecord->key}", [
-                            'contents' => [['parts' => [['text' => $prompt]]]]
+                            'contents' => [['parts' => [['text' => $prompt]]]],
                         ]);
 
-                    $latency = (int)((microtime(true) - $startTime) * 1000);
+                    $latency = (int) ((microtime(true) - $startTime) * 1000);
                     $status = $response->status();
 
                     if ($response->successful()) {
                         $res = $response->json();
                         $this->logUsage($aiKeyRecord->id, $model, true, null, $latency);
+
                         return $res['candidates'][0]['content']['parts'][0]['text'] ?? null;
                     }
-                    
+
                     if ($status === 429) {
                         Log::warning("Gemini Analysis: Key #{$aiKeyRecord->id} atingiu limite (429). Suspendendo por 5 minutos.");
                         $aiKeyRecord->update(['cooldown_until' => now()->addMinutes(5)]);
                     }
 
-                    $this->logUsage($aiKeyRecord->id, $model, false, "Status: " . $status, $latency);
+                    $this->logUsage($aiKeyRecord->id, $model, false, 'Status: '.$status, $latency);
 
                     if ($status === 404) {
                         Log::warning("Gemini Analysis: Modelo {$model} não encontrado para chave #{$aiKeyRecord->id} (404).");
-                        continue; 
+
+                        continue;
                     }
 
                 } catch (\Exception $e) {
-                    $latency = (int)((microtime(true) - $startTime) * 1000);
+                    $latency = (int) ((microtime(true) - $startTime) * 1000);
                     $this->logUsage($aiKeyRecord->id, $model, false, $e->getMessage(), $latency);
                 }
             }

@@ -5,18 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\LocationReport;
 use App\Models\RegionComparison;
 use App\Services\Agents\CompareAgent;
-use App\Services\GeminiService;
-use App\Services\GroqService;
-use App\Services\OpenRouterService;
 use App\Services\NeighborhoodService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class CompareController extends Controller
 {
     protected $compareAgent;
+
     protected $llm;
+
     protected $neighborhoodService;
 
     public function __construct(
@@ -24,14 +22,15 @@ class CompareController extends Controller
         \App\Services\LlmManagerService $llm,
         NeighborhoodService $neighborhoodService
     ) {
-        $this->compareAgent       = $compareAgent;
-        $this->llm                = $llm;
+        $this->compareAgent = $compareAgent;
+        $this->llm = $llm;
         $this->neighborhoodService = $neighborhoodService;
     }
 
     public function index()
     {
         $duels = RegionComparison::orderBy('created_at', 'desc')->paginate(15);
+
         return view('report.duels', compact('duels'));
     }
 
@@ -39,7 +38,7 @@ class CompareController extends Controller
     {
         $cepA = preg_replace('/\D/', '', $cepA);
         $cepB = preg_replace('/\D/', '', $cepB);
-        
+
         $comparison = RegionComparison::findPair($cepA, $cepB);
 
         if ($comparison) {
@@ -68,9 +67,9 @@ class CompareController extends Controller
         } else {
             // 2. Se não existe no banco, TRABALHO PESADO: Carregar relatórios e gerar
             // ESTRATÉGIA TURBO: Se algum não existir, processamos em paralelo via NeighborhoodService
-            if (!LocationReport::where('cep', $cepA)->exists() || !LocationReport::where('cep', $cepB)->exists()) {
-                Log::info("CompareController: Um ou ambos os CEPs são novos. Processando em paralelo.");
-                
+            if (! LocationReport::where('cep', $cepA)->exists() || ! LocationReport::where('cep', $cepB)->exists()) {
+                Log::info('CompareController: Um ou ambos os CEPs são novos. Processando em paralelo.');
+
                 // Disparamos o processamento (que agora é macro-paralelo internamente)
                 // Se o CEP já existir, o NeighborhoodService apenas retorna o cache.
                 $reportA = $this->neighborhoodService->getCachedReport($cepA);
@@ -80,7 +79,7 @@ class CompareController extends Controller
                 $reportB = LocationReport::where('cep', $cepB)->first();
             }
 
-            if (!$reportA || !$reportB) {
+            if (! $reportA || ! $reportB) {
                 return redirect()->route('home')->withErrors(['cep' => 'Não foi possível processar um dos CEPs para o duelo.']);
             }
 
@@ -90,11 +89,11 @@ class CompareController extends Controller
 
             // 4. Gerar Análise via IA e Agente de Comparação
             Log::info("CompareController: Gerando nova análise de duelo para {$cepA} vs {$cepB}");
-            
+
             $results = $this->compareAgent->compare($reportA, $reportB);
 
             $analysis = $this->llm->chat([
-                ['role' => 'system', 'content' => "Você é o Analista Master de Territórios do Raio-X, um especialista sênior em planejamento urbano e geolocalização. Sua missão é fornecer uma consultoria de alto nível para alguém que está decidindo onde MORAR.
+                ['role' => 'system', 'content' => 'Você é o Analista Master de Territórios do Raio-X, um especialista sênior em planejamento urbano e geolocalização. Sua missão é fornecer uma consultoria de alto nível para alguém que está decidindo onde MORAR.
                 
                 Dadas duas localizações, analise tecnicamente:
                 1. O perfil predominante de cada área (ex: polo de serviços vs reduto residencial).
@@ -107,19 +106,19 @@ class CompareController extends Controller
                 IMPORTANTE: 
                 - Não use negrito, não use asteriscos, não use markdown.
                 - Use apenas parágrafos fluidos.
-                - Mantenha um tom profissional, consultivo e inspirador."],
-                ['role' => 'user', 'content' => "Dados Comparativos: " . json_encode([
+                - Mantenha um tom profissional, consultivo e inspirador.'],
+                ['role' => 'user', 'content' => 'Dados Comparativos: '.json_encode([
                     'localidade_a' => array_merge($this->mapReportToAnalysis($reportA), $results['profiles']['a']),
                     'localidade_b' => array_merge($this->mapReportToAnalysis($reportB), $results['profiles']['b']),
-                    'distancia_entre_pontos' => $results['distance_km'] . " km",
-                    'diferenca_renda' => $results['deltas']['income_diff']
-                ])]
+                    'distancia_entre_pontos' => $results['distance_km'].' km',
+                    'diferenca_renda' => $results['deltas']['income_diff'],
+                ])],
             ], 'creative', [
                 'agent_name' => 'CompareAgent',
-                'agent_version' => '2.1.0'
+                'agent_version' => '2.1.0',
             ]);
 
-            $analysisText = $analysis['choices'][0]['message']['content'] ?? "Comparação técnica concluída. Observe os indicadores de ruído e infraestrutura abaixo para decidir.";
+            $analysisText = $analysis['choices'][0]['message']['content'] ?? 'Comparação técnica concluída. Observe os indicadores de ruído e infraestrutura abaixo para decidir.';
 
             // 5. Salvar na Pedra (Banco) para nunca mais processar este par
             $comparison = RegionComparison::create([
@@ -135,9 +134,9 @@ class CompareController extends Controller
                     'distance_km' => $results['distance_km'],
                     'profiles' => $results['profiles'],
                     'location_a' => "{$reportA->bairro}, {$reportA->cidade}",
-                    'location_b' => "{$reportB->bairro}, {$reportB->cidade}"
+                    'location_b' => "{$reportB->bairro}, {$reportB->cidade}",
                 ],
-                'analysis_text' => $analysisText
+                'analysis_text' => $analysisText,
             ]);
         }
 
@@ -148,7 +147,7 @@ class CompareController extends Controller
         return view('report.compare', [
             'comparison' => $comparison,
             'reportA' => $reportA,
-            'reportB' => $reportB
+            'reportB' => $reportB,
         ]);
     }
 
@@ -158,7 +157,9 @@ class CompareController extends Controller
     private function ensureDataIsFresh(LocationReport $report)
     {
         $lock = \Illuminate\Support\Facades\Cache::lock("rehydrate_{$report->cep}", 120);
-        if (!$lock->get()) return;
+        if (! $lock->get()) {
+            return;
+        }
 
         try {
             $needsUpdate = false;
@@ -168,8 +169,8 @@ class CompareController extends Controller
                 $poiAgent = app(\App\Services\Agents\POIAgent::class);
                 $adaptiveData = $poiAgent->fetchPOIsAdaptive($report->lat, $report->lng);
                 $newPois = $adaptiveData['pois'];
-                
-                if (!empty($newPois)) {
+
+                if (! empty($newPois)) {
                     $report->pois_json = $newPois;
                     $report->search_radius = $adaptiveData['radius'];
                     $report->data_version = 3;
@@ -178,10 +179,10 @@ class CompareController extends Controller
             }
 
             // 2. Se não tem scores calculados, calcula agora
-            if ($report->general_score == 0 && !empty($report->pois_json)) {
+            if ($report->general_score == 0 && ! empty($report->pois_json)) {
                 Log::info("CompareController: Calculando scores ausentes para o CEP {$report->cep}");
                 $metrics = $this->compareAgent->getRegionMetrics($report->pois_json);
-                
+
                 $report->infra_score = $metrics['infra'];
                 $report->mobility_score = $metrics['mobility'];
                 $report->leisure_score = $metrics['leisure'];
@@ -213,7 +214,7 @@ class CompareController extends Controller
             'leisure' => $report->leisure_score,
             'preco_m2' => $precoM2,
             'lat' => $report->lat,
-            'lng' => $report->lng
+            'lng' => $report->lng,
         ];
     }
 }

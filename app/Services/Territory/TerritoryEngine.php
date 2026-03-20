@@ -2,12 +2,12 @@
 
 namespace App\Services\Territory;
 
+use App\Services\Agents\ClimaAgent;
+use App\Services\Agents\CompareAgent;
 use App\Services\Agents\GeoAgent;
 use App\Services\Agents\POIAgent;
-use App\Services\Agents\ClimaAgent;
 use App\Services\Agents\SocioAgent;
 use App\Services\Agents\WikiAgent;
-use App\Services\Agents\CompareAgent;
 use App\Services\LlmManagerService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -20,12 +20,19 @@ use Illuminate\Support\Facades\Log;
 class TerritoryEngine
 {
     protected GeoAgent $geo;
+
     protected POIAgent $poi;
+
     protected ClimaAgent $clima;
+
     protected SocioAgent $socio;
+
     protected WikiAgent $wiki;
+
     protected CompareAgent $compare;
+
     protected \App\Services\Agents\KnowledgeAgent $knowledge;
+
     protected LlmManagerService $llm;
 
     public function __construct(
@@ -56,8 +63,8 @@ class TerritoryEngine
     {
         Log::info("[TerritoryEngine] Resolvendo Identidade Territorial Rápida para: {$cep}");
         $geoData = $this->geo->resolveCep($cep);
-        
-        if (!$geoData || !isset($geoData['localidade'])) {
+
+        if (! $geoData || ! isset($geoData['localidade'])) {
             return ['status' => 'failed', 'error' => 'CEP não localizado.'];
         }
 
@@ -65,11 +72,13 @@ class TerritoryEngine
         $lng = $geoData['lon'] ?? null;
         $suburb = $geoData['bairro'] ?? '';
 
-        if (!$lat || !$lng) {
+        if (! $lat || ! $lng) {
             $coords = $this->geo->geolocate($geoData['logradouro'] ?? '', $geoData['localidade'], $geoData['uf'], $cep);
             $lat = $coords['lat'] ?? null;
             $lng = $coords['lon'] ?? null;
-            if (!$suburb) $suburb = $coords['suburb'] ?? '';
+            if (! $suburb) {
+                $suburb = $coords['suburb'] ?? '';
+            }
         }
 
         return [
@@ -81,8 +90,8 @@ class TerritoryEngine
                 'city' => $geoData['localidade'],
                 'state' => $geoData['uf'],
                 'ibge' => $geoData['ibge'] ?? null,
-                'coordinates' => ['lat' => $lat, 'lng' => $lng]
-            ]
+                'coordinates' => ['lat' => $lat, 'lng' => $lng],
+            ],
         ];
     }
 
@@ -94,11 +103,13 @@ class TerritoryEngine
         Log::info("[TerritoryEngine] Iniciando resolução completa para o CEP: {$cep}");
 
         // 1. Identidade Territorial
-        if (!empty($preResolvedGeo)) {
+        if (! empty($preResolvedGeo)) {
             $geoData = $preResolvedGeo;
         } else {
             $fast = $this->resolveFast($cep);
-            if ($fast['status'] === 'failed') return $fast;
+            if ($fast['status'] === 'failed') {
+                return $fast;
+            }
             $geoData = $fast['location'];
         }
 
@@ -110,17 +121,17 @@ class TerritoryEngine
         $suburb = $geoData['neighborhood'] ?? $geoData['bairro'] ?? '';
 
         // 2. ORQUESTRAÇÃO DE AGENTES (MACRO-PARALELISMO)
-        
+
         // [RAG] 2a. Busca em Memória Territorial Interna (Síncrono mas otimizado SQL agora)
         $ragContext = $this->knowledge->search("História e cultura de {$suburb} em {$city}", 3);
-        
+
         // Se o IBGE não veio no CEP, buscamos agora para o pool
-        if (!$ibgeCode) {
+        if (! $ibgeCode) {
             $ibgeCode = $this->socio->fetchIbgeCodeByName($city, $state);
         }
 
-        Log::info("[TerritoryEngine] Disparando Macro-Pool para Wiki, Socio e Clima.");
-        
+        Log::info('[TerritoryEngine] Disparando Macro-Pool para Wiki, Socio e Clima.');
+
         // DISPARO CONCORRENTE: Wikipedia + IBGE + Clima em um único túnel
         $responses = Http::pool(function ($pool) use ($suburb, $city, $state, $ibgeCode, $lat, $lng) {
             return array_merge(
@@ -136,16 +147,16 @@ class TerritoryEngine
         $climaData = $this->clima->processResults($responses);
 
         // [RAG] 3a. Indexação de novos conhecimentos da Wiki
-        if (!empty($wikiData['full_text'])) {
+        if (! empty($wikiData['full_text'])) {
             $this->knowledge->store(
-                $wikiData['full_text'], 
-                'wiki', 
-                $cep, 
+                $wikiData['full_text'],
+                'wiki',
+                $cep,
                 ['city' => $city, 'neighborhood' => $suburb, 'source' => 'wikipedia']
             );
         }
 
-        // 4. Infraestrutura (POIs) - Ainda semi-síncrono por depender de lat/lng final, 
+        // 4. Infraestrutura (POIs) - Ainda semi-síncrono por depender de lat/lng final,
         // mas agora o caminho até aqui foi muito mais rápido.
         $poiResult = $this->poi->fetchPOIsAdaptive($lat, $lng);
         $pois = $poiResult['pois'] ?? [];
@@ -163,7 +174,7 @@ class TerritoryEngine
                 'city' => $city,
                 'state' => $state,
                 'ibge' => $ibgeCode,
-                'coordinates' => ['lat' => $lat, 'lng' => $lng]
+                'coordinates' => ['lat' => $lat, 'lng' => $lng],
             ],
             'agents' => [
                 'geo' => ['version' => $this->geo::VERSION],
@@ -175,16 +186,16 @@ class TerritoryEngine
                     'count' => count($pois),
                     'walk_score' => $walkScore,
                     'metrics' => $metrics,
-                    'data' => $pois
+                    'data' => $pois,
                 ],
                 'wiki' => $wikiData,
                 'knowledge_base' => [
                     'version' => $this->knowledge::VERSION,
                     'is_grounded' => count($ragContext) > 0,
-                    'context_chunks' => $ragContext
-                ]
+                    'context_chunks' => $ragContext,
+                ],
             ],
-            'categorization' => $this->calculateCategorization($socioData, $pois, $walkScore, $suburb)
+            'categorization' => $this->calculateCategorization($socioData, $pois, $walkScore, $suburb),
         ];
     }
 
@@ -200,39 +211,66 @@ class TerritoryEngine
             $shop = $poi['tags']['shop'] ?? '';
             $amenity = $poi['tags']['amenity'] ?? '';
             $tourism = $poi['tags']['tourism'] ?? '';
-            if (in_array($shop, ['supermarket', 'convenience', 'doityourself'])) $poiCounts['popular']++;
-            if (in_array($amenity, ['bank', 'hospital', 'university']) || $shop == 'mall') $poiCounts['central']++;
-            if (!empty($tourism) || in_array($amenity, ['bar'])) $poiCounts['turistico']++;
-            if (in_array($amenity, ['arts_centre', 'theatre'])) $poiCounts['lazer_alto']++;
+            if (in_array($shop, ['supermarket', 'convenience', 'doityourself'])) {
+                $poiCounts['popular']++;
+            }
+            if (in_array($amenity, ['bank', 'hospital', 'university']) || $shop == 'mall') {
+                $poiCounts['central']++;
+            }
+            if (! empty($tourism) || in_array($amenity, ['bar'])) {
+                $poiCounts['turistico']++;
+            }
+            if (in_array($amenity, ['arts_centre', 'theatre'])) {
+                $poiCounts['lazer_alto']++;
+            }
         }
 
         $classification = 'Residencial Médio';
         $isCentro = (str_contains(strtolower($bairro), 'centro') || str_contains(strtolower($bairro), 'central'));
-        
-        if ($poiCounts['turistico'] >= 5) $classification = 'Turístico Premium';
-        elseif ($isCentro || $poiCounts['central'] >= 8) $classification = 'Comercial Central';
-        elseif ($income > 7500 || $poiCounts['lazer_alto'] > 4) $classification = 'Residencial Alto Padrão';
-        elseif ($income > 3800 || $poiCounts['lazer_alto'] >= 2) $classification = 'Residencial Nobre';
-        elseif (!$isCentro && $income < 2000 && $poiCounts['central'] < 2) $classification = 'Residencial Popular';
-        else if (count($pois) < 5) $classification = 'Zona de Expansão / Rural';
+
+        if ($poiCounts['turistico'] >= 5) {
+            $classification = 'Turístico Premium';
+        } elseif ($isCentro || $poiCounts['central'] >= 8) {
+            $classification = 'Comercial Central';
+        } elseif ($income > 7500 || $poiCounts['lazer_alto'] > 4) {
+            $classification = 'Residencial Alto Padrão';
+        } elseif ($income > 3800 || $poiCounts['lazer_alto'] >= 2) {
+            $classification = 'Residencial Nobre';
+        } elseif (! $isCentro && $income < 2000 && $poiCounts['central'] < 2) {
+            $classification = 'Residencial Popular';
+        } elseif (count($pois) < 5) {
+            $classification = 'Zona de Expansão / Rural';
+        }
 
         $calibratedSanitation = $socio['sanitation_rate'] ?? 85.0;
-        if ($walkScore === 'A') $calibratedSanitation = max($calibratedSanitation, 95.5);
-        elseif ($walkScore === 'B') $calibratedSanitation = max($calibratedSanitation, 85.0);
-        if ($isCentro) $calibratedSanitation = max($calibratedSanitation, 98.0);
+        if ($walkScore === 'A') {
+            $calibratedSanitation = max($calibratedSanitation, 95.5);
+        } elseif ($walkScore === 'B') {
+            $calibratedSanitation = max($calibratedSanitation, 85.0);
+        }
+        if ($isCentro) {
+            $calibratedSanitation = max($calibratedSanitation, 98.0);
+        }
 
         $safetyLevel = 'MODERADO';
-        if ($classification === 'Turístico Premium') $safetyLevel = 'ALTO (POLICIAMENTO)';
-        elseif ($classification === 'Comercial Central') $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
-        elseif ($classification === 'Residencial Alto Padrão') $safetyLevel = 'ZONA PROTEGIDA';
-        elseif ($classification === 'Residencial Nobre') $safetyLevel = 'ALTA SEGURANÇA';
-        elseif ($classification === 'Residencial Popular') $safetyLevel = 'MODERADO / LOCAL';
-        else $safetyLevel = 'ZONA MONITORADA';
+        if ($classification === 'Turístico Premium') {
+            $safetyLevel = 'ALTO (POLICIAMENTO)';
+        } elseif ($classification === 'Comercial Central') {
+            $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
+        } elseif ($classification === 'Residencial Alto Padrão') {
+            $safetyLevel = 'ZONA PROTEGIDA';
+        } elseif ($classification === 'Residencial Nobre') {
+            $safetyLevel = 'ALTA SEGURANÇA';
+        } elseif ($classification === 'Residencial Popular') {
+            $safetyLevel = 'MODERADO / LOCAL';
+        } else {
+            $safetyLevel = 'ZONA MONITORADA';
+        }
 
         return [
             'classification' => $classification,
             'sanitation_rate' => $calibratedSanitation,
-            'safety_level' => $safetyLevel
+            'safety_level' => $safetyLevel,
         ];
     }
 
@@ -249,11 +287,11 @@ class TerritoryEngine
                     'population' => $socio['population'],
                     'average_income' => $socio['average_income'],
                     'idhm' => $socio['idhm'],
-                    'sanitation_rate' => $socio['sanitation_rate'] ?? 0
+                    'sanitation_rate' => $socio['sanitation_rate'] ?? 0,
                 ]
             );
         } catch (\Exception $e) {
-            Log::warning("Erro ao criar/atualizar cidade: " . $e->getMessage());
+            Log::warning('Erro ao criar/atualizar cidade: '.$e->getMessage());
         }
     }
 }

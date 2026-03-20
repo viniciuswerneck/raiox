@@ -6,7 +6,6 @@ use App\Models\City;
 use App\Models\LocationReport;
 use App\Models\Neighborhood;
 use App\Services\LlmManagerService;
-use App\Services\TextReviserService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,10 +19,13 @@ class GenerateNeighborhoodText implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $cep;
+
     protected $reportId;
+
     protected $wikiSearchContext;
 
     public $tries = 2;
+
     public $timeout = 180;
 
     /**
@@ -41,8 +43,8 @@ class GenerateNeighborhoodText implements ShouldQueue
      */
     private const AMBIGUOUS_TERMS = [
         'centro', 'norte', 'sul', 'leste', 'oeste', 'central',
-        'jardim', 'vila', 'parque', 'alto', 'baixo', 'bela vista', 'boa vista', 
-        'santa', 'santo', 'são', 'nossa senhora', 'residencial', 'portal'
+        'jardim', 'vila', 'parque', 'alto', 'baixo', 'bela vista', 'boa vista',
+        'santa', 'santo', 'são', 'nossa senhora', 'residencial', 'portal',
     ];
 
     /**
@@ -51,22 +53,24 @@ class GenerateNeighborhoodText implements ShouldQueue
     public function handle(LlmManagerService $llm, \App\Services\AactService $aact, \App\Services\RealEstateTrendService $trendService): void
     {
         // Delay aleatório inicial para escalonamento
-        usleep(rand(200000, 1000000)); 
-        
+        usleep(rand(200000, 1000000));
+
         $report = LocationReport::find($this->reportId);
-        if (!$report) return;
+        if (! $report) {
+            return;
+        }
 
         try {
             $city = $report->cidade;
             $state = $report->uf;
             $bairro = $report->bairro ?? '';
-            
+
             // Dados da Wikipedia já devem ter sido coletados pela TerritoryEngine ou coletamos agora via WikiAgent
             // Se o report já tem wiki_json, usamos ele.
             $wikiResult = $report->wiki_json ?? [];
-            
-            $historyRaw = $wikiResult['full_text'] ?? $wikiResult['extract'] ?? "Local em desenvolvimento. Utilize as informações de infraestrutura para análise.";
-            
+
+            $historyRaw = $wikiResult['full_text'] ?? $wikiResult['extract'] ?? 'Local em desenvolvimento. Utilize as informações de infraestrutura para análise.';
+
             // Truncar para evitar Payload Too Large (413)
             $historyRaw = mb_substr($historyRaw, 0, 6000);
 
@@ -78,79 +82,84 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'populacao' => $report->populacao ?? 0,
                 'safety_level' => $report->safety_level ?? 'MODERADO',
                 'sanitation_rate' => $report->sanitation_rate ?? 0,
-                'walk_score' => $report->walkability_score ?? 'N/A'
+                'walk_score' => $report->walkability_score ?? 'N/A',
             ];
 
             $locationName = $bairro ? "{$bairro}, {$city}" : $city;
 
             // Dados recuperados da Memória Territorial (RAG)
-            $ragContextString = "";
-            if (!empty($this->wikiSearchContext['context_chunks'])) {
-                $chunks = array_map(fn($c) => $c['content'], $this->wikiSearchContext['context_chunks']);
-                $ragContextString = "\nMemória Territorial (Dados anteriores): " . implode(" | ", $chunks);
+            $ragContextString = '';
+            if (! empty($this->wikiSearchContext['context_chunks'])) {
+                $chunks = array_map(fn ($c) => $c['content'], $this->wikiSearchContext['context_chunks']);
+                $ragContextString = "\nMemória Territorial (Dados anteriores): ".implode(' | ', $chunks);
             }
 
             // [NEW] 1a. Análise de Tendência Regional (Mini-Grafo de Adjacência)
             $trendData = $trendService->analyzePotential($report);
-            $trendContext = "";
-            if (!empty($trendData['nearby_hubs'])) {
-                $hubs = collect($trendData['nearby_hubs'])->map(fn($h) => "{$h['name']} ({$h['dist']}km - {$h['classification']})")->implode(', ');
+            $trendContext = '';
+            if (! empty($trendData['nearby_hubs'])) {
+                $hubs = collect($trendData['nearby_hubs'])->map(fn ($h) => "{$h['name']} ({$h['dist']}km - {$h['classification']})")->implode(', ');
                 $trendContext = "\nInteligência de Mercado Local: Este local está próximo de polos de valorização como {$hubs}. "
-                    . "Tendência detectada pelo algoritmo: {$trendData['trend']}. "
-                    . "Análise estratégica: {$trendData['description']}.";
+                    ."Tendência detectada pelo algoritmo: {$trendData['trend']}. "
+                    ."Análise estratégica: {$trendData['description']}.";
             }
 
             // 1. Geração da Narrativa e Dados Estruturados via LlmManager
-            $systemPrompt = "Você é um especialista sênior em análise territorial, urbanismo e SEO do sistema Raio-X. "
-                . "Sua tarefa é criar uma análise profunda, autoritativa e enciclopédica sobre uma localidade, otimizada para buscadores (SEO). "
-                . "A narrativa deve ser rica em detalhes históricos, culturais, arquitetônicos e geográficos. "
-                . "Combine os dados históricos e de mercado fornecidos com sua base de conhecimento sobre a evolução urbana local. "
-                . "Estrutura OBRIGATÓRIA da narrativa (MÍNIMO DE 4 PARÁGRAFOS extensos e 350 palavras):\n"
-                . "1. Contexto Histórico: Origens e evolução.\n"
-                . "2. Perfil Cultural: Identidade e estilo de vida.\n"
-                . "3. Desenvolvimento Urbano: Infraestrutura e legado regional.\n"
-                . "4. Dinâmica Contemporânea e Projeções: O papel do bairro na cidade hoje e seu potencial de valorização futuro.\n"
-                . "REGRAS EXTRAS:\n"
-                . "- Incorpore inteligentemente a análise de mercado sobre os bairros vizinhos no último parágrafo.\n"
-                . "- Separe os parágrafos obrigatoriamente com DUAS quebras de linha (\\n\\n).\n"
-                . "- Use um tom profissional e envolvente. Evite clichês.\n"
-                . "Você deve retornar APENAS um JSON válido seguindo este formato rigoroso:\n"
-                . "{\n"
-                . "  \"narrative\": \"Texto completo (mínimo 4 parágrafos, separados por \\n\\n). Sem markdown.\",\n"
-                . "  \"safety_analysis\": \"Uma frase curta (máx 150 caracteres) descrevendo a percepção de segurança.\",\n"
-                . "  \"real_estate\": {\n"
-                . "    \"preco_m2\": \"R$ X.XXX a R$ X.XXX\",\n"
-                . "    \"perfil_imoveis\": \"Ex: Residencial horizontal predominante\",\n"
-                . "    \"tendencia_valorizacao\": \"ALTA, MÉDIA ou ESTÁVEL\"\n"
-                . "  }\n"
-                . "}";
+            $systemPrompt = 'Você é um especialista sênior em análise territorial, urbanismo e SEO do sistema Raio-X. '
+                .'Sua tarefa é criar uma análise profunda, autoritativa e enciclopédica sobre uma localidade, otimizada para buscadores (SEO). '
+                .'A narrativa deve ser rica em detalhes históricos, culturais, arquitetônicos e geográficos. '
+                .'Combine os dados históricos e de mercado fornecidos com sua base de conhecimento sobre a evolução urbana local. '
+                ."Estrutura OBRIGATÓRIA da narrativa (MÍNIMO DE 4 PARÁGRAFOS extensos e 350 palavras):\n"
+                ."1. Contexto Histórico: Origens e evolução.\n"
+                ."2. Perfil Cultural: Identidade e estilo de vida.\n"
+                ."3. Desenvolvimento Urbano: Infraestrutura e legado regional.\n"
+                ."4. Dinâmica Contemporânea e Projeções: O papel do bairro na cidade hoje e seu potencial de valorização futuro.\n"
+                ."REGRAS EXTRAS:\n"
+                ."- Incorpore inteligentemente a análise de mercado sobre os bairros vizinhos no último parágrafo.\n"
+                ."- Separe os parágrafos obrigatoriamente com DUAS quebras de linha (\\n\\n).\n"
+                ."- Use um tom profissional e envolvente. Evite clichês.\n"
+                ."Você deve retornar APENAS um JSON válido seguindo este formato rigoroso:\n"
+                ."{\n"
+                ."  \"narrative\": \"Texto completo (mínimo 4 parágrafos, separados por \\n\\n). Sem markdown.\",\n"
+                ."  \"safety_analysis\": \"Uma frase curta (máx 150 caracteres) descrevendo a percepção de segurança.\",\n"
+                ."  \"real_estate\": {\n"
+                ."    \"preco_m2\": \"R$ X.XXX a R$ X.XXX\",\n"
+                ."    \"perfil_imoveis\": \"Ex: Residencial horizontal predominante\",\n"
+                ."    \"tendencia_valorizacao\": \"ALTA, MÉDIA ou ESTÁVEL\"\n"
+                ."  }\n"
+                .'}';
 
             $messages = [
                 ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => "Gere uma análise para {$locationName}.{$ragContextString}{$trendContext}\nDados históricos: {$historyRaw}. Contexto: " . json_encode($aactContext)]
+                ['role' => 'user', 'content' => "Gere uma análise para {$locationName}.{$ragContextString}{$trendContext}\nDados históricos: {$historyRaw}. Contexto: ".json_encode($aactContext)],
             ];
 
             Log::info("[Job] Solicitando análise estruturada para {$locationName} via LlmManager");
-            
+
             $response = $llm->chat($messages, 'creative', [
                 'agent_name' => 'StructuredAnalysisAgent',
-                'agent_version' => '2.1.0'
+                'agent_version' => '2.1.0',
             ]);
 
             // 1. Extração e Sanitização do JSON via LlmManager
             $jsonRaw = $response['choices'][0]['message']['content'] ?? null;
 
-            if (!$jsonRaw) {
-                throw new \Exception("Falha ao gerar análise via LlmManager");
+            if (! $jsonRaw) {
+                throw new \Exception('Falha ao gerar análise via LlmManager');
             }
 
             $analysis = $this->parseStructuredAnalysis($jsonRaw);
 
             if ($analysis && isset($analysis['narrative']) && is_array($analysis['narrative'])) {
-                $analysis['narrative'] = implode("\n\n", array_map(function($p) {
-                    if (is_string($p)) return $p;
-                    if (is_array($p)) return $p['texto'] ?? $p['content'] ?? $p['text'] ?? json_encode($p);
-                    return (string)$p;
+                $analysis['narrative'] = implode("\n\n", array_map(function ($p) {
+                    if (is_string($p)) {
+                        return $p;
+                    }
+                    if (is_array($p)) {
+                        return $p['texto'] ?? $p['content'] ?? $p['text'] ?? json_encode($p);
+                    }
+
+                    return (string) $p;
                 }, $analysis['narrative']));
             }
 
@@ -159,7 +168,7 @@ class GenerateNeighborhoodText implements ShouldQueue
                 $analysis['narrative'] = preg_replace("/(\n\s*){3,}/", "\n\n", $analysis['narrative']);
             }
 
-            if (!$analysis || !isset($analysis['narrative'])) {
+            if (! $analysis || ! isset($analysis['narrative'])) {
                 Log::warning("IA não retornou JSON coerente para {$locationName}. Tentando extração via fallback.");
                 $analysis = [
                     'narrative' => $this->fallbackNarrativeExtraction($jsonRaw),
@@ -167,8 +176,8 @@ class GenerateNeighborhoodText implements ShouldQueue
                     'real_estate' => [
                         'preco_m2' => 'Sob consulta',
                         'perfil_imoveis' => 'Misto',
-                        'tendencia_valorizacao' => 'ESTÁVEL'
-                    ]
+                        'tendencia_valorizacao' => 'ESTÁVEL',
+                    ],
                 ];
             }
 
@@ -182,7 +191,7 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'average_income' => $report->average_income,
                 'sanitation_rate' => $report->sanitation_rate,
                 'pois_json' => $report->pois_json,
-                'real_estate_json' => $analysis['real_estate']
+                'real_estate_json' => $analysis['real_estate'],
             ];
 
             $calibrated = $aact->auditAndRecalibrate($auditData);
@@ -196,17 +205,17 @@ class GenerateNeighborhoodText implements ShouldQueue
                 'territorial_classification' => $calibrated['territorial_classification'],
                 'aact_log' => $calibrated['aact_log'],
                 'status' => 'completed',
-                'error_message' => null
+                'error_message' => null,
             ]);
 
             // Cache em City/Neighborhood
             $this->updateCacheModels($report, $analysis['narrative'], $wikiResult);
 
         } catch (\Exception $e) {
-            Log::error("TextGenerator Job failed: " . $e->getMessage());
+            Log::error('TextGenerator Job failed: '.$e->getMessage());
             $report->update([
                 'status' => 'failed',
-                'error_message' => 'AI_FAILURE: ' . $e->getMessage()
+                'error_message' => 'AI_FAILURE: '.$e->getMessage(),
             ]);
             throw $e;
         }
@@ -237,12 +246,16 @@ class GenerateNeighborhoodText implements ShouldQueue
 
     private function isValidWikipediaPlace(array $data, string $expectedCity = '', string $expectedState = ''): bool
     {
-        $type        = $data['type'] ?? '';
+        $type = $data['type'] ?? '';
         $description = strtolower($data['description'] ?? '');
-        $extract     = $data['extract'] ?? '';
+        $extract = $data['extract'] ?? '';
 
-        if ($type === 'disambiguation') return false;
-        if (empty($extract))           return false;
+        if ($type === 'disambiguation') {
+            return false;
+        }
+        if (empty($extract)) {
+            return false;
+        }
 
         $placeKeywords = ['município', 'cidade', 'bairro', 'distrito', 'região', 'localidade', 'capital', 'entidade', 'unidade federativa', 'povoado'];
         $isPlace = false;
@@ -254,30 +267,32 @@ class GenerateNeighborhoodText implements ShouldQueue
         }
 
         $rejectPatterns = [
-            '/^o centro, em geometria/i', '/^em geometria/i', '/^em matemática/i', '/^em física/i', '/^na religião/i','/^segundo a bíblia/i'
+            '/^o centro, em geometria/i', '/^em geometria/i', '/^em matemática/i', '/^em física/i', '/^na religião/i', '/^segundo a bíblia/i',
         ];
         foreach ($rejectPatterns as $pattern) {
-            if (preg_match($pattern, $extract)) return false;
+            if (preg_match($pattern, $extract)) {
+                return false;
+            }
         }
 
         // Validação de contexto (Cidade/Estado) se fornecidos
         if ($expectedCity || $expectedState) {
-            $textToSearch = strtolower($description . ' ' . $extract);
-            $cityLower  = strtolower($expectedCity);
+            $textToSearch = strtolower($description.' '.$extract);
+            $cityLower = strtolower($expectedCity);
             $stateLower = strtolower($expectedState);
 
-            if (!str_contains($textToSearch, $cityLower) && !str_contains($textToSearch, $stateLower)) {
+            if (! str_contains($textToSearch, $cityLower) && ! str_contains($textToSearch, $stateLower)) {
                 return false; // Rejeitado pq nao bate a cidade
             }
         }
 
-        return $isPlace || !empty($description);
+        return $isPlace || ! empty($description);
     }
 
     private function fetchWikipediaInfo(string $bairro, string $city, string $state): ?array
     {
         $headers = ['User-Agent' => 'RaioXNeighborhood/1.0'];
-        $base    = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
+        $base = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
 
         $stateMap = [
             'AC' => 'Acre', 'AL' => 'Alagoas', 'AP' => 'Amapá', 'AM' => 'Amazonas', 'BA' => 'Bahia',
@@ -286,7 +301,7 @@ class GenerateNeighborhoodText implements ShouldQueue
             'PA' => 'Pará', 'PB' => 'Paraíba', 'PR' => 'Paraná', 'PE' => 'Pernambuco', 'PI' => 'Piauí',
             'RJ' => 'Rio de Janeiro', 'RN' => 'Rio Grande do Norte', 'RS' => 'Rio Grande do Sul',
             'RO' => 'Rondônia', 'RR' => 'Roraima', 'SC' => 'Santa Catarina', 'SP' => 'São Paulo',
-            'SE' => 'Sergipe', 'TO' => 'Tocantins'
+            'SE' => 'Sergipe', 'TO' => 'Tocantins',
         ];
         $stateFullName = $stateMap[strtoupper($state)] ?? $state;
 
@@ -302,7 +317,7 @@ class GenerateNeighborhoodText implements ShouldQueue
         $candidates = [];
         if ($bairro) {
             $candidates[] = [str_replace(' ', '_', "{$bairro} ({$city})"), 'bairro', true];
-            if (!$bairroIsAmbiguous) {
+            if (! $bairroIsAmbiguous) {
                 $candidates[] = [str_replace(' ', '_', $bairro), 'bairro', true];
             }
         }
@@ -315,44 +330,44 @@ class GenerateNeighborhoodText implements ShouldQueue
         foreach ($candidates as [$term, $source, $shouldValidate]) {
             try {
                 // urlencode padrão UTF-8
-                $url = $base . str_replace('%2F', '/', urlencode($term));
+                $url = $base.str_replace('%2F', '/', urlencode($term));
                 $response = Http::withoutVerifying()->timeout(10)->withHeaders($headers)->get($url);
 
                 if ($response->successful()) {
                     $data = $response->json();
-                    
+
                     // Para candidatos de cidade, relaxamos a validação (confiamos no título exato se necessário)
                     $vCity = $shouldValidate ? $city : '';
                     $vState = $shouldValidate ? ($source === 'cidade' ? '' : $stateFullName) : '';
-                    
-                    if (!$this->isValidWikipediaPlace($data, $vCity, $vState)) {
+
+                    if (! $this->isValidWikipediaPlace($data, $vCity, $vState)) {
                         continue;
                     }
-                    
+
                     // Busca imagem oficial via API de PageImages (Thumbnail 960px)
                     $officialImage = $this->fetchWikipediaImageViaAPI($term, $headers);
                     $imageUrl = $officialImage ?: ($data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null);
 
                     // Busca conteúdo completo para o resumo
                     $fullText = $this->fetchWikipediaFullContent($term, $headers);
-                    
+
                     $currentResult = [
-                        'source'      => $source,
-                        'term'        => $term,
-                        'extract'     => $data['extract'],
-                        'full_text'   => $fullText ?: $data['extract'],
-                        'image'       => $imageUrl,
+                        'source' => $source,
+                        'term' => $term,
+                        'extract' => $data['extract'],
+                        'full_text' => $fullText ?: $data['extract'],
+                        'image' => $imageUrl,
                         'desktop_url' => $data['content_urls']['desktop']['page'] ?? null,
                     ];
 
                     // Se for o primeiro resultado válido de texto, salvamos
-                    if (!$bestResult) {
+                    if (! $bestResult) {
                         $bestResult = $currentResult;
                     }
 
                     // ESTRATÉGIA: Se já temos texto E agora encontramos um resultado com IMAGEM,
                     // priorizamos o texto original do bairro mas usamos a imagem da cidade
-                    if ($bestResult && !$bestResult['image'] && $currentResult['image']) {
+                    if ($bestResult && ! $bestResult['image'] && $currentResult['image']) {
                         $bestResult['image'] = $currentResult['image'];
                     }
 
@@ -362,9 +377,10 @@ class GenerateNeighborhoodText implements ShouldQueue
                     }
                 }
             } catch (\Exception $e) {
-                Log::warning("Wikipedia timeout/error for [{$term}]: " . $e->getMessage());
+                Log::warning("Wikipedia timeout/error for [{$term}]: ".$e->getMessage());
             }
         }
+
         return $bestResult ?: [];
     }
 
@@ -379,16 +395,21 @@ class GenerateNeighborhoodText implements ShouldQueue
                     'format' => 'json',
                     'piprop' => 'thumbnail',
                     'pithumbsize' => 960,
-                    'titles' => $title
+                    'titles' => $title,
                 ]);
 
-            if (!$response->successful()) return null;
+            if (! $response->successful()) {
+                return null;
+            }
 
             $data = $response->json();
             $pages = $data['query']['pages'] ?? [];
-            if (empty($pages)) return null;
+            if (empty($pages)) {
+                return null;
+            }
 
             $page = reset($pages);
+
             return $page['thumbnail']['source'] ?? null;
         } catch (\Exception $e) {
             return null;
@@ -401,17 +422,23 @@ class GenerateNeighborhoodText implements ShouldQueue
             $response = Http::withoutVerifying()->timeout(15)->withHeaders($headers)
                 ->get('https://pt.wikipedia.org/w/api.php', [
                     'action' => 'query', 'prop' => 'extracts', 'exlimit' => 1,
-                    'titles' => str_replace('_', ' ', $term), 'explaintext' => 1, 'format' => 'json'
+                    'titles' => str_replace('_', ' ', $term), 'explaintext' => 1, 'format' => 'json',
                 ]);
 
-            if (!$response->successful()) return null;
+            if (! $response->successful()) {
+                return null;
+            }
 
             $data = $response->json();
             $pages = $data['query']['pages'] ?? [];
-            if (empty($pages)) return null;
+            if (empty($pages)) {
+                return null;
+            }
 
             $page = reset($pages);
-            if (isset($page['missing'])) return null;
+            if (isset($page['missing'])) {
+                return null;
+            }
 
             $raw = $page['extract'] ?? '';
             $raw = preg_replace('/\[\d+\]/', '', $raw);
@@ -439,16 +466,20 @@ class GenerateNeighborhoodText implements ShouldQueue
 
         // 3. Primeira tentativa direta
         $data = json_decode($json, true);
-        if ($data) return $data;
+        if ($data) {
+            return $data;
+        }
 
         // 4. Se falhou, pode ser que existam quebras de linha literais dentro das strings
         // Vamos tentar sanitizar newlines dentro de valores de string
         $sanitized = preg_replace_callback('/"(.*?)"/s', function ($matches) {
-            return '"' . str_replace(["\n", "\r"], ["\\n", ""], $matches[1]) . '"';
+            return '"'.str_replace(["\n", "\r"], ['\\n', ''], $matches[1]).'"';
         }, $json);
 
         $data = json_decode($sanitized, true);
-        if ($data) return $data;
+        if ($data) {
+            return $data;
+        }
 
         return null;
     }
@@ -462,8 +493,9 @@ class GenerateNeighborhoodText implements ShouldQueue
         if (preg_match('/"narrative":\s*"(.*?)"/s', $raw, $matches)) {
             $text = $matches[1];
             // Desescapar \n se existirem como literais
-            $text = str_replace(['\\n', '\\r'], ["\n", ""], $text);
+            $text = str_replace(['\\n', '\\r'], ["\n", ''], $text);
             $text = preg_replace("/(\n\s*){3,}/", "\n\n", $text);
+
             return trim($text);
         }
 
@@ -471,7 +503,7 @@ class GenerateNeighborhoodText implements ShouldQueue
         $clean = preg_replace('/```json\s?|```|\{|\}|"narrative":|"safety_analysis":|"real_estate":|"preco_m2":|"perfil_imoveis":|"tendencia_valorizacao":/i', '', $raw);
         $clean = preg_replace('/:[^,]+,/', '', $clean); // Remove outros campos simples
         $clean = str_replace(['**', '*'], '', $clean);
-        
+
         return trim($clean);
     }
 }

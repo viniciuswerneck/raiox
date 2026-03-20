@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     protected $apiKey;
+
     protected $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
     public function __construct()
@@ -18,13 +19,14 @@ class GeminiService
     /**
      * Gera um resumo rico e humanizado sobre o local, a partir do conteúdo da Wikipedia.
      *
-     * @param string $wikiText  Conteúdo completo extraído da página da Wikipedia
-     * @param string $location  Nome do local para personalizar o texto (ex: "Vila Madalena, São Paulo")
+     * @param  string  $wikiText  Conteúdo completo extraído da página da Wikipedia
+     * @param  string  $location  Nome do local para personalizar o texto (ex: "Vila Madalena, São Paulo")
      */
     public function generateNeighborhoodSummary(string $wikiText, string $location = ''): ?string
     {
         if (empty($this->apiKey)) {
             Log::error('Gemini API Error: API Key is missing.');
+
             return null;
         }
 
@@ -51,8 +53,8 @@ PROMPT;
         } else {
             // Modo "referência": Wikipedia tem conteúdo suficiente
             $supplementInstruction = $inputLength < 800
-                ? "ATENÇÃO: O texto de referência é relativamente breve. Além dos fatos fornecidos, **use seu próprio conhecimento sobre este local** para enriquecer o texto com detalhes regionais, culturais e históricos adicionais."
-                : "Use o texto de referência como base factual, mas reescreva completamente com suas próprias palavras.";
+                ? 'ATENÇÃO: O texto de referência é relativamente breve. Além dos fatos fornecidos, **use seu próprio conhecimento sobre este local** para enriquecer o texto com detalhes regionais, culturais e históricos adicionais.'
+                : 'Use o texto de referência como base factual, mas reescreva completamente com suas próprias palavras.';
 
             $prompt = <<<PROMPT
 Você é um redator especialista em conteúdo imobiliário e jornalismo local.
@@ -86,29 +88,32 @@ PROMPT;
                     'contents' => [
                         [
                             'parts' => [
-                                ['text' => $prompt]
-                            ]
-                        ]
+                                ['text' => $prompt],
+                            ],
+                        ],
                     ],
                     'generationConfig' => [
-                        'temperature'     => 0.75,
+                        'temperature' => 0.75,
                         'maxOutputTokens' => 1024,
-                    ]
+                    ],
                 ]);
 
             if ($response->successful()) {
-                $data   = $response->json();
+                $data = $response->json();
                 $result = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
                 if ($result) {
-                    Log::info("Gemini: resumo gerado com sucesso (" . strlen($result) . " chars).");
+                    Log::info('Gemini: resumo gerado com sucesso ('.strlen($result).' chars).');
+
                     return trim($result);
                 }
             }
 
-            Log::error('Gemini API Error Response: ' . $response->body());
+            Log::error('Gemini API Error Response: '.$response->body());
+
             return null;
         } catch (\Exception $e) {
-            Log::error('Gemini API Exception: ' . $e->getMessage());
+            Log::error('Gemini API Exception: '.$e->getMessage());
+
             return null;
         }
     }

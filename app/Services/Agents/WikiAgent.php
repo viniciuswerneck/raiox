@@ -16,8 +16,8 @@ class WikiAgent extends BaseAgent
 
     private const AMBIGUOUS_TERMS = [
         'centro', 'norte', 'sul', 'leste', 'oeste', 'central',
-        'jardim', 'vila', 'parque', 'alto', 'baixo', 'bela vista', 'boa vista', 
-        'santa', 'santo', 'são', 'nossa senhora', 'residencial', 'portal'
+        'jardim', 'vila', 'parque', 'alto', 'baixo', 'bela vista', 'boa vista',
+        'santa', 'santo', 'são', 'nossa senhora', 'residencial', 'portal',
     ];
 
     /**
@@ -27,17 +27,17 @@ class WikiAgent extends BaseAgent
     {
         $this->logInfo("Preparando requisições de Pool para {$bairro}/{$city}");
 
-        $headers = ['User-Agent' => 'RaioXNeighborhood/' . self::VERSION];
+        $headers = ['User-Agent' => 'RaioXNeighborhood/'.self::VERSION];
         $base = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
-        
+
         $stateFullName = $this->getStateFullName($state);
         $candidates = $this->generateCandidates($bairro, $city, $stateFullName);
-        
+
         $requests = [];
         foreach ($candidates as $index => [$term, $source, $shouldValidate]) {
             $key = "wiki_{$index}_{$source}";
             $requests[$key] = $pool->as($key)->withoutVerifying()->timeout(10)->withHeaders($headers)
-                ->get($base . str_replace('%2F', '/', urlencode($term)));
+                ->get($base.str_replace('%2F', '/', urlencode($term)));
         }
 
         return $requests;
@@ -50,7 +50,7 @@ class WikiAgent extends BaseAgent
     {
         $stateFullName = $this->getStateFullName($state);
         $candidates = $this->generateCandidates($bairro, $city, $stateFullName);
-        $headers = ['User-Agent' => 'RaioXNeighborhood/' . self::VERSION];
+        $headers = ['User-Agent' => 'RaioXNeighborhood/'.self::VERSION];
 
         $bestResult = null;
 
@@ -61,35 +61,35 @@ class WikiAgent extends BaseAgent
 
                 if ($response instanceof \Illuminate\Http\Client\Response && $response->successful()) {
                     $data = $response->json();
-                    
+
                     $vCity = $shouldValidate ? $city : '';
                     $vState = $shouldValidate ? ($source === 'cidade' ? '' : $stateFullName) : '';
-                    
-                    if (!$this->isValidPlace($data, $vCity, $vState)) {
+
+                    if (! $this->isValidPlace($data, $vCity, $vState)) {
                         continue;
                     }
-                    
+
                     // Imagem e FullText ainda são síncronos (precisam do título exato resolvido)
                     // mas rodam apenas se encontrarmos um candidato válido no pool
                     $officialImage = $this->fetchImageViaAPI($term, $headers);
                     $imageUrl = $officialImage ?: ($data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null);
                     $fullText = $this->fetchFullContent($term, $headers);
-                    
+
                     $currentResult = [
-                        'source'      => $source,
-                        'term'        => $term,
-                        'extract'     => $data['extract'],
-                        'full_text'   => $fullText ?: $data['extract'],
-                        'image'       => $imageUrl,
+                        'source' => $source,
+                        'term' => $term,
+                        'extract' => $data['extract'],
+                        'full_text' => $fullText ?: $data['extract'],
+                        'image' => $imageUrl,
                         'desktop_url' => $data['content_urls']['desktop']['page'] ?? null,
-                        'agent_version' => self::VERSION
+                        'agent_version' => self::VERSION,
                     ];
 
-                    if (!$bestResult) {
+                    if (! $bestResult) {
                         $bestResult = $currentResult;
                     }
 
-                    if ($bestResult && !$bestResult['image'] && $currentResult['image']) {
+                    if ($bestResult && ! $bestResult['image'] && $currentResult['image']) {
                         $bestResult['image'] = $currentResult['image'];
                     }
 
@@ -98,7 +98,7 @@ class WikiAgent extends BaseAgent
                     }
                 }
             } catch (\Exception $e) {
-                Log::warning("WikiAgent Pool: Erro ao processar [{$term}]: " . $e->getMessage());
+                Log::warning("WikiAgent Pool: Erro ao processar [{$term}]: ".$e->getMessage());
             }
         }
 
@@ -110,9 +110,9 @@ class WikiAgent extends BaseAgent
      */
     public function fetchInfo(string $bairro, string $city, string $state): array
     {
-        Log::info("WikiAgent v" . self::VERSION . ": Iniciando busca para {$bairro}/{$city}");
+        Log::info('WikiAgent v'.self::VERSION.": Iniciando busca para {$bairro}/{$city}");
 
-        $headers = ['User-Agent' => 'RaioXNeighborhood/' . self::VERSION];
+        $headers = ['User-Agent' => 'RaioXNeighborhood/'.self::VERSION];
         $base = 'https://pt.wikipedia.org/api/rest_v1/page/summary/';
 
         $stateFullName = $this->getStateFullName($state);
@@ -122,39 +122,39 @@ class WikiAgent extends BaseAgent
 
         foreach ($candidates as [$term, $source, $shouldValidate]) {
             try {
-                $url = $base . str_replace('%2F', '/', urlencode($term));
+                $url = $base.str_replace('%2F', '/', urlencode($term));
                 /** @var \Illuminate\Http\Client\Response $response */
                 $response = Http::withoutVerifying()->timeout(10)->withHeaders($headers)->get($url);
 
                 if ($response->successful()) {
                     $data = $response->json();
-                    
+
                     $vCity = $shouldValidate ? $city : '';
                     $vState = $shouldValidate ? ($source === 'cidade' ? '' : $stateFullName) : '';
-                    
-                    if (!$this->isValidPlace($data, $vCity, $vState)) {
+
+                    if (! $this->isValidPlace($data, $vCity, $vState)) {
                         continue;
                     }
-                    
+
                     $officialImage = $this->fetchImageViaAPI($term, $headers);
                     $imageUrl = $officialImage ?: ($data['originalimage']['source'] ?? $data['thumbnail']['source'] ?? null);
                     $fullText = $this->fetchFullContent($term, $headers);
-                    
+
                     $currentResult = [
-                        'source'      => $source,
-                        'term'        => $term,
-                        'extract'     => $data['extract'],
-                        'full_text'   => $fullText ?: $data['extract'],
-                        'image'       => $imageUrl,
+                        'source' => $source,
+                        'term' => $term,
+                        'extract' => $data['extract'],
+                        'full_text' => $fullText ?: $data['extract'],
+                        'image' => $imageUrl,
                         'desktop_url' => $data['content_urls']['desktop']['page'] ?? null,
-                        'agent_version' => self::VERSION
+                        'agent_version' => self::VERSION,
                     ];
 
-                    if (!$bestResult) {
+                    if (! $bestResult) {
                         $bestResult = $currentResult;
                     }
 
-                    if ($bestResult && !$bestResult['image'] && $currentResult['image']) {
+                    if ($bestResult && ! $bestResult['image'] && $currentResult['image']) {
                         $bestResult['image'] = $currentResult['image'];
                     }
 
@@ -163,7 +163,7 @@ class WikiAgent extends BaseAgent
                     }
                 }
             } catch (\Exception $e) {
-                Log::warning("WikiAgent: Erro ao buscar [{$term}]: " . $e->getMessage());
+                Log::warning("WikiAgent: Erro ao buscar [{$term}]: ".$e->getMessage());
             }
         }
 
@@ -176,8 +176,12 @@ class WikiAgent extends BaseAgent
         $description = strtolower($data['description'] ?? '');
         $extract = $data['extract'] ?? '';
 
-        if ($type === 'disambiguation') return false;
-        if (empty($extract)) return false;
+        if ($type === 'disambiguation') {
+            return false;
+        }
+        if (empty($extract)) {
+            return false;
+        }
 
         $placeKeywords = ['município', 'cidade', 'bairro', 'distrito', 'região', 'localidade', 'capital', 'entidade', 'unidade federativa', 'povoado'];
         $isPlace = false;
@@ -189,13 +193,13 @@ class WikiAgent extends BaseAgent
         }
 
         if ($expectedCity || $expectedState) {
-            $textToSearch = strtolower($description . ' ' . $extract);
-            if (!str_contains($textToSearch, strtolower($expectedCity)) && !str_contains($textToSearch, strtolower($expectedState))) {
+            $textToSearch = strtolower($description.' '.$extract);
+            if (! str_contains($textToSearch, strtolower($expectedCity)) && ! str_contains($textToSearch, strtolower($expectedState))) {
                 return false;
             }
         }
 
-        return $isPlace || !empty($description);
+        return $isPlace || ! empty($description);
     }
 
     private function generateCandidates(string $bairro, string $city, string $stateFullName): array
@@ -203,7 +207,7 @@ class WikiAgent extends BaseAgent
         $candidates = [];
         if ($bairro) {
             $candidates[] = [str_replace(' ', '_', "{$bairro} ({$city})"), 'bairro', true];
-            
+
             $bairroIsAmbiguous = false;
             foreach (self::AMBIGUOUS_TERMS as $term) {
                 if (str_contains(strtolower($bairro), $term)) {
@@ -211,7 +215,7 @@ class WikiAgent extends BaseAgent
                     break;
                 }
             }
-            if (!$bairroIsAmbiguous) {
+            if (! $bairroIsAmbiguous) {
                 $candidates[] = [str_replace(' ', '_', $bairro), 'bairro', true];
             }
         }
@@ -229,15 +233,18 @@ class WikiAgent extends BaseAgent
             $response = Http::withoutVerifying()->timeout(10)->withHeaders($headers)
                 ->get('https://pt.wikipedia.org/w/api.php', [
                     'action' => 'query', 'prop' => 'pageimages', 'format' => 'json',
-                    'piprop' => 'thumbnail', 'pithumbsize' => 960, 'titles' => str_replace('_', ' ', $term)
+                    'piprop' => 'thumbnail', 'pithumbsize' => 960, 'titles' => str_replace('_', ' ', $term),
                 ]);
 
             if ($response->successful()) {
                 $pages = $response->json()['query']['pages'] ?? [];
                 $page = reset($pages);
+
                 return $page['thumbnail']['source'] ?? null;
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
+
         return null;
     }
 
@@ -248,7 +255,7 @@ class WikiAgent extends BaseAgent
             $response = Http::withoutVerifying()->timeout(15)->withHeaders($headers)
                 ->get('https://pt.wikipedia.org/w/api.php', [
                     'action' => 'query', 'prop' => 'extracts', 'exlimit' => 1,
-                    'titles' => str_replace('_', ' ', $term), 'explaintext' => 1, 'format' => 'json'
+                    'titles' => str_replace('_', ' ', $term), 'explaintext' => 1, 'format' => 'json',
                 ]);
 
             if ($response->successful()) {
@@ -256,9 +263,12 @@ class WikiAgent extends BaseAgent
                 $page = reset($pages);
                 $raw = $page['extract'] ?? '';
                 $raw = preg_replace('/\[\d+\]/', '', $raw);
+
                 return trim(mb_substr(preg_replace('/\s+/', ' ', trim($raw)), 0, 15000)) ?: null;
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
+
         return null;
     }
 
@@ -271,8 +281,9 @@ class WikiAgent extends BaseAgent
             'PA' => 'Pará', 'PB' => 'Paraíba', 'PR' => 'Paraná', 'PE' => 'Pernambuco', 'PI' => 'Piauí',
             'RJ' => 'Rio de Janeiro', 'RN' => 'Rio Grande do Norte', 'RS' => 'Rio Grande do Sul',
             'RO' => 'Rondônia', 'RR' => 'Roraima', 'SC' => 'Santa Catarina', 'SP' => 'São Paulo',
-            'SE' => 'Sergipe', 'TO' => 'Tocantins'
+            'SE' => 'Sergipe', 'TO' => 'Tocantins',
         ];
+
         return $states[strtoupper($uf)] ?? $uf;
     }
 }

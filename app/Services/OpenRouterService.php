@@ -21,12 +21,12 @@ class OpenRouterService
             ->where(function ($query) {
                 $now = now()->toDateTimeString();
                 $query->whereNull('cooldown_until')
-                      ->orWhere('cooldown_until', '<=', $now);
+                    ->orWhere('cooldown_until', '<=', $now);
             })
             ->orderBy('last_used_at', 'asc')
             ->first();
 
-        if (!$key) {
+        if (! $key) {
             $nextToRelease = \App\Models\AiKey::where('is_active', true)
                 ->where('provider', 'openrouter')
                 ->whereNotNull('cooldown_until')
@@ -39,10 +39,11 @@ class OpenRouterService
 
                 if ($waitSecs < 10) {
                     $nextToRelease->update(['cooldown_until' => null]);
+
                     return $nextToRelease;
                 }
             } else {
-                Log::error("OpenRouter: Nenhuma chave ATIVA cadastrada no banco de dados.");
+                Log::error('OpenRouter: Nenhuma chave ATIVA cadastrada no banco de dados.');
             }
         }
 
@@ -52,11 +53,11 @@ class OpenRouterService
     private function logUsage($keyId, $model, $success, $error = null, $latency = null)
     {
         \App\Models\AiUsageLog::create([
-            'ai_key_id'     => $keyId,
-            'model'         => $model,
-            'success'       => $success,
+            'ai_key_id' => $keyId,
+            'model' => $model,
+            'success' => $success,
             'error_message' => $error,
-            'latency_ms'    => $latency
+            'latency_ms' => $latency,
         ]);
 
         \App\Models\AiUsageLog::where('created_at', '<', now()->subDay())->delete();
@@ -70,29 +71,30 @@ class OpenRouterService
             Log::info("OpenRouter: Usando chave [{$aiKeyRecord->id}] com modelo [{$model}]");
             $aiKeyRecord->update(['last_used_at' => now()]);
 
-            $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+            $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
                 ->timeout(30)
                 ->withHeaders([
                     'Authorization' => "Bearer {$aiKeyRecord->key}",
-                    'Content-Type'  => 'application/json',
-                    'HTTP-Referer'  => config('app.url'),
-                    'X-Title'       => config('app.name'),
+                    'Content-Type' => 'application/json',
+                    'HTTP-Referer' => config('app.url'),
+                    'X-Title' => config('app.name'),
                 ])
                 ->post('https://openrouter.ai/api/v1/chat/completions', [
-                    'model'       => $model,
-                    'messages'    => [
-                        ['role' => 'user', 'content' => $prompt]
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'user', 'content' => $prompt],
                     ],
                     'temperature' => 0.7,
-                    'max_tokens'  => 4096,
+                    'max_tokens' => 4096,
                 ]);
 
-            $latency = (int)((microtime(true) - $startTime) * 1000);
-            $status  = $response->status();
+            $latency = (int) ((microtime(true) - $startTime) * 1000);
+            $status = $response->status();
 
             if ($response->successful()) {
                 $result = $response->json()['choices'][0]['message']['content'] ?? null;
                 $this->logUsage($aiKeyRecord->id, $model, true, null, $latency);
+
                 return $result;
             }
 
@@ -101,11 +103,11 @@ class OpenRouterService
                 $aiKeyRecord->update(['cooldown_until' => now()->addMinutes(5)]);
             }
 
-            $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: " . substr($response->body(), 0, 100), $latency);
+            $this->logUsage($aiKeyRecord->id, $model, false, "Status: {$status} | Body: ".substr($response->body(), 0, 100), $latency);
 
         } catch (\Exception $e) {
-            $latency = (int)((microtime(true) - $startTime) * 1000);
-            Log::warning("OpenRouter API Exception: " . $e->getMessage());
+            $latency = (int) ((microtime(true) - $startTime) * 1000);
+            Log::warning('OpenRouter API Exception: '.$e->getMessage());
             $this->logUsage($aiKeyRecord->id, $model, false, $e->getMessage(), $latency);
         }
 
@@ -115,9 +117,15 @@ class OpenRouterService
     private function parseJsonFromText(string $text): ?array
     {
         $text = trim($text);
-        if (str_starts_with($text, '```json')) $text = substr($text, 7);
-        if (str_starts_with($text, '```'))     $text = substr($text, 3);
-        if (str_ends_with($text, '```'))        $text = substr($text, 0, -3);
+        if (str_starts_with($text, '```json')) {
+            $text = substr($text, 7);
+        }
+        if (str_starts_with($text, '```')) {
+            $text = substr($text, 3);
+        }
+        if (str_ends_with($text, '```')) {
+            $text = substr($text, 0, -3);
+        }
         $text = trim($text);
 
         if (preg_match('/\{.*\}/s', $text, $matches)) {
@@ -128,12 +136,14 @@ class OpenRouterService
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-            if (!str_ends_with(trim($text), '}')) {
-                $text       = rtrim(trim($text), " ,\"\n\r\t");
+            if (! str_ends_with(trim($text), '}')) {
+                $text = rtrim(trim($text), " ,\"\n\r\t");
                 $openBraces = substr_count($text, '{') - substr_count($text, '}');
-                for ($i = 0; $i < $openBraces; $i++) $text .= '}';
+                for ($i = 0; $i < $openBraces; $i++) {
+                    $text .= '}';
+                }
             }
-            $text = str_replace(["\r\n", "\r", "\n"], " ", $text);
+            $text = str_replace(["\r\n", "\r", "\n"], ' ', $text);
             $text = preg_replace('/[\x00-\x1F\x7F]+/', '', $text);
             $json = json_decode($text, true);
         }
@@ -145,6 +155,7 @@ class OpenRouterService
     {
         $historia = $json['historia'] ?? '';
         $paragraphs = array_filter(array_map('trim', explode("\n\n", $historia)));
+
         return count($paragraphs) >= $min;
     }
 
@@ -155,24 +166,26 @@ class OpenRouterService
         if (count($lines) >= $min) {
             $chunkSize = (int) ceil(count($lines) / $min);
             $chunks = array_chunk(array_values($lines), $chunkSize);
-            $json['historia'] = implode("\n\n", array_map(fn($c) => implode(' ', $c), $chunks));
+            $json['historia'] = implode("\n\n", array_map(fn ($c) => implode(' ', $c), $chunks));
+
             return $json;
         }
-        $len       = mb_strlen($historia);
-        $partSize  = (int) ceil($len / $min);
-        $parts     = [];
+        $len = mb_strlen($historia);
+        $partSize = (int) ceil($len / $min);
+        $parts = [];
         for ($i = 0; $i < $min; $i++) {
             $parts[] = trim(mb_substr($historia, $i * $partSize, $partSize));
         }
         $json['historia'] = implode("\n\n", array_filter($parts));
+
         return $json;
     }
 
     public function generateNeighborhoodSummary(string $wikiText, string $location = '', array $aactContext = []): ?array
     {
         $categoria = $aactContext['categoria'] ?? 'Não classificada';
-        $income    = $aactContext['renda'] ?? 0;
-        $safety    = $aactContext['safety_level'] ?? 'MODERADO';
+        $income = $aactContext['renda'] ?? 0;
+        $safety = $aactContext['safety_level'] ?? 'MODERADO';
 
         $wikiSub = substr($wikiText, 0, 8000);
 
@@ -213,19 +226,29 @@ PROMPT;
 
         foreach ($models as $model) {
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'openrouter')->count();
-            if ($maxKeyTries === 0) break;
+            if ($maxKeyTries === 0) {
+                break;
+            }
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
-                if ($i > 0) usleep(800000);
+                if ($i > 0) {
+                    usleep(800000);
+                }
 
                 $aiKeyRecord = $this->getNextKey();
-                if (!$aiKeyRecord) break;
+                if (! $aiKeyRecord) {
+                    break;
+                }
 
                 $raw = $this->callOpenRouter($prompt, $model, $aiKeyRecord);
-                if (!$raw) continue;
+                if (! $raw) {
+                    continue;
+                }
 
                 $json = $this->parseJsonFromText($raw);
-                if (!$json) continue;
+                if (! $json) {
+                    continue;
+                }
 
                 $lastResortJson = $json;
 
@@ -234,21 +257,24 @@ PROMPT;
                 }
 
                 Log::warning("OpenRouter [{$model}]: Narrativa curta. Tentando retry forçado.");
-                $promptForcado = $prompt . "\n\nATENÇÃO: O campo \"historia\" DEVE conter EXATAMENTE 3 parágrafos longos (\n\n).";
+                $promptForcado = $prompt."\n\nATENÇÃO: O campo \"historia\" DEVE conter EXATAMENTE 3 parágrafos longos (\n\n).";
                 $raw2 = $this->callOpenRouter($promptForcado, $model, $aiKeyRecord);
-                
+
                 if ($raw2) {
                     $json2 = $this->parseJsonFromText($raw2);
                     if ($json2 && $this->hasMinParagraphs($json2)) {
                         return $json2;
                     }
-                    if ($json2) $lastResortJson = $json2;
+                    if ($json2) {
+                        $lastResortJson = $json2;
+                    }
                 }
             }
         }
 
         if ($lastResortJson) {
-            Log::warning("OpenRouter: Nenhum modelo entregou 3 parágrafos. Usando enforcement manual.");
+            Log::warning('OpenRouter: Nenhum modelo entregou 3 parágrafos. Usando enforcement manual.');
+
             return $this->enforceParagraphs($lastResortJson);
         }
 
@@ -290,16 +316,24 @@ PROMPT;
 
         foreach ($models as $model) {
             $maxKeyTries = \App\Models\AiKey::where('is_active', true)->where('provider', 'openrouter')->count();
-            if ($maxKeyTries === 0) break;
+            if ($maxKeyTries === 0) {
+                break;
+            }
 
             for ($i = 0; $i < $maxKeyTries; $i++) {
-                if ($i > 0) usleep(500000);
+                if ($i > 0) {
+                    usleep(500000);
+                }
 
                 $aiKeyRecord = $this->getNextKey();
-                if (!$aiKeyRecord) break;
+                if (! $aiKeyRecord) {
+                    break;
+                }
 
                 $result = $this->callOpenRouter($prompt, $model, $aiKeyRecord);
-                if ($result) return $result;
+                if ($result) {
+                    return $result;
+                }
             }
         }
 

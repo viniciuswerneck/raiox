@@ -2,12 +2,11 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Models\AiKey;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use App\Models\LlmLog;
-use App\Models\AiKey;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * LlmRouterService v2.0.0
@@ -31,7 +30,7 @@ class LlmRouterService
         'reasoning' => [
             ['provider' => 'openrouter', 'model' => 'google/gemini-2.0-flash-thinking-exp-1219:free', 'url' => 'https://openrouter.ai/api/v1/chat/completions', 'timeout' => 60],
             ['provider' => 'openrouter', 'model' => 'deepseek/deepseek-r1:free', 'url' => 'https://openrouter.ai/api/v1/chat/completions', 'timeout' => 90],
-        ]
+        ],
     ];
 
     public function chat(array $messages, string $profile = 'fast', array $context = [])
@@ -41,9 +40,10 @@ class LlmRouterService
         $agentVersion = $context['agent_version'] ?? '2.0.0';
 
         // 1. Cache para economia de tokens
-        $cacheKey = "llm_router_res_" . md5(json_encode($messages) . $profile);
+        $cacheKey = 'llm_router_res_'.md5(json_encode($messages).$profile);
         if ($cached = Cache::get($cacheKey)) {
             Log::info("LlmRouter: Cache Hit para {$agentName}");
+
             return $cached;
         }
 
@@ -57,12 +57,13 @@ class LlmRouterService
 
             if ($keys->isEmpty()) {
                 Log::warning("LlmRouter: Nenhuma chave disponível para o provedor [{$provider}]");
+
                 continue;
             }
 
             foreach ($keys as $keyRecord) {
                 // Check if this specific key+model pair is in cooldown
-                $cooldownKey = "llm_cool_" . md5($keyRecord->id . $model);
+                $cooldownKey = 'llm_cool_'.md5($keyRecord->id.$model);
                 if (Cache::has($cooldownKey)) {
                     continue;
                 }
@@ -70,7 +71,7 @@ class LlmRouterService
                 try {
                     Log::info("LlmRouter: Tentando [{$model}] via [{$provider}] com chave ID #{$keyRecord->id}");
                     $startTime = microtime(true);
-                    
+
                     $response = $this->executeRequest($cfg, $messages, $keyRecord->key);
                     $responseTimeMs = (int) ((microtime(true) - $startTime) * 1000);
 
@@ -78,8 +79,9 @@ class LlmRouterService
                         // Sucesso! Atualiza telemetria e última utilização da chave
                         $keyRecord->update(['last_used_at' => now()]);
                         $this->logTelemetry($cfg, $response, $responseTimeMs, 'success', null, $agentName, $agentVersion, $keyRecord->id);
-                        
+
                         Cache::put($cacheKey, $response, now()->addHours(6));
+
                         return $response;
                     }
 
@@ -89,14 +91,14 @@ class LlmRouterService
 
                 } catch (\Exception $e) {
                     $errorMsg = $e->getMessage();
-                    Log::error("LlmRouter Error [{$model}] (Key #{$keyRecord->id}): " . $errorMsg);
-                    
+                    Log::error("LlmRouter Error [{$model}] (Key #{$keyRecord->id}): ".$errorMsg);
+
                     // Se for limite de quota (429), aplica cooldown maior na chave
                     $cooldownTime = str_contains($errorMsg, '429') ? 300 : 60;
                     $this->setCooldown($keyRecord->id, $model, $cooldownTime);
-                    
+
                     $this->logTelemetry($cfg, null, 0, 'error', $errorMsg, $agentName, $agentVersion, $keyRecord->id);
-                    
+
                     // Continua para a próxima chave ou próximo modelo
                     continue;
                 }
@@ -104,6 +106,7 @@ class LlmRouterService
         }
 
         Log::error("LlmRouter: Falha exaustiva. Todos os modelos e chaves falharam para o perfil [{$profile}].");
+
         return null;
     }
 
@@ -115,7 +118,7 @@ class LlmRouterService
             ->where('provider', $dbProvider)
             ->where(function ($query) {
                 $query->whereNull('cooldown_until')
-                      ->orWhere('cooldown_until', '<=', now());
+                    ->orWhere('cooldown_until', '<=', now());
             })
             ->orderBy('last_used_at', 'asc') // Menos usada primeiro
             ->get();
@@ -128,7 +131,7 @@ class LlmRouterService
         }
 
         // OpenAI Compatible (Groq, OpenRouter)
-        $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+        $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
             ->withToken($apiKey)
             ->timeout($cfg['timeout'] ?? 30)
             ->post($cfg['url'], [
@@ -141,62 +144,64 @@ class LlmRouterService
             return $response->json();
         }
 
-        throw new \Exception("HTTP Error [{$cfg['provider']}]: " . $response->status() . " | " . $response->body());
+        throw new \Exception("HTTP Error [{$cfg['provider']}]: ".$response->status().' | '.$response->body());
     }
 
     protected function executeGoogleRequest(array $cfg, array $messages, string $apiKey)
     {
         $model = $cfg['model'];
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
-        
+
         $contents = [];
         $systemInstruction = null;
 
         foreach ($messages as $msg) {
             if ($msg['role'] === 'system') {
                 $systemInstruction = ['parts' => [['text' => $msg['content']]]];
+
                 continue;
             }
             $contents[] = [
                 'role' => $msg['role'] === 'assistant' ? 'model' : 'user',
-                'parts' => [['text' => $msg['content']]]
+                'parts' => [['text' => $msg['content']]],
             ];
         }
 
         $payload = [
             'contents' => $contents,
             'generationConfig' => ['temperature' => 0.7, 'maxOutputTokens' => 2048],
-            'systemInstruction' => $systemInstruction
+            'systemInstruction' => $systemInstruction,
         ];
 
-        $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+        $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
             ->timeout($cfg['timeout'] ?? 30)
             ->post($url, $payload);
 
         if ($response->successful()) {
             $data = $response->json();
+
             return [
                 'choices' => [
                     [
                         'message' => [
-                            'content' => $data['candidates'][0]['content']['parts'][0]['text'] ?? ''
-                        ]
-                    ]
+                            'content' => $data['candidates'][0]['content']['parts'][0]['text'] ?? '',
+                        ],
+                    ],
                 ],
                 'usage' => [
                     'prompt_tokens' => $data['usageMetadata']['promptTokenCount'] ?? 0,
                     'completion_tokens' => $data['usageMetadata']['candidatesTokenCount'] ?? 0,
                     'total_tokens' => $data['usageMetadata']['totalTokenCount'] ?? 0,
-                ]
+                ],
             ];
         }
 
-        throw new \Exception("Google API Error: " . $response->status() . " | " . $response->body());
+        throw new \Exception('Google API Error: '.$response->status().' | '.$response->body());
     }
 
     protected function setCooldown(int $keyId, string $model, int $seconds)
     {
-        Cache::put("llm_cool_" . md5($keyId . $model), true, $seconds);
+        Cache::put('llm_cool_'.md5($keyId.$model), true, $seconds);
     }
 
     protected function logTelemetry($cfg, $res, $time, $status, $error, $agent, $version, $keyId)
@@ -219,7 +224,7 @@ class LlmRouterService
                 'updated_at' => now(),
             ]);
         } catch (\Exception $e) {
-            Log::error("Telemetry fail: " . $e->getMessage());
+            Log::error('Telemetry fail: '.$e->getMessage());
         }
     }
 }

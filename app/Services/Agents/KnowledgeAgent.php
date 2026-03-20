@@ -21,33 +21,36 @@ class KnowledgeAgent extends BaseAgent
     public function generateEmbedding(string $text): ?array
     {
         $apiKey = $this->getGeminiKey();
-        if (!$apiKey) return null;
+        if (! $apiKey) {
+            return null;
+        }
 
         try {
             // Limpeza básica para evitar quebra de JSON
-            $cleanText = mb_substr($text, 0, 3000); 
+            $cleanText = mb_substr($text, 0, 3000);
 
-            $response = Http::when(app()->isProduction(), fn($h) => $h, fn($h) => $h->withoutVerifying())
+            $response = Http::when(app()->isProduction(), fn ($h) => $h, fn ($h) => $h->withoutVerifying())
                 ->timeout(10)
                 ->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={$apiKey}", [
                     'model' => 'models/gemini-embedding-001',
                     'content' => [
-                        'parts' => [['text' => $cleanText]]
-                    ]
+                        'parts' => [['text' => $cleanText]],
+                    ],
                 ]);
 
             if ($response->successful()) {
                 $values = $response->json()['embedding']['values'] ?? null;
-                Log::info("KnowledgeAgent: Embedding gerado com sucesso (" . count($values ?? []) . " dimensões)");
+                Log::info('KnowledgeAgent: Embedding gerado com sucesso ('.count($values ?? []).' dimensões)');
+
                 return $values;
             }
 
-            Log::error("KnowledgeAgent: Falha ao gerar embedding", [
+            Log::error('KnowledgeAgent: Falha ao gerar embedding', [
                 'status' => $response->status(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ]);
         } catch (\Exception $e) {
-            Log::error("KnowledgeAgent Exception: " . $e->getMessage());
+            Log::error('KnowledgeAgent Exception: '.$e->getMessage());
         }
 
         return null;
@@ -60,8 +63,9 @@ class KnowledgeAgent extends BaseAgent
     {
         Log::info("KnowledgeAgent: Indexando conteúdo tipo [{$type}] para [{$refId}]");
         $embedding = $this->generateEmbedding($content);
-        if (!$embedding) {
-            Log::error("KnowledgeAgent: Falha ao indexar - Vetor nulo.");
+        if (! $embedding) {
+            Log::error('KnowledgeAgent: Falha ao indexar - Vetor nulo.');
+
             return false;
         }
 
@@ -73,10 +77,11 @@ class KnowledgeAgent extends BaseAgent
             'content' => $content,
             'embedding' => $embedding,
             'magnitude' => $magnitude,
-            'metadata' => $metadata
+            'metadata' => $metadata,
         ]);
 
-        Log::info("KnowledgeAgent: Conhecimento salvo no DB.");
+        Log::info('KnowledgeAgent: Conhecimento salvo no DB.');
+
         return true;
     }
 
@@ -86,15 +91,17 @@ class KnowledgeAgent extends BaseAgent
     public function search(string $query, int $limit = 5): array
     {
         $queryVector = $this->generateEmbedding($query);
-        if (!$queryVector) return [];
+        if (! $queryVector) {
+            return [];
+        }
 
         $queryMagnitude = KnowledgeVector::calculateMagnitude($queryVector);
-        
+
         // Em vez de carregar tudo, rodamos o cálculo do Produto Interno (Dot Product) no MySQL
         // Para isso, construímos uma query que extrai cada dimensão do JSON.
         // Como o Gemini tem 768 dimensões, fazemos uma amostragem agressiva das primeiras 50 dimensões
         // para dar velocidade sem perder a precisão semântica (a maioria das características está no início).
-        
+
         $sqlParts = [];
         $sampleSize = min(count($queryVector), 64); // Usamos 64 dimensões para o SQL rápido
 
@@ -103,7 +110,7 @@ class KnowledgeAgent extends BaseAgent
             $sqlParts[] = "JSON_EXTRACT(embedding, '$[$i]') * $val";
         }
 
-        $dotProductSql = implode(" + ", $sqlParts);
+        $dotProductSql = implode(' + ', $sqlParts);
 
         // Fórmula: Cosine Similarity = DotProduct(A,B) / (Mag(A) * Mag(B))
         $results = KnowledgeVector::select('content', 'metadata')
@@ -112,10 +119,10 @@ class KnowledgeAgent extends BaseAgent
             ->limit($limit)
             ->get();
 
-        return $results->map(fn($r) => [
+        return $results->map(fn ($r) => [
             'content' => $r->content,
             'score' => $r->score,
-            'metadata' => $r->metadata
+            'metadata' => $r->metadata,
         ])->toArray();
     }
 
@@ -125,7 +132,7 @@ class KnowledgeAgent extends BaseAgent
             ->where('provider', 'gemini')
             ->orderBy('last_used_at', 'asc')
             ->first();
-        
+
         return $key ? $key->key : env('GEMINI_API_KEY');
     }
 }

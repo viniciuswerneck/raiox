@@ -31,12 +31,12 @@ abstract class BaseAgent
      */
     protected function logInfo(string $message, array $context = []): void
     {
-        Log::info("[{$this->name} v" . static::VERSION . "] {$message}", $context);
+        Log::info("[{$this->name} v".static::VERSION."] {$message}", $context);
     }
 
     protected function logError(string $message, array $context = []): void
     {
-        Log::error("[{$this->name} v" . static::VERSION . "] ERROR: {$message}", $context);
+        Log::error("[{$this->name} v".static::VERSION."] ERROR: {$message}", $context);
     }
 
     /**
@@ -46,7 +46,7 @@ abstract class BaseAgent
     {
         return [
             'name' => $this->name,
-            'version' => static::VERSION
+            'version' => static::VERSION,
         ];
     }
 }

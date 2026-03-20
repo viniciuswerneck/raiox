@@ -3,7 +3,6 @@
 namespace App\Services\Agents;
 
 use App\Models\LocationReport;
-use Illuminate\Support\Facades\Log;
 
 class CompareAgent extends BaseAgent
 {
@@ -37,15 +36,15 @@ class CompareAgent extends BaseAgent
                 'a' => [
                     'class' => $reportA->territorial_classification ?? 'Não Definido',
                     'safety' => $reportA->safety_level ?? 'MODERADO',
-                    'noise' => $this->estimateNoiseLevel($metricsA)
+                    'noise' => $this->estimateNoiseLevel($metricsA),
                 ],
                 'b' => [
                     'class' => $reportB->territorial_classification ?? 'Não Definido',
                     'safety' => $reportB->safety_level ?? 'MODERADO',
-                    'noise' => $this->estimateNoiseLevel($metricsB)
-                ]
+                    'noise' => $this->estimateNoiseLevel($metricsB),
+                ],
             ],
-            'agent_version' => self::VERSION
+            'agent_version' => self::VERSION,
         ];
     }
 
@@ -77,14 +76,14 @@ class CompareAgent extends BaseAgent
             }
 
             // Lazer (Parques, Cultura, Turismo)
-            if (in_array($leisure_tag, ['park', 'playground', 'sports_centre', 'gym', 'garden', 'square']) || 
-                in_array($amenity, ['bar', 'pub', 'cinema', 'theatre', 'arts_centre', 'museum']) || 
+            if (in_array($leisure_tag, ['park', 'playground', 'sports_centre', 'gym', 'garden', 'square']) ||
+                in_array($amenity, ['bar', 'pub', 'cinema', 'theatre', 'arts_centre', 'museum']) ||
                 isset($tags['tourism']) || isset($tags['historic'])) {
                 $leisure++;
             }
 
             // Comércio Geral
-            if (!empty($shop) || in_array($amenity, ['restaurant', 'cafe', 'fast_food', 'bakery', 'marketplace'])) {
+            if (! empty($shop) || in_array($amenity, ['restaurant', 'cafe', 'fast_food', 'bakery', 'marketplace'])) {
                 $commerce++;
             }
         }
@@ -96,25 +95,31 @@ class CompareAgent extends BaseAgent
             'mobility' => $mobility,
             'leisure' => $leisure,
             'commerce' => $commerce,
-            'total_score' => (int)min($totalScore, 100) 
+            'total_score' => (int) min($totalScore, 100),
         ];
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
         $theta = $lon1 - $lon2;
-        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
         $dist = acos($dist);
         $dist = rad2deg($dist);
         $miles = $dist * 60 * 1.1515;
-        return ($miles * 1.609344);
+
+        return $miles * 1.609344;
     }
 
     private function estimateNoiseLevel(array $metrics): string
     {
         $noiseScore = ($metrics['commerce'] * 1) + ($metrics['mobility'] * 2);
-        if ($noiseScore > 40) return 'ALTO (Comercial Agitado)';
-        if ($noiseScore > 15) return 'MODERADO (Urbano Padrão)';
+        if ($noiseScore > 40) {
+            return 'ALTO (Comercial Agitado)';
+        }
+        if ($noiseScore > 15) {
+            return 'MODERADO (Urbano Padrão)';
+        }
+
         return 'BAIXO (Residencial Calmo)';
     }
 }

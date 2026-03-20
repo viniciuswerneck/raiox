@@ -11,11 +11,11 @@ class AiUsageLog extends Model
         'model',
         'success',
         'error_message',
-        'latency_ms'
+        'latency_ms',
     ];
 
     protected $casts = [
-        'success' => 'boolean'
+        'success' => 'boolean',
     ];
 
     public function key()

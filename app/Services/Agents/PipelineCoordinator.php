@@ -9,9 +9,13 @@ use Illuminate\Support\Facades\Log;
 class PipelineCoordinator
 {
     private $geoAgent;
+
     private $poiAgent;
+
     private $climaAgent;
+
     private $socioAgent;
+
     private $compareAgent;
 
     public function __construct(
@@ -34,9 +38,15 @@ class PipelineCoordinator
     public function orchestrateFastPath(string $cepClean): ?array
     {
         Log::info("PipelineCoordinator: Iniciando resolução básica de GeoAgent para {$cepClean}");
-        
-        $street = ''; $city = ''; $state = ''; $ibgeCode = null; $bairro = ''; $lat = null; $lng = null;
-        
+
+        $street = '';
+        $city = '';
+        $state = '';
+        $ibgeCode = null;
+        $bairro = '';
+        $lat = null;
+        $lng = null;
+
         // Fase 1: Identidade Básica
         $viaCep = $this->geoAgent->resolveCep($cepClean);
         if ($viaCep) {
@@ -49,37 +59,39 @@ class PipelineCoordinator
             $lng = $viaCep['lon'] ?? null;
         }
 
-        if (!$city || !$state) { 
-            Log::error("PipelineCoordinator: FastPath interrompido. Endereço base não localizado nas APIs de CEP.");
+        if (! $city || ! $state) {
+            Log::error('PipelineCoordinator: FastPath interrompido. Endereço base não localizado nas APIs de CEP.');
+
             return [
                 'city' => $city, 'state' => $state, 'street' => $street, 'ibge_code' => $ibgeCode, 'error' => true,
-                'error_message' => 'CEP inválido ou sem cobertura geográfica identificada.', 'status' => 'failed'
+                'error_message' => 'CEP inválido ou sem cobertura geográfica identificada.', 'status' => 'failed',
             ];
         }
 
         // Fase 2: Lat/Lng (Se não veio do resolveCep)
-        if (!$lat || !$lng) {
+        if (! $lat || ! $lng) {
             $geo = $this->geoAgent->geolocate($street, $city, $state, $cepClean);
             $lat = $geo['lat'] ?? null;
             $lng = $geo['lon'] ?? null;
             $bairro = $bairro ?: ($geo['suburb'] ?? '');
         }
 
-        if (!$lat || !$lng) {
-            Log::error("PipelineCoordinator: Falha ao geolocalizar (Nominatim).");
+        if (! $lat || ! $lng) {
+            Log::error('PipelineCoordinator: Falha ao geolocalizar (Nominatim).');
+
             return [
                 'city' => $city, 'state' => $state, 'street' => $street, 'ibge_code' => $ibgeCode, 'error' => true,
-                'error_message' => 'Nó territorial indisponível.', 'status' => 'failed'
+                'error_message' => 'Nó territorial indisponível.', 'status' => 'failed',
             ];
         }
 
-        if (!$ibgeCode) {
+        if (! $ibgeCode) {
             $ibgeCode = $this->socioAgent->fetchIbgeCodeByName($city, $state);
         }
 
         // Fase 3: MASTER POOL ASSÍNCRONO (Clima, Ar e SocioEconomico)
         Log::info("PipelineCoordinator: Lançando Master Pool Assíncrono [{$lat}, {$lng}] - IBGE: {$ibgeCode}");
-        
+
         $poolResponses = Http::pool(fn ($pool) => array_merge(
             $this->climaAgent->getPoolRequests($pool, $lat, $lng),
             $this->socioAgent->getPoolRequests($pool, $ibgeCode)
@@ -95,11 +107,11 @@ class PipelineCoordinator
         $currentRadius = $adaptiveData['radius'];
 
         $walkScore = $this->poiAgent->calculateWalkabilityScore($pois);
-        
+
         // Novo: Cálculo de Scores para o Banco
         $metrics = $this->compareAgent->getRegionMetrics($pois);
-        
-        Log::info("PipelineCoordinator: POIs capturados: " . count($pois) . " | WalkScore: {$walkScore}");
+
+        Log::info('PipelineCoordinator: POIs capturados: '.count($pois)." | WalkScore: {$walkScore}");
 
         // Agregando tudo
         return [
@@ -125,7 +137,7 @@ class PipelineCoordinator
             'sanitation_rate' => $socioData['sanitation_rate'],
             'raw_ibge_data' => $socioData['raw_ibge_data'],
             'status' => 'processing_text', // Define a trave de Polling pro Frontend
-            'error' => false
+            'error' => false,
         ];
     }
 
@@ -142,11 +154,11 @@ class PipelineCoordinator
                     'population' => $data['population'],
                     'average_income' => $data['average_income'],
                     'idhm' => $data['idhm'],
-                    'sanitation_rate' => $data['sanitation_rate'] ?? 0
+                    'sanitation_rate' => $data['sanitation_rate'] ?? 0,
                 ]
             );
         } catch (\Exception $e) {
-            Log::warning("Erro ao criar cidade: " . $e->getMessage());
+            Log::warning('Erro ao criar cidade: '.$e->getMessage());
         }
     }
 
@@ -165,39 +177,66 @@ class PipelineCoordinator
             $shop = $poi['tags']['shop'] ?? '';
             $amenity = $poi['tags']['amenity'] ?? '';
             $tourism = $poi['tags']['tourism'] ?? '';
-            if (in_array($shop, ['supermarket', 'convenience', 'doityourself'])) $poiCounts['popular']++;
-            if (in_array($amenity, ['bank', 'hospital', 'university']) || $shop == 'mall') $poiCounts['central']++;
-            if (!empty($tourism) || in_array($amenity, ['bar'])) $poiCounts['turistico']++;
-            if (in_array($amenity, ['arts_centre', 'theatre'])) $poiCounts['lazer_alto']++;
+            if (in_array($shop, ['supermarket', 'convenience', 'doityourself'])) {
+                $poiCounts['popular']++;
+            }
+            if (in_array($amenity, ['bank', 'hospital', 'university']) || $shop == 'mall') {
+                $poiCounts['central']++;
+            }
+            if (! empty($tourism) || in_array($amenity, ['bar'])) {
+                $poiCounts['turistico']++;
+            }
+            if (in_array($amenity, ['arts_centre', 'theatre'])) {
+                $poiCounts['lazer_alto']++;
+            }
         }
 
         $classification = 'Residencial Médio';
         $isCentro = (str_contains(strtolower($bairro), 'centro') || str_contains(strtolower($bairro), 'central'));
-        
-        if ($poiCounts['turistico'] >= 5) $classification = 'Turístico Premium';
-        elseif ($isCentro || $poiCounts['central'] >= 8) $classification = 'Comercial Central';
-        elseif ($income > 7500 || $poiCounts['lazer_alto'] > 4) $classification = 'Residencial Alto Padrão';
-        elseif ($income > 3800 || $poiCounts['lazer_alto'] >= 2) $classification = 'Residencial Nobre';
-        elseif (!$isCentro && $income < 2000 && $poiCounts['central'] < 2) $classification = 'Residencial Popular';
-        else if (count($pois) < 5) $classification = 'Zona de Expansão / Rural';
+
+        if ($poiCounts['turistico'] >= 5) {
+            $classification = 'Turístico Premium';
+        } elseif ($isCentro || $poiCounts['central'] >= 8) {
+            $classification = 'Comercial Central';
+        } elseif ($income > 7500 || $poiCounts['lazer_alto'] > 4) {
+            $classification = 'Residencial Alto Padrão';
+        } elseif ($income > 3800 || $poiCounts['lazer_alto'] >= 2) {
+            $classification = 'Residencial Nobre';
+        } elseif (! $isCentro && $income < 2000 && $poiCounts['central'] < 2) {
+            $classification = 'Residencial Popular';
+        } elseif (count($pois) < 5) {
+            $classification = 'Zona de Expansão / Rural';
+        }
 
         $calibratedSanitation = $data['sanitation_rate'] ?? 85.0;
-        if ($walkScore === 'A') $calibratedSanitation = max($calibratedSanitation, 95.5);
-        elseif ($walkScore === 'B') $calibratedSanitation = max($calibratedSanitation, 85.0);
-        if ($isCentro) $calibratedSanitation = max($calibratedSanitation, 98.0);
+        if ($walkScore === 'A') {
+            $calibratedSanitation = max($calibratedSanitation, 95.5);
+        } elseif ($walkScore === 'B') {
+            $calibratedSanitation = max($calibratedSanitation, 85.0);
+        }
+        if ($isCentro) {
+            $calibratedSanitation = max($calibratedSanitation, 98.0);
+        }
 
         $safetyLevel = 'MODERADO';
-        if ($classification === 'Turístico Premium') $safetyLevel = 'ALTO (POLICIAMENTO)';
-        elseif ($classification === 'Comercial Central') $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
-        elseif ($classification === 'Residencial Alto Padrão') $safetyLevel = 'ZONA PROTEGIDA';
-        elseif ($classification === 'Residencial Nobre') $safetyLevel = 'ALTA SEGURANÇA';
-        elseif ($classification === 'Residencial Popular') $safetyLevel = 'MODERADO / LOCAL';
-        elseif ($classification === 'Residencial Médio') $safetyLevel = 'ZONA MONITORADA';
+        if ($classification === 'Turístico Premium') {
+            $safetyLevel = 'ALTO (POLICIAMENTO)';
+        } elseif ($classification === 'Comercial Central') {
+            $safetyLevel = 'ALTO FLUXO / ATENÇÃO';
+        } elseif ($classification === 'Residencial Alto Padrão') {
+            $safetyLevel = 'ZONA PROTEGIDA';
+        } elseif ($classification === 'Residencial Nobre') {
+            $safetyLevel = 'ALTA SEGURANÇA';
+        } elseif ($classification === 'Residencial Popular') {
+            $safetyLevel = 'MODERADO / LOCAL';
+        } elseif ($classification === 'Residencial Médio') {
+            $safetyLevel = 'ZONA MONITORADA';
+        }
 
         return [
             'classification' => $classification,
             'sanitation_rate' => $calibratedSanitation,
-            'safety_level' => $safetyLevel
+            'safety_level' => $safetyLevel,
         ];
     }
 }
